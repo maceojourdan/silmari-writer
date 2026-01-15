@@ -83,6 +83,22 @@ cd /path/to/silmari-writer
 # Login to Vercel (first time only)
 vercel login
 
+# Link your project (first time only)
+vercel link
+
+# IMPORTANT: After linking, update .vercel/project.json
+# Edit .vercel/project.json and set these values:
+# - "rootDirectory": "frontend"
+# - "buildCommand": "npm run build"
+# - "devCommand": "npm run dev"
+# - "installCommand": "npm install"
+
+# Or use this one-liner to update automatically:
+cat .vercel/project.json | jq '.settings.rootDirectory = "frontend" | .settings.buildCommand = "npm run build" | .settings.devCommand = "npm run dev" | .settings.installCommand = "npm install"' > .vercel/project.json.tmp && mv .vercel/project.json.tmp .vercel/project.json
+
+# Test the build locally
+vercel build
+
 # Deploy to preview
 vercel
 
@@ -92,7 +108,7 @@ vercel --prod
 
 The CLI will:
 1. Detect the `vercel.json` configuration
-2. Use `frontend` as the root directory
+2. Use `frontend` as the root directory (after you update project.json)
 3. Run the build process
 4. Deploy the application
 
@@ -145,7 +161,30 @@ The build process runs these steps:
 
 **Problem**: Vercel can't find Next.js in package.json
 
-**Solution**: Ensure the root `vercel.json` has `"rootDirectory": "frontend"` set correctly
+**Solution**: This happens when the root directory is not configured correctly.
+
+**For Dashboard/GitHub Deployment:**
+- Ensure the root `vercel.json` has `"rootDirectory": "frontend"` set correctly
+- Vercel will auto-detect this setting
+
+**For CLI Deployment:**
+- After running `vercel link`, edit `.vercel/project.json`
+- Set `"rootDirectory": "frontend"` in the settings object
+- Example:
+  ```json
+  {
+    "settings": {
+      "rootDirectory": "frontend",
+      "buildCommand": "npm run build",
+      "devCommand": "npm run dev",
+      "installCommand": "npm install"
+    }
+  }
+  ```
+- Quick fix using jq:
+  ```bash
+  cat .vercel/project.json | jq '.settings.rootDirectory = "frontend" | .settings.buildCommand = "npm run build"' > .vercel/project.json.tmp && mv .vercel/project.json.tmp .vercel/project.json
+  ```
 
 ### "Cannot find module baml_src"
 
