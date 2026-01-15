@@ -16,7 +16,7 @@ type RecorderState = 'idle' | 'recording' | 'stopped' | 'error'
 export default function AudioRecorder({ onRecordingComplete }: AudioRecorderProps) {
   const [state, setState] = useState<RecorderState>('idle')
   const [recordingTime, setRecordingTime] = useState(0)
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
+  const [, setAudioBlob] = useState<Blob | null>(null)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -25,6 +25,7 @@ export default function AudioRecorder({ onRecordingComplete }: AudioRecorderProp
   const streamRef = useRef<MediaStream | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const stopRecordingRef = useRef<(() => void) | null>(null)
 
   // Cleanup on unmount
   useEffect(() => {
@@ -60,6 +61,28 @@ export default function AudioRecorder({ onRecordingComplete }: AudioRecorderProp
     }
     return 'audio/webm' // Default fallback
   }
+
+  // Stop recording - defined first so it can be called from startRecording
+  const stopRecording = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop()
+    }
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current = null
+    }
+  }, [])
+
+  // Keep ref updated for use inside interval callback
+  useEffect(() => {
+    stopRecordingRef.current = stopRecording
+  }, [stopRecording])
 
   // Start recording
   const startRecording = useCallback(async () => {
@@ -115,35 +138,18 @@ export default function AudioRecorder({ onRecordingComplete }: AudioRecorderProp
         setRecordingTime(prev => {
           const next = prev + 1
           if (next >= MAX_RECORDING_TIME_SECONDS) {
-            // Auto-stop at 5 minutes
-            stopRecording()
+            // Auto-stop at 5 minutes - use ref to avoid stale closure
+            stopRecordingRef.current?.()
             return prev
           }
           return next
         })
       }, 1000)
-    } catch (err) {
+    } catch {
       setError('Microphone access denied. Please allow microphone access to record.')
       setState('error')
     }
   }, [audioUrl, onRecordingComplete])
-
-  // Stop recording
-  const stopRecording = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current)
-      timerRef.current = null
-    }
-
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      mediaRecorderRef.current.stop()
-    }
-
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop())
-      streamRef.current = null
-    }
-  }, [])
 
   // Re-record (clear and start again)
   const reRecord = useCallback(() => {

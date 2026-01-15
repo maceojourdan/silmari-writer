@@ -58,7 +58,8 @@ export const useConversationStore = create<ConversationState>()(
 
       deleteProject: (id) => {
         set((state) => {
-          const { [id]: _, ...remainingMessages } = state.messages
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { [id]: _deleted, ...remainingMessages } = state.messages
           const remainingProjects = state.projects.filter((p) => p.id !== id)
           return {
             projects: remainingProjects,

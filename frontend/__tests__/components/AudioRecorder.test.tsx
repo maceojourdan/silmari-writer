@@ -2,9 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import AudioRecorder from '@/components/chat/AudioRecorder'
 
-// Store instances to manipulate in tests
-let mockMediaRecorderInstance: MockMediaRecorder | null = null
-
 // Mock MediaRecorder
 class MockMediaRecorder {
   static isTypeSupported = vi.fn().mockReturnValue(true)
@@ -13,9 +10,12 @@ class MockMediaRecorder {
   ondataavailable: ((e: { data: Blob }) => void) | null = null
   onstop: (() => void) | null = null
   onerror: ((e: Event) => void) | null = null
+  stream: MediaStream
+  options?: MediaRecorderOptions
 
-  constructor(public stream: MediaStream, public options?: MediaRecorderOptions) {
-    mockMediaRecorderInstance = this
+  constructor(stream: MediaStream, options?: MediaRecorderOptions) {
+    this.stream = stream
+    this.options = options
   }
 
   start() {
@@ -52,7 +52,6 @@ const mockRevokeObjectURL = vi.fn()
 beforeEach(() => {
   // Reset mocks
   vi.clearAllMocks()
-  mockMediaRecorderInstance = null
 
   // Setup MediaRecorder mock
   vi.stubGlobal('MediaRecorder', MockMediaRecorder)

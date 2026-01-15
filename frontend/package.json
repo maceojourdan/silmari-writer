@@ -11,7 +11,10 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "type-check": "tsc --noEmit",
+    "preview": "next build && next start",
+    "deploy": "vercel --prod"
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.19",

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const { message, history } = await request.json();
+    const { message } = await request.json();
 
     // TODO: Integrate with BAML + Claude from planning_pipeline
     // For now, return mock response
@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       content: mockResponse,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: 'Failed to generate response' },
       { status: 500 }
