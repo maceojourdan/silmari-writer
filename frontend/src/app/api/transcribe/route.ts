@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import OpenAI from 'openai'
+import { toFile } from 'openai/uploads'
 
 const MAX_FILE_SIZE_MB = 25
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 const MAX_RETRIES = 3
-const RETRY_DELAY_MS = 1000
+const BASE_RETRY_DELAY_MS = 2000 // Base delay for network errors
+const RATE_LIMIT_BASE_DELAY_MS = 10000 // Base delay for rate limit errors (10s)
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,20 +38,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Initialize OpenAI client
+    const openai = new OpenAI({ apiKey })
+
     // Get optional language parameter
     const language = formData.get('language') as string | null
 
-    // Build OpenAI request FormData
-    const openaiFormData = new FormData()
-    const extension = file.type.includes('mp4') ? 'mp4' : 'webm'
-    openaiFormData.append('file', file, `recording.${extension}`)
-    openaiFormData.append('model', 'whisper-1')
-    if (language) {
-      openaiFormData.append('language', language)
-    }
-
     // Call OpenAI with retry logic
-    const text = await transcribeWithRetry(openaiFormData, apiKey, 0)
+    const text = await transcribeWithRetry(openai, file, language, 0)
 
     return NextResponse.json({ text })
   } catch (error) {
@@ -92,76 +89,98 @@ class TranscriptionError extends Error {
 }
 
 async function transcribeWithRetry(
-  formData: FormData,
-  apiKey: string,
+  openai: OpenAI,
+  file: File,
+  language: string | null,
   retries: number
 ): Promise<string> {
   try {
-    return await makeOpenAIRequest(formData, apiKey)
+    return await makeOpenAIRequest(openai, file, language)
   } catch (error) {
     if (error instanceof TranscriptionError && error.retryable && retries < MAX_RETRIES) {
-      const delay = RETRY_DELAY_MS * Math.pow(2, retries)
-      console.warn(`Retry ${retries + 1}/${MAX_RETRIES} after ${delay}ms`)
+      // Use longer delays for rate limit errors
+      const baseDelay = error.code === 'RATE_LIMIT'
+        ? RATE_LIMIT_BASE_DELAY_MS
+        : BASE_RETRY_DELAY_MS
+
+      // Exponential backoff: baseDelay * 2^retries
+      const delay = baseDelay * Math.pow(2, retries)
+      console.warn(`Retry ${retries + 1}/${MAX_RETRIES} after ${delay}ms (${error.code})`)
       await new Promise(resolve => setTimeout(resolve, delay))
-      return transcribeWithRetry(formData, apiKey, retries + 1)
+      return transcribeWithRetry(openai, file, language, retries + 1)
     }
     throw error
   }
 }
 
-async function makeOpenAIRequest(formData: FormData, apiKey: string): Promise<string> {
-  let response: Response
+async function makeOpenAIRequest(
+  openai: OpenAI,
+  file: File,
+  language: string | null
+): Promise<string> {
   try {
-    response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: formData,
+    // Convert the web File object to a format the OpenAI SDK can use
+    const fileBuffer = await file.arrayBuffer()
+    const extension = file.type.includes('mp4') ? 'mp4' : 'webm'
+    const fileName = `recording.${extension}`
+
+    // Use toFile to create a proper file object for the SDK
+    const fileForUpload = await toFile(
+      new Uint8Array(fileBuffer),
+      fileName,
+      { type: file.type }
+    )
+
+    // Call OpenAI transcription API using the SDK
+    const transcription = await openai.audio.transcriptions.create({
+      file: fileForUpload,
+      model: 'whisper-1',
+      ...(language ? { language } : {}),
     })
-  } catch (error) {
+
+    return transcription.text
+  } catch (error: unknown) {
+    // Handle OpenAI SDK errors
+    if (error && typeof error === 'object' && 'status' in error) {
+      const status = (error as { status?: number }).status
+      const message = (error as { message?: string }).message || 'Unknown error'
+
+      switch (status) {
+        case 401:
+          throw new TranscriptionError(
+            `Invalid API key: ${message}`,
+            'INVALID_API_KEY',
+            false
+          )
+        case 429:
+          throw new TranscriptionError(
+            `Rate limit exceeded: ${message}`,
+            'RATE_LIMIT',
+            true
+          )
+        case 500:
+        case 502:
+        case 503:
+        case 504:
+          throw new TranscriptionError(
+            `Server error: ${message}`,
+            'API_ERROR',
+            true
+          )
+        default:
+          throw new TranscriptionError(
+            `API error: ${message}`,
+            'API_ERROR',
+            false
+          )
+      }
+    }
+
+    // Network or other errors
     throw new TranscriptionError(
       `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`,
       'NETWORK',
       true
     )
   }
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ error: { message: 'Unknown error' } }))
-    const errorMessage = errorData.error?.message || 'Unknown API error'
-
-    switch (response.status) {
-      case 401:
-        throw new TranscriptionError(
-          `Invalid API key: ${errorMessage}`,
-          'INVALID_API_KEY',
-          false
-        )
-      case 429:
-        throw new TranscriptionError(
-          `Rate limit exceeded: ${errorMessage}`,
-          'RATE_LIMIT',
-          true
-        )
-      case 500:
-      case 502:
-      case 503:
-      case 504:
-        throw new TranscriptionError(
-          `Server error: ${errorMessage}`,
-          'API_ERROR',
-          true
-        )
-      default:
-        throw new TranscriptionError(
-          `API error (${response.status}): ${errorMessage}`,
-          'API_ERROR',
-          false
-        )
-    }
-  }
-
-  const data = await response.json()
-  return data.text
 }
