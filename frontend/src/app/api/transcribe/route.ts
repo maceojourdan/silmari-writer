@@ -8,6 +8,22 @@ const MAX_RETRIES = 3
 const BASE_RETRY_DELAY_MS = 2000 // Base delay for network errors
 const RATE_LIMIT_BASE_DELAY_MS = 10000 // Base delay for rate limit errors (10s)
 
+// Supported audio file types per OpenAI documentation
+const SUPPORTED_AUDIO_TYPES = {
+  'audio/mpeg': 'mp3',
+  'audio/mp3': 'mp3',
+  'audio/mp4': 'm4a',
+  'audio/x-m4a': 'm4a',
+  'audio/mpga': 'mpga',
+  'audio/wav': 'wav',
+  'audio/wave': 'wav',
+  'audio/x-wav': 'wav',
+  'audio/webm': 'webm',
+  'video/mp4': 'mp4',
+  'video/mpeg': 'mpeg',
+  'video/webm': 'webm',
+} as const
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
@@ -16,6 +32,21 @@ export async function POST(request: NextRequest) {
     if (!file) {
       return NextResponse.json(
         { error: 'No file provided', code: 'NO_FILE' },
+        { status: 400 }
+      )
+    }
+
+    // Validate file type
+    if (!SUPPORTED_AUDIO_TYPES[file.type as keyof typeof SUPPORTED_AUDIO_TYPES]) {
+      const supportedTypes = Object.values(SUPPORTED_AUDIO_TYPES)
+        .filter((v, i, a) => a.indexOf(v) === i) // unique values
+        .join(', ')
+      return NextResponse.json(
+        {
+          error: `Unsupported file type: ${file.type}. Supported types: ${supportedTypes}`,
+          code: 'UNSUPPORTED_FILE_TYPE',
+          retryable: false
+        },
         { status: 400 }
       )
     }
@@ -121,7 +152,9 @@ async function makeOpenAIRequest(
   try {
     // Convert the web File object to a format the OpenAI SDK can use
     const fileBuffer = await file.arrayBuffer()
-    const extension = file.type.includes('mp4') ? 'mp4' : 'webm'
+
+    // Get the appropriate file extension based on MIME type
+    const extension = SUPPORTED_AUDIO_TYPES[file.type as keyof typeof SUPPORTED_AUDIO_TYPES] || 'webm'
     const fileName = `recording.${extension}`
 
     // Use toFile to create a proper file object for the SDK
