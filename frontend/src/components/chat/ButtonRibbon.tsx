@@ -90,8 +90,9 @@ export default function ButtonRibbon({ messageId, content }: ButtonRibbonProps) 
 
     try {
       // Get current messages from store
-      const messages = useConversationStore.getState().messages;
-      const projectId = useConversationStore.getState().activeProjectId;
+      const state = useConversationStore.getState();
+      const projectId = state.activeProjectId;
+      const messages = state.getActiveMessages();
 
       if (!projectId) {
         throw new Error('No active project');
