@@ -359,6 +359,171 @@ describe('useConversationStore', () => {
       expect(messages2).toHaveLength(1)
       expect(messages2[0].content).toBe('Message for Project 2')
     })
+
+    describe('replaceMessage', () => {
+      it('replaces a message with a new one at the same position', () => {
+        const { result } = renderHook(() => useConversationStore())
+
+        act(() => {
+          result.current.createProject('Project 1')
+          result.current.addMessage('test-uuid-1', {
+            role: 'user',
+            content: 'User message',
+            timestamp: new Date(),
+          })
+          result.current.addMessage('test-uuid-1', {
+            role: 'assistant',
+            content: 'Original response',
+            timestamp: new Date(),
+          })
+        })
+
+        const originalMessages = result.current.getMessages('test-uuid-1')
+        expect(originalMessages).toHaveLength(2)
+        expect(originalMessages[1].content).toBe('Original response')
+        const oldMessageId = originalMessages[1].id
+
+        const newMessage = {
+          id: 'new-msg-id',
+          role: 'assistant' as const,
+          content: 'Regenerated response',
+          timestamp: new Date(),
+        }
+
+        act(() => {
+          result.current.replaceMessage('test-uuid-1', oldMessageId, newMessage)
+        })
+
+        const updatedMessages = result.current.getMessages('test-uuid-1')
+        expect(updatedMessages).toHaveLength(2)
+        expect(updatedMessages[1].id).toBe('new-msg-id')
+        expect(updatedMessages[1].content).toBe('Regenerated response')
+      })
+
+      it('preserves message order when replacing', () => {
+        const { result } = renderHook(() => useConversationStore())
+
+        act(() => {
+          result.current.createProject('Project 1')
+          result.current.addMessage('test-uuid-1', {
+            role: 'user',
+            content: 'First',
+            timestamp: new Date(),
+          })
+          result.current.addMessage('test-uuid-1', {
+            role: 'assistant',
+            content: 'Second',
+            timestamp: new Date(),
+          })
+          result.current.addMessage('test-uuid-1', {
+            role: 'user',
+            content: 'Third',
+            timestamp: new Date(),
+          })
+        })
+
+        const messages = result.current.getMessages('test-uuid-1')
+        const middleMessageId = messages[1].id
+
+        const newMessage = {
+          id: 'replaced-msg',
+          role: 'assistant' as const,
+          content: 'Replaced Second',
+          timestamp: new Date(),
+        }
+
+        act(() => {
+          result.current.replaceMessage('test-uuid-1', middleMessageId, newMessage)
+        })
+
+        const updatedMessages = result.current.getMessages('test-uuid-1')
+        expect(updatedMessages).toHaveLength(3)
+        expect(updatedMessages[0].content).toBe('First')
+        expect(updatedMessages[1].content).toBe('Replaced Second')
+        expect(updatedMessages[2].content).toBe('Third')
+      })
+
+      it('does nothing when message ID not found', () => {
+        const { result } = renderHook(() => useConversationStore())
+
+        act(() => {
+          result.current.createProject('Project 1')
+          result.current.addMessage('test-uuid-1', {
+            role: 'user',
+            content: 'Hello',
+            timestamp: new Date(),
+          })
+        })
+
+        const newMessage = {
+          id: 'new-msg',
+          role: 'assistant' as const,
+          content: 'New content',
+          timestamp: new Date(),
+        }
+
+        act(() => {
+          result.current.replaceMessage('test-uuid-1', 'non-existent-id', newMessage)
+        })
+
+        const messages = result.current.getMessages('test-uuid-1')
+        expect(messages).toHaveLength(1)
+        expect(messages[0].content).toBe('Hello')
+      })
+
+      it('does nothing for non-existent project', () => {
+        const { result } = renderHook(() => useConversationStore())
+
+        const newMessage = {
+          id: 'new-msg',
+          role: 'assistant' as const,
+          content: 'New content',
+          timestamp: new Date(),
+        }
+
+        act(() => {
+          result.current.replaceMessage('non-existent-project', 'some-msg-id', newMessage)
+        })
+
+        expect(result.current.getMessages('non-existent-project')).toHaveLength(0)
+      })
+
+      it('does not affect other projects', () => {
+        const { result } = renderHook(() => useConversationStore())
+
+        act(() => {
+          result.current.createProject('Project 1')
+          result.current.createProject('Project 2')
+          result.current.addMessage('test-uuid-1', {
+            role: 'assistant',
+            content: 'Project 1 message',
+            timestamp: new Date(),
+          })
+          result.current.addMessage('test-uuid-2', {
+            role: 'assistant',
+            content: 'Project 2 message',
+            timestamp: new Date(),
+          })
+        })
+
+        const project1Messages = result.current.getMessages('test-uuid-1')
+        const messageIdToReplace = project1Messages[0].id
+
+        const newMessage = {
+          id: 'replaced-msg',
+          role: 'assistant' as const,
+          content: 'Replaced content',
+          timestamp: new Date(),
+        }
+
+        act(() => {
+          result.current.replaceMessage('test-uuid-1', messageIdToReplace, newMessage)
+        })
+
+        expect(result.current.getMessages('test-uuid-1')[0].content).toBe('Replaced content')
+        expect(result.current.getMessages('test-uuid-2')[0].content).toBe('Project 2 message')
+      })
+    })
   })
 
   describe('Selectors', () => {

@@ -41,6 +41,7 @@ export default function ButtonRibbon({ messageId, content }: ButtonRibbonProps) 
     startBlockingOperation,
     completeBlockingOperation,
     failBlockingOperation,
+    replaceMessage,
   } = useConversationStore();
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -103,7 +104,8 @@ export default function ButtonRibbon({ messageId, content }: ButtonRibbonProps) 
         signal: controller.signal
       });
 
-      // Remove old message and add new one (handled by parent component or API)
+      // Replace the old message with the regenerated one
+      replaceMessage(projectId, messageId, newMessage);
       completeBlockingOperation(messageId);
       await regenerateAnalytics.trackSuccess(startTime);
     } catch (error) {

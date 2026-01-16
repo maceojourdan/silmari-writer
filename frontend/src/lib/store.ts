@@ -20,6 +20,7 @@ interface ConversationState {
 
   // Message actions
   addMessage: (projectId: string, message: Omit<Message, 'id'>) => void
+  replaceMessage: (projectId: string, oldMessageId: string, newMessage: Message) => void
   getMessages: (projectId: string) => Message[]
   clearMessages: (projectId: string) => void
 
@@ -105,6 +106,24 @@ export const useConversationStore = create<ConversationState>()(
             [projectId]: [...(state.messages[projectId] || []), fullMessage],
           },
         }))
+      },
+
+      replaceMessage: (projectId, oldMessageId, newMessage) => {
+        set((state) => {
+          const projectMessages = state.messages[projectId] || []
+          const index = projectMessages.findIndex(m => m.id === oldMessageId)
+          if (index === -1) return state
+
+          const updatedMessages = [...projectMessages]
+          updatedMessages[index] = newMessage
+
+          return {
+            messages: {
+              ...state.messages,
+              [projectId]: updatedMessages,
+            },
+          }
+        })
       },
 
       getMessages: (projectId) => {
