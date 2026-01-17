@@ -89,3 +89,191 @@ export interface MessageButtonState {
   copy?: CopyState;
   blockingOperation?: BlockingOperationState;
 }
+
+/**
+ * Deep Research API types (REQ_000)
+ */
+
+export type DeepResearchModel = 'o3-deep-research-2025-06-26' | 'o4-mini-deep-research-2025-06-26';
+
+export type DeepResearchDepth = 'quick' | 'thorough';
+
+export type ReasoningSummary = 'auto' | 'detailed';
+
+export type DeepResearchErrorCode =
+  | 'RATE_LIMIT'
+  | 'NETWORK'
+  | 'INVALID_API_KEY'
+  | 'API_ERROR'
+  | 'VALIDATION_ERROR'
+  | 'TIMEOUT'
+  | 'JOB_NOT_FOUND'
+  | 'JOB_FORBIDDEN';
+
+export type DeepResearchJobStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
+/**
+ * Developer or user role message input for Deep Research API
+ * REQ_000.2: Support developer and user role message inputs
+ */
+export interface DeepResearchMessage {
+  role: 'developer' | 'user';
+  content: Array<{ type: 'input_text'; text: string }>;
+}
+
+/**
+ * Reasoning configuration for Deep Research API
+ * REQ_000.3: Configure reasoning summary options
+ */
+export interface DeepResearchReasoning {
+  summary: ReasoningSummary;
+}
+
+/**
+ * Request body for Deep Research API
+ * REQ_000.1-000.4: Full request structure
+ */
+export interface DeepResearchRequest {
+  model: DeepResearchModel;
+  input: DeepResearchMessage[];
+  reasoning?: DeepResearchReasoning;
+  background?: boolean;
+}
+
+/**
+ * Citation in Deep Research response
+ */
+export interface DeepResearchCitation {
+  type: 'url_citation';
+  url: string;
+  title?: string;
+  start_index: number;
+  end_index: number;
+}
+
+/**
+ * Reasoning step from Deep Research
+ */
+export interface DeepResearchReasoningStep {
+  id: string;
+  type: 'reasoning';
+  summary: Array<{ type: 'summary_text'; text: string }>;
+}
+
+/**
+ * Content block in Deep Research response
+ */
+export interface DeepResearchContentBlock {
+  type: 'output_text';
+  text: string;
+  annotations?: DeepResearchCitation[];
+}
+
+/**
+ * Output item from Deep Research response
+ */
+export interface DeepResearchOutputItem {
+  id: string;
+  type: 'message';
+  role: 'assistant';
+  content: DeepResearchContentBlock[];
+}
+
+/**
+ * Progress information for background jobs
+ * REQ_000.5: Progress tracking
+ */
+export interface DeepResearchProgress {
+  step: string;
+  percentage?: number;
+}
+
+/**
+ * Job metadata from background mode response
+ * REQ_000.4: Background mode response
+ */
+export interface DeepResearchJobMetadata {
+  id: string;
+  status: DeepResearchJobStatus;
+  statusUrl: string;
+  createdAt: string;
+  model: DeepResearchModel;
+  estimatedCompletion?: {
+    min: number; // minutes
+    max: number; // minutes
+  };
+}
+
+/**
+ * Full Deep Research API response
+ */
+export interface DeepResearchApiResponse {
+  id: string;
+  object: 'response';
+  status: DeepResearchJobStatus;
+  output?: DeepResearchOutputItem[];
+  reasoning?: DeepResearchReasoningStep[];
+  usage?: {
+    input_tokens: number;
+    output_tokens: number;
+    reasoning_tokens?: number;
+  };
+  error?: {
+    code: string;
+    message: string;
+  };
+}
+
+/**
+ * Processed Deep Research result for UI consumption
+ */
+export interface DeepResearchResult {
+  text: string;
+  citations: DeepResearchCitation[];
+  reasoningSteps: Array<{ id: string; text: string }>;
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    reasoningTokens?: number;
+  };
+}
+
+/**
+ * Status response for polling background jobs
+ * REQ_000.5: Polling mechanism
+ */
+export interface DeepResearchStatusResponse {
+  status: DeepResearchJobStatus;
+  progress?: DeepResearchProgress;
+  result?: DeepResearchResult;
+  error?: {
+    code: string;
+    message: string;
+  };
+}
+
+/**
+ * Deep Research error class
+ */
+export class DeepResearchError extends Error {
+  code: DeepResearchErrorCode;
+  retryable: boolean;
+
+  constructor(message: string, code: DeepResearchErrorCode, retryable: boolean = false) {
+    super(message);
+    this.name = 'DeepResearchError';
+    this.code = code;
+    this.retryable = retryable;
+  }
+}
+
+/**
+ * Options for initiating a Deep Research request
+ */
+export interface DeepResearchOptions {
+  query: string;
+  depth?: DeepResearchDepth;
+  developerInstructions?: string;
+  reasoningSummary?: ReasoningSummary;
+  background?: boolean;
+}
