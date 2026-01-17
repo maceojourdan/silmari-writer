@@ -393,3 +393,100 @@ export interface DeepResearchCostBreakdown {
   codeInterpreterSessions?: number;
   codeInterpreterCost?: number; // $0.03 per session
 }
+
+/**
+ * Image Generation API types (REQ_002)
+ */
+
+export type ImageGenerationModel = 'gpt-image-1.5' | 'gpt-image-1' | 'gpt-image-1-mini';
+
+export type ImageSize = '1024x1024' | '1536x1024' | '1024x1536' | 'auto';
+
+export type ImageQuality = 'low' | 'medium' | 'high';
+
+export type ImageOutputFormat = 'png' | 'jpeg' | 'webp';
+
+export type ImageBackground = 'auto' | 'transparent' | 'opaque';
+
+export type ImageGenerationErrorCode =
+  | 'RATE_LIMIT'
+  | 'NETWORK'
+  | 'INVALID_API_KEY'
+  | 'API_ERROR'
+  | 'VALIDATION_ERROR'
+  | 'CONFIG_ERROR'
+  | 'INVALID_RESPONSE'
+  | 'UPLOAD_FAILED'
+  | 'TIMEOUT';
+
+/**
+ * Request body for Image Generation API
+ * REQ_002.1, REQ_002.5: Full request structure
+ */
+export interface ImageGenerationRequest {
+  prompt: string;
+  model?: ImageGenerationModel;
+  n?: number; // 1-10 images
+  size?: ImageSize;
+  quality?: ImageQuality;
+  output_format?: ImageOutputFormat;
+  background?: ImageBackground;
+}
+
+/**
+ * Single image data from OpenAI API response
+ * REQ_002.3: Base64 response structure
+ */
+export interface ImageData {
+  b64_json: string;
+  revised_prompt?: string;
+}
+
+/**
+ * OpenAI Image Generation API response
+ * REQ_002.3: Response structure
+ */
+export interface OpenAIImageResponse {
+  created: number;
+  data: ImageData[];
+}
+
+/**
+ * Generated image result with storage URL
+ * REQ_002.4: Persisted image structure
+ */
+export interface GeneratedImage {
+  url: string;
+  revisedPrompt?: string;
+  format: ImageOutputFormat;
+  size: ImageSize;
+  model: ImageGenerationModel;
+  generatedAt: string;
+}
+
+/**
+ * Image Generation API response
+ * REQ_002.1: Full response structure
+ */
+export interface ImageGenerationResponse {
+  images: GeneratedImage[];
+  model: ImageGenerationModel;
+  quality: ImageQuality;
+  estimatedCost?: number;
+}
+
+/**
+ * Image Generation error class
+ * REQ_002.1: Error handling
+ */
+export class ImageGenerationError extends Error {
+  code: ImageGenerationErrorCode;
+  retryable: boolean;
+
+  constructor(message: string, code: ImageGenerationErrorCode, retryable: boolean = false) {
+    super(message);
+    this.name = 'ImageGenerationError';
+    this.code = code;
+    this.retryable = retryable;
+  }
+}
