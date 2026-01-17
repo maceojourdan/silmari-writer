@@ -591,12 +591,13 @@ describe('classifyIntent Function (REQ_006.1)', () => {
 
       const promise = classifyIntent('test');
 
-      // Advance through all retries (2s, 4s, 8s)
-      await vi.advanceTimersByTimeAsync(2000);
-      await vi.advanceTimersByTimeAsync(4000);
-      await vi.advanceTimersByTimeAsync(8000);
+      // Advance through all retries and await the result in parallel
+      const [, error] = await Promise.all([
+        vi.advanceTimersByTimeAsync(2000 + 4000 + 8000),
+        promise.catch((e) => e),
+      ]);
 
-      await expect(promise).rejects.toMatchObject({
+      expect(error).toMatchObject({
         code: 'INVALID_RESPONSE',
       });
     });
@@ -625,12 +626,13 @@ describe('classifyIntent Function (REQ_006.1)', () => {
 
       const promise = classifyIntent('test');
 
-      // Advance through all retries (2s, 4s, 8s)
-      await vi.advanceTimersByTimeAsync(2000);
-      await vi.advanceTimersByTimeAsync(4000);
-      await vi.advanceTimersByTimeAsync(8000);
+      // Advance through all retries and await the result in parallel
+      const [, error] = await Promise.all([
+        vi.advanceTimersByTimeAsync(2000 + 4000 + 8000),
+        promise.catch((e) => e),
+      ]);
 
-      await expect(promise).rejects.toBeDefined();
+      expect(error).toBeDefined();
       expect(mockFetch).toHaveBeenCalledTimes(4); // 1 initial + 3 retries
     });
   });

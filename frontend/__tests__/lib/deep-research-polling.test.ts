@@ -180,16 +180,14 @@ describe('Deep Research Polling Utility (REQ_008.4)', () => {
         maxDurationMs: 500, // Short timeout for testing
       });
 
-      // Advance past timeout
-      await vi.advanceTimersByTimeAsync(600);
+      // Advance past timeout and await in parallel
+      const [, error] = await Promise.all([
+        vi.advanceTimersByTimeAsync(600),
+        pollPromise.catch((e) => e),
+      ]);
 
-      try {
-        await pollPromise;
-        expect.fail('Should have thrown');
-      } catch (error) {
-        expect(error).toBeInstanceOf(DeepResearchPollingError);
-        expect((error as DeepResearchPollingError).code).toBe('POLLING_TIMEOUT');
-      }
+      expect(error).toBeInstanceOf(DeepResearchPollingError);
+      expect((error as DeepResearchPollingError).code).toBe('POLLING_TIMEOUT');
     });
 
     it('should include elapsed time info in timeout error message', async () => {
@@ -205,14 +203,12 @@ describe('Deep Research Polling Utility (REQ_008.4)', () => {
         maxDurationMs: 500,
       });
 
-      await vi.advanceTimersByTimeAsync(600);
+      const [, error] = await Promise.all([
+        vi.advanceTimersByTimeAsync(600),
+        pollPromise.catch((e) => e),
+      ]);
 
-      try {
-        await pollPromise;
-        expect.fail('Should have thrown');
-      } catch (error) {
-        expect((error as Error).message).toMatch(/timed out/i);
-      }
+      expect((error as Error).message).toMatch(/timed out/i);
     });
 
     it('should suggest thorough depth may need longer in timeout message', async () => {
@@ -228,14 +224,12 @@ describe('Deep Research Polling Utility (REQ_008.4)', () => {
         maxDurationMs: 500,
       });
 
-      await vi.advanceTimersByTimeAsync(600);
+      const [, error] = await Promise.all([
+        vi.advanceTimersByTimeAsync(600),
+        pollPromise.catch((e) => e),
+      ]);
 
-      try {
-        await pollPromise;
-        expect.fail('Should have thrown');
-      } catch (error) {
-        expect((error as Error).message).toMatch(/thorough|longer/i);
-      }
+      expect((error as Error).message).toMatch(/thorough|longer/i);
     });
   });
 
@@ -335,15 +329,13 @@ describe('Deep Research Polling Utility (REQ_008.4)', () => {
         initialIntervalMs: 100,
       });
 
-      await vi.advanceTimersByTimeAsync(100);
+      const [, error] = await Promise.all([
+        vi.advanceTimersByTimeAsync(100),
+        pollPromise.catch((e) => e),
+      ]);
 
-      try {
-        await pollPromise;
-        expect.fail('Should have thrown');
-      } catch (error) {
-        expect((error as Error).message).toBe('Too many requests');
-        expect((error as DeepResearchPollingError).code).toBe('RATE_LIMIT');
-      }
+      expect((error as Error).message).toBe('Too many requests');
+      expect((error as DeepResearchPollingError).code).toBe('RATE_LIMIT');
     });
   });
 
@@ -534,17 +526,16 @@ describe('Deep Research Polling Utility (REQ_008.4)', () => {
         initialIntervalMs: 100,
       });
 
-      await vi.advanceTimersByTimeAsync(100);
-      await vi.advanceTimersByTimeAsync(4000);
+      // Advance timers and catch error in parallel to avoid unhandled rejection
+      const [, , error] = await Promise.all([
+        vi.advanceTimersByTimeAsync(100),
+        vi.advanceTimersByTimeAsync(4000),
+        pollPromise.catch((e) => e),
+      ]);
 
-      try {
-        await pollPromise;
-        expect.fail('Should have thrown');
-      } catch (error) {
-        expect((error as Error).message).toMatch(/Network error/);
-        expect((error as DeepResearchPollingError).code).toBe('NETWORK');
-        expect((error as DeepResearchPollingError).retryable).toBe(true);
-      }
+      expect((error as Error).message).toMatch(/Network error/);
+      expect((error as DeepResearchPollingError).code).toBe('NETWORK');
+      expect((error as DeepResearchPollingError).retryable).toBe(true);
     });
   });
 
