@@ -83,10 +83,10 @@ function extractProgress(response: DeepResearchApiResponse): DeepResearchProgres
 // GET handler for job status
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ jobId: string }> }
+  { params }: { params: Promise<{ responseId: string }> }
 ) {
   try {
-    const { jobId } = await params;
+    const { responseId } = await params;
 
     // Validate API key
     const apiKey = process.env.OPENAI_API_KEY;
@@ -98,10 +98,10 @@ export async function GET(
       );
     }
 
-    // Validate job ID format (basic validation)
-    if (!jobId || typeof jobId !== 'string' || jobId.length === 0) {
+    // Validate response ID format (basic validation)
+    if (!responseId || typeof responseId !== 'string' || responseId.length === 0) {
       throw new DeepResearchStatusError(
-        'Invalid job ID',
+        'Invalid response ID',
         'VALIDATION_ERROR',
         400
       );
@@ -110,7 +110,7 @@ export async function GET(
     // Fetch job status from OpenAI API
     let apiResponse: Response;
     try {
-      apiResponse = await fetch(`${OPENAI_API_URL}/${jobId}`, {
+      apiResponse = await fetch(`${OPENAI_API_URL}/${responseId}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -128,7 +128,7 @@ export async function GET(
     // Handle not found
     if (apiResponse.status === 404) {
       throw new DeepResearchStatusError(
-        `Job not found: ${jobId}`,
+        `Job not found: ${responseId}`,
         'JOB_NOT_FOUND',
         404
       );
@@ -137,7 +137,7 @@ export async function GET(
     // Handle forbidden (job belongs to another user)
     if (apiResponse.status === 403) {
       throw new DeepResearchStatusError(
-        `Access denied to job: ${jobId}`,
+        `Access denied to job: ${responseId}`,
         'JOB_FORBIDDEN',
         403
       );

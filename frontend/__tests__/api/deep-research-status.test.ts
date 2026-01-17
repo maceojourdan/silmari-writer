@@ -60,9 +60,9 @@ const mockFailedResponse = {
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-describe('/api/tools/deep-research/[jobId]/status', () => {
+describe('/api/tools/deep-research/[responseId]/status', () => {
   const originalEnv = process.env;
-  let GET: (request: NextRequest, context: { params: Promise<{ jobId: string }> }) => Promise<Response>;
+  let GET: (request: NextRequest, context: { params: Promise<{ responseId: string }> }) => Promise<Response>;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -70,7 +70,7 @@ describe('/api/tools/deep-research/[jobId]/status', () => {
     process.env = { ...originalEnv, OPENAI_API_KEY: 'test-api-key-123' };
     mockFetch.mockReset();
 
-    const module = await import('@/app/api/tools/deep-research/[jobId]/status/route');
+    const module = await import('@/app/api/tools/deep-research/[responseId]/status/route');
     GET = module.GET;
   });
 
@@ -88,7 +88,7 @@ describe('/api/tools/deep-research/[jobId]/status', () => {
 
       const request = new NextRequest('http://localhost:3000/api/tools/deep-research/job_123/status');
 
-      const response = await GET(request, { params: Promise.resolve({ jobId: 'job_123' }) });
+      const response = await GET(request, { params: Promise.resolve({ responseId: 'job_123' }) });
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -103,7 +103,7 @@ describe('/api/tools/deep-research/[jobId]/status', () => {
 
       const request = new NextRequest('http://localhost:3000/api/tools/deep-research/job_123/status');
 
-      const response = await GET(request, { params: Promise.resolve({ jobId: 'job_123' }) });
+      const response = await GET(request, { params: Promise.resolve({ responseId: 'job_123' }) });
       const data = await response.json();
 
       expect(data.progress).toBeDefined();
@@ -118,7 +118,7 @@ describe('/api/tools/deep-research/[jobId]/status', () => {
 
       const request = new NextRequest('http://localhost:3000/api/tools/deep-research/job_123/status');
 
-      const response = await GET(request, { params: Promise.resolve({ jobId: 'job_123' }) });
+      const response = await GET(request, { params: Promise.resolve({ responseId: 'job_123' }) });
       const data = await response.json();
 
       expect(data.status).toBe('completed');
@@ -137,7 +137,7 @@ describe('/api/tools/deep-research/[jobId]/status', () => {
 
       const request = new NextRequest('http://localhost:3000/api/tools/deep-research/job_123/status');
 
-      const response = await GET(request, { params: Promise.resolve({ jobId: 'job_123' }) });
+      const response = await GET(request, { params: Promise.resolve({ responseId: 'job_123' }) });
       const data = await response.json();
 
       expect(data.status).toBe('failed');
@@ -155,7 +155,7 @@ describe('/api/tools/deep-research/[jobId]/status', () => {
 
       const request = new NextRequest('http://localhost:3000/api/tools/deep-research/nonexistent_job/status');
 
-      const response = await GET(request, { params: Promise.resolve({ jobId: 'nonexistent_job' }) });
+      const response = await GET(request, { params: Promise.resolve({ responseId: 'nonexistent_job' }) });
       const data = await response.json();
 
       expect(response.status).toBe(404);
@@ -171,7 +171,7 @@ describe('/api/tools/deep-research/[jobId]/status', () => {
 
       const request = new NextRequest('http://localhost:3000/api/tools/deep-research/other_user_job/status');
 
-      const response = await GET(request, { params: Promise.resolve({ jobId: 'other_user_job' }) });
+      const response = await GET(request, { params: Promise.resolve({ responseId: 'other_user_job' }) });
       const data = await response.json();
 
       expect(response.status).toBe(403);
@@ -183,7 +183,7 @@ describe('/api/tools/deep-research/[jobId]/status', () => {
 
       const request = new NextRequest('http://localhost:3000/api/tools/deep-research/job_123/status');
 
-      const response = await GET(request, { params: Promise.resolve({ jobId: 'job_123' }) });
+      const response = await GET(request, { params: Promise.resolve({ responseId: 'job_123' }) });
       const data = await response.json();
 
       expect(response.status).toBe(502);
@@ -198,7 +198,7 @@ describe('/api/tools/deep-research/[jobId]/status', () => {
 
       const request = new NextRequest('http://localhost:3000/api/tools/deep-research/job_abc123/status');
 
-      await GET(request, { params: Promise.resolve({ jobId: 'job_abc123' }) });
+      await GET(request, { params: Promise.resolve({ responseId: 'job_abc123' }) });
 
       expect(mockFetch).toHaveBeenCalledWith(
         'https://api.openai.com/v1/responses/job_abc123',
@@ -219,7 +219,7 @@ describe('/api/tools/deep-research/[jobId]/status', () => {
 
       const request = new NextRequest('http://localhost:3000/api/tools/deep-research/job_123/status');
 
-      const response = await GET(request, { params: Promise.resolve({ jobId: 'job_123' }) });
+      const response = await GET(request, { params: Promise.resolve({ responseId: 'job_123' }) });
       const data = await response.json();
 
       expect(data.status).toBe('pending');
@@ -231,11 +231,11 @@ describe('/api/tools/deep-research/[jobId]/status', () => {
     it('should return 500 when OPENAI_API_KEY is not configured', async () => {
       delete process.env.OPENAI_API_KEY;
       vi.resetModules();
-      const module = await import('@/app/api/tools/deep-research/[jobId]/status/route');
+      const module = await import('@/app/api/tools/deep-research/[responseId]/status/route');
 
       const request = new NextRequest('http://localhost:3000/api/tools/deep-research/job_123/status');
 
-      const response = await module.GET(request, { params: Promise.resolve({ jobId: 'job_123' }) });
+      const response = await module.GET(request, { params: Promise.resolve({ responseId: 'job_123' }) });
       const data = await response.json();
 
       expect(response.status).toBe(500);
@@ -253,7 +253,7 @@ describe('/api/tools/deep-research/[jobId]/status', () => {
 
       const request = new NextRequest('http://localhost:3000/api/tools/deep-research/job_123/status');
 
-      const response = await GET(request, { params: Promise.resolve({ jobId: 'job_123' }) });
+      const response = await GET(request, { params: Promise.resolve({ responseId: 'job_123' }) });
       const data = await response.json();
 
       expect(data.result.usage).toEqual({
@@ -271,7 +271,7 @@ describe('/api/tools/deep-research/[jobId]/status', () => {
 
       const request = new NextRequest('http://localhost:3000/api/tools/deep-research/job_123/status');
 
-      const response = await GET(request, { params: Promise.resolve({ jobId: 'job_123' }) });
+      const response = await GET(request, { params: Promise.resolve({ responseId: 'job_123' }) });
       const data = await response.json();
 
       expect(data.result.citations[0]).toEqual({
@@ -291,7 +291,7 @@ describe('/api/tools/deep-research/[jobId]/status', () => {
 
       const request = new NextRequest('http://localhost:3000/api/tools/deep-research/job_123/status');
 
-      const response = await GET(request, { params: Promise.resolve({ jobId: 'job_123' }) });
+      const response = await GET(request, { params: Promise.resolve({ responseId: 'job_123' }) });
       const data = await response.json();
 
       expect(data.result.reasoningSteps).toHaveLength(1);
