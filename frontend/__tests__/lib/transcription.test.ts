@@ -36,6 +36,15 @@ describe('transcribeAudio', () => {
       })
     })
 
+    it('should include actual file size and suggestion in error message', async () => {
+      // Create a 28MB file
+      const sizeBytes = 28 * 1024 * 1024
+      const largeBlob = new Blob([new ArrayBuffer(sizeBytes)], { type: 'audio/webm' })
+
+      await expect(transcribeAudio(largeBlob)).rejects.toThrow(/File size 28\.0MB exceeds 25MB limit/)
+      await expect(transcribeAudio(largeBlob)).rejects.toThrow(/Try recording a shorter audio clip/)
+    })
+
     it('should accept files at exactly 25MB', async () => {
       const exactBlob = new Blob([new ArrayBuffer(MAX_FILE_SIZE_BYTES)], { type: 'audio/webm' })
       setupSuccessfulTranscription('test transcription')

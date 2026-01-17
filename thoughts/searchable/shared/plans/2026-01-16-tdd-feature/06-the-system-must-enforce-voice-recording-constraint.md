@@ -97,6 +97,45 @@ Apply 2 second base delay with exponential backoff for network errors up to 30 s
 
 ## Success Criteria
 
-- [ ] All tests pass
-- [ ] All behaviors implemented
+- [x] All tests pass (63 voice-related tests passing)
+- [x] All behaviors implemented
 - [ ] Code reviewed
+
+## Implementation Summary (2026-01-16)
+
+### REQ_005.1: 5-minute max recording with countdown timer
+- Added countdown timer showing remaining time (not elapsed)
+- Timer color changes: gray (normal) → yellow (≤60s) → red (≤30s)
+- Audio warning beep at 30 seconds remaining using Web Audio API
+- Toast notification on auto-stop: "Recording stopped - maximum 5 minute limit reached"
+- Exported constants: MAX_RECORDING_TIME_MS, MAX_RECORDING_TIME_SECONDS
+
+### REQ_005.2: 25 MB file size validation
+- Client and server-side validation
+- Error message includes actual size: "File size 28.5MB exceeds 25MB limit. Try recording a shorter audio clip."
+
+### REQ_005.3: 3 retry attempts
+- MAX_RETRIES = 3
+- Structured logging: "Retry {n}/{MAX_RETRIES} after {delay}ms ({error_code})"
+- Final error includes "All 3 retry attempts exhausted" message
+
+### REQ_005.4: 10-second rate limit backoff
+- RATE_LIMIT_BASE_DELAY_MS = 10000
+- MAX_RATE_LIMIT_DELAY_MS = 60000 (60 second cap)
+- Log message: "Rate limit hit, waiting {delay}ms before retry"
+
+### REQ_005.5: 2-second network error backoff with jitter
+- BASE_RETRY_DELAY_MS = 2000
+- MAX_NETWORK_DELAY_MS = 30000 (30 second cap)
+- Jitter applied: delay * (0.5 + Math.random())
+- ECONNREFUSED, ETIMEDOUT, ENOTFOUND error handling
+- Log message: "Network error, retrying in {delay}ms (with jitter)"
+- Final error includes: "Please check your network connection."
+
+### Files Modified
+- `frontend/src/components/chat/AudioRecorder.tsx`
+- `frontend/src/lib/transcription.ts`
+- `frontend/src/app/api/transcribe/route.ts`
+- `frontend/__tests__/components/AudioRecorder.test.tsx`
+- `frontend/__tests__/lib/transcription.test.ts`
+- `frontend/__tests__/api/transcribe.test.ts`

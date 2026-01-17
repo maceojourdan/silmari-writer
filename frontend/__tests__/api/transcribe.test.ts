@@ -379,10 +379,13 @@ describe('POST /api/transcribe', () => {
 
       const responsePromise = POST(request)
 
-      // Fast-forward through all retries: 2s + 4s + 8s
-      await vi.advanceTimersByTimeAsync(2000)
-      await vi.advanceTimersByTimeAsync(4000)
-      await vi.advanceTimersByTimeAsync(8000)
+      // Fast-forward through all retries with jitter
+      // Network delays use jitter: delay * (0.5 + Math.random()) so max is 1.5x
+      // Retry 1: 2s * 1.5 = 3s, Retry 2: 4s * 1.5 = 6s, Retry 3: 8s * 1.5 = 12s
+      // Adding buffer to ensure all retries complete
+      await vi.advanceTimersByTimeAsync(5000)
+      await vi.advanceTimersByTimeAsync(10000)
+      await vi.advanceTimersByTimeAsync(15000)
 
       const response = await responsePromise
       const data = await response.json()
@@ -495,6 +498,188 @@ describe('POST /api/transcribe', () => {
       expect(data.code).toBe('RATE_LIMIT')
       // Initial call + 3 retries = 4 total calls
       expect(mockCreate).toHaveBeenCalledTimes(4)
+    })
+  })
+
+  describe('delay caps and jitter', () => {
+    beforeEach(() => {
+      process.env.OPENAI_API_KEY = 'sk-test-key-123'
+      process.env.BLOB_READ_WRITE_TOKEN = 'test-blob-token'
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('should cap rate limit delays at 60 seconds', async () => {
+      setupBlobFetch('audio/webm')
+
+      // All calls fail with rate limit
+      mockCreate.mockRejectedValue({ status: 429, message: 'Rate limit' })
+
+      const request = createRequest({
+        blobUrl: 'https://blob.vercel-storage.com/recording.webm',
+      })
+
+      const responsePromise = POST(request)
+
+      // Rate limit delays: 10s, 20s, 40s (all under 60s cap)
+      // Even if we advance more, delays should be capped
+      await vi.advanceTimersByTimeAsync(10000) // First retry (10s)
+      await vi.advanceTimersByTimeAsync(20000) // Second retry (20s)
+      await vi.advanceTimersByTimeAsync(40000) // Third retry (40s, which is under 60s cap)
+
+      const response = await responsePromise
+      expect(response.status).toBe(429)
+      expect(mockCreate).toHaveBeenCalledTimes(4)
+    })
+
+    it('should include retries exhausted message in final error for network errors', async () => {
+      setupBlobFetch('audio/webm')
+
+      // All calls fail with network error
+      mockCreate.mockRejectedValue(new Error('Connection refused'))
+
+      const request = createRequest({
+        blobUrl: 'https://blob.vercel-storage.com/recording.webm',
+      })
+
+      const responsePromise = POST(request)
+
+      // Network delays with jitter: ~1-3s, ~2-6s, ~4-12s (times vary due to jitter)
+      // Advance enough time to cover max possible delays
+      await vi.advanceTimersByTimeAsync(5000)
+      await vi.advanceTimersByTimeAsync(10000)
+      await vi.advanceTimersByTimeAsync(20000)
+
+      const response = await responsePromise
+      const data = await response.json()
+
+      expect(response.status).toBe(502)
+      expect(data.code).toBe('NETWORK')
+      expect(data.error).toContain('All 3 retry attempts exhausted')
+      expect(data.error).toContain('check your network connection')
+    })
+
+    it('should include retries exhausted message for rate limit errors', async () => {
+      setupBlobFetch('audio/webm')
+
+      // All calls fail with rate limit
+      mockCreate.mockRejectedValue({ status: 429, message: 'Rate limit exceeded' })
+
+      const request = createRequest({
+        blobUrl: 'https://blob.vercel-storage.com/recording.webm',
+      })
+
+      const responsePromise = POST(request)
+
+      // Fast-forward through all rate limit retries
+      await vi.advanceTimersByTimeAsync(10000)
+      await vi.advanceTimersByTimeAsync(20000)
+      await vi.advanceTimersByTimeAsync(40000)
+
+      const response = await responsePromise
+      const data = await response.json()
+
+      expect(response.status).toBe(429)
+      expect(data.error).toContain('All 3 retry attempts exhausted')
+      expect(data.error).toContain('try again later')
+    })
+
+    it('should handle ECONNREFUSED errors as network errors', async () => {
+      setupBlobFetch('audio/webm')
+
+      const connectionError = new Error('connect ECONNREFUSED') as Error & { code?: string }
+      connectionError.code = 'ECONNREFUSED'
+      mockCreate.mockRejectedValueOnce(connectionError)
+        .mockResolvedValueOnce({ text: 'Success after retry' })
+
+      const request = createRequest({
+        blobUrl: 'https://blob.vercel-storage.com/recording.webm',
+      })
+
+      const responsePromise = POST(request)
+
+      // Wait for jittered network delay (1-3 seconds for first retry)
+      await vi.advanceTimersByTimeAsync(5000)
+
+      const response = await responsePromise
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.text).toBe('Success after retry')
+    })
+
+    it('should handle ETIMEDOUT errors as network errors', async () => {
+      setupBlobFetch('audio/webm')
+
+      const timeoutError = new Error('connect ETIMEDOUT') as Error & { code?: string }
+      timeoutError.code = 'ETIMEDOUT'
+      mockCreate.mockRejectedValueOnce(timeoutError)
+        .mockResolvedValueOnce({ text: 'Success after retry' })
+
+      const request = createRequest({
+        blobUrl: 'https://blob.vercel-storage.com/recording.webm',
+      })
+
+      const responsePromise = POST(request)
+
+      await vi.advanceTimersByTimeAsync(5000)
+
+      const response = await responsePromise
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.text).toBe('Success after retry')
+    })
+
+    it('should handle ENOTFOUND errors as network errors', async () => {
+      setupBlobFetch('audio/webm')
+
+      const dnsError = new Error('getaddrinfo ENOTFOUND') as Error & { code?: string }
+      dnsError.code = 'ENOTFOUND'
+      mockCreate.mockRejectedValueOnce(dnsError)
+        .mockResolvedValueOnce({ text: 'Success after retry' })
+
+      const request = createRequest({
+        blobUrl: 'https://blob.vercel-storage.com/recording.webm',
+      })
+
+      const responsePromise = POST(request)
+
+      await vi.advanceTimersByTimeAsync(5000)
+
+      const response = await responsePromise
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.text).toBe('Success after retry')
+    })
+  })
+
+  describe('file size validation messages', () => {
+    beforeEach(() => {
+      process.env.OPENAI_API_KEY = 'sk-test-key-123'
+    })
+
+    it('should include actual file size in error message', async () => {
+      // Setup blob fetch with 28MB file
+      const size28MB = 28 * 1024 * 1024
+      setupBlobFetch('audio/webm', size28MB)
+
+      const request = createRequest({
+        blobUrl: 'https://blob.vercel-storage.com/large.webm',
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.code).toBe('FILE_TOO_LARGE')
+      expect(data.error).toContain('28.0MB')
+      expect(data.error).toContain('exceeds 25MB limit')
+      expect(data.error).toContain('Try recording a shorter audio clip')
     })
   })
 })

@@ -20,8 +20,9 @@ export async function transcribeAudio(
 ): Promise<string> {
   // Validate file size client-side for immediate feedback
   if (audioBlob.size > MAX_FILE_SIZE_BYTES) {
+    const actualSizeMB = (audioBlob.size / (1024 * 1024)).toFixed(1)
     throw new TranscriptionError(
-      `File size exceeds ${MAX_FILE_SIZE_MB}MB limit`,
+      `File size ${actualSizeMB}MB exceeds ${MAX_FILE_SIZE_MB}MB limit. Try recording a shorter audio clip.`,
       'FILE_TOO_LARGE',
       false
     )

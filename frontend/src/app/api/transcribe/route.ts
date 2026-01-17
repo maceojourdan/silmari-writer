@@ -8,6 +8,8 @@ const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 const MAX_RETRIES = 3
 const BASE_RETRY_DELAY_MS = 2000 // Base delay for network errors
 const RATE_LIMIT_BASE_DELAY_MS = 10000 // Base delay for rate limit errors (10s)
+const MAX_RATE_LIMIT_DELAY_MS = 60000 // 60 second cap for rate limit delays
+const MAX_NETWORK_DELAY_MS = 30000 // 30 second cap for network delays
 
 // Supported audio file types per OpenAI documentation
 const SUPPORTED_AUDIO_TYPES = {
@@ -61,8 +63,9 @@ export async function POST(request: NextRequest) {
 
     // Validate file size
     if (fileBuffer.byteLength > MAX_FILE_SIZE_BYTES) {
+      const actualSizeMB = (fileBuffer.byteLength / (1024 * 1024)).toFixed(1)
       return NextResponse.json(
-        { error: `File size exceeds ${MAX_FILE_SIZE_MB}MB limit`, code: 'FILE_TOO_LARGE', retryable: false },
+        { error: `File size ${actualSizeMB}MB exceeds ${MAX_FILE_SIZE_MB}MB limit. Try recording a shorter audio clip.`, code: 'FILE_TOO_LARGE', retryable: false },
         { status: 400 }
       )
     }
@@ -176,16 +179,36 @@ async function transcribeWithRetry(
     return await makeOpenAIRequest(openai, fileForUpload, language)
   } catch (error) {
     if (error instanceof TranscriptionError && error.retryable && retries < MAX_RETRIES) {
-      // Use longer delays for rate limit errors
-      const baseDelay = error.code === 'RATE_LIMIT'
-        ? RATE_LIMIT_BASE_DELAY_MS
-        : BASE_RETRY_DELAY_MS
+      const isRateLimit = error.code === 'RATE_LIMIT'
+      const baseDelay = isRateLimit ? RATE_LIMIT_BASE_DELAY_MS : BASE_RETRY_DELAY_MS
+      const maxDelay = isRateLimit ? MAX_RATE_LIMIT_DELAY_MS : MAX_NETWORK_DELAY_MS
 
-      // Exponential backoff: baseDelay * 2^retries
-      const delay = baseDelay * Math.pow(2, retries)
+      // Exponential backoff: baseDelay * 2^retries, capped at max
+      let delay = Math.min(baseDelay * Math.pow(2, retries), maxDelay)
+
+      // Apply jitter for network errors: delay * (0.5 + Math.random()) for +/- 50% variance
+      if (error.code === 'NETWORK') {
+        const jitterFactor = 0.5 + Math.random()
+        delay = Math.floor(delay * jitterFactor)
+        console.warn(`Network error, retrying in ${delay}ms (with jitter)`)
+      } else if (isRateLimit) {
+        console.warn(`Rate limit hit, waiting ${delay}ms before retry`)
+      }
+
       console.warn(`Retry ${retries + 1}/${MAX_RETRIES} after ${delay}ms (${error.code})`)
       await new Promise(resolve => setTimeout(resolve, delay))
       return transcribeWithRetry(openai, fileForUpload, language, retries + 1)
+    }
+
+    // Enhance error message when all retries are exhausted
+    if (error instanceof TranscriptionError && error.retryable) {
+      if (error.code === 'NETWORK') {
+        error.message = `${error.message}. All ${MAX_RETRIES} retry attempts exhausted. Please check your network connection.`
+      } else if (error.code === 'RATE_LIMIT') {
+        error.message = `${error.message}. All ${MAX_RETRIES} retry attempts exhausted. Please try again later.`
+      } else {
+        error.message = `${error.message}. All ${MAX_RETRIES} retry attempts exhausted.`
+      }
     }
     throw error
   }
@@ -239,6 +262,18 @@ async function makeOpenAIRequest(
             'API_ERROR',
             false
           )
+      }
+    }
+
+    // Check for specific network error codes
+    if (error instanceof Error) {
+      const errorCode = (error as Error & { code?: string }).code
+      if (errorCode === 'ECONNREFUSED' || errorCode === 'ETIMEDOUT' || errorCode === 'ENOTFOUND') {
+        throw new TranscriptionError(
+          `Network error (${errorCode}): ${error.message}`,
+          'NETWORK',
+          true
+        )
       }
     }
 
