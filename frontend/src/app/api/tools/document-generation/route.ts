@@ -619,7 +619,7 @@ async function generateDOCX(content: DocumentContent): Promise<Buffer> {
     if (section.tables) {
       for (const table of section.tables) {
         if (table.caption) {
-          items.push(new Paragraph({ text: table.caption, italics: true }))
+          items.push(new Paragraph({ children: [new TextRun({ text: table.caption, italics: true })] }))
         }
 
         const tableRows: TableRow[] = []
