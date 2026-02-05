@@ -8,6 +8,8 @@ import ConversationView from '@/components/chat/ConversationView';
 import MessageInput from '@/components/chat/MessageInput';
 import FileAttachment from '@/components/chat/FileAttachment';
 import AudioRecorder, { AudioRecorderHandle } from '@/components/chat/AudioRecorder';
+import ReadAloudToggle from '@/components/chat/ReadAloudToggle';
+import VoiceEditPanel from '@/components/chat/VoiceEditPanel';
 import { useConversationStore } from '@/lib/store';
 import { transcribeAudio } from '@/lib/transcription';
 import { generateResponse } from '@/lib/api';
@@ -140,6 +142,12 @@ export default function HomePage() {
           {activeProjectId ? (
             <>
               <ConversationView messages={activeMessages} />
+
+              {/* Voice controls */}
+              <div className="flex items-center gap-2 px-4 py-1.5 border-t">
+                <ReadAloudToggle />
+                <VoiceEditPanel />
+              </div>
 
               {/* Loading indicator */}
               {isGenerating && (

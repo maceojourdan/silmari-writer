@@ -2789,9 +2789,9 @@ describe('Voice Integration in Page', () => {
 
 ### Success Criteria
 **Automated:**
-- [ ] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/e2e/VoiceIntegration.test.tsx`
-- [ ] Test passes (Green): `cd frontend && npx vitest run __tests__/e2e/VoiceIntegration.test.tsx`
-- [ ] All existing tests still pass: `cd frontend && npx vitest run`
+- [x] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/e2e/VoiceIntegration.test.tsx`
+- [x] Test passes (Green): `cd frontend && npx vitest run __tests__/e2e/VoiceIntegration.test.tsx`
+- [x] All existing tests still pass: `cd frontend && npx vitest run`
 
 ---
 
