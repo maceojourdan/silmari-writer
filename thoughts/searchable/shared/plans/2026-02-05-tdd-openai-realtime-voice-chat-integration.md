@@ -1454,9 +1454,9 @@ export default function ReadAloudToggle() {
 
 ### Success Criteria
 **Automated:**
-- [ ] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/components/ReadAloudToggle.test.tsx`
-- [ ] Test passes (Green): `cd frontend && npx vitest run __tests__/components/ReadAloudToggle.test.tsx`
-- [ ] All existing tests still pass: `cd frontend && npx vitest run`
+- [x] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/components/ReadAloudToggle.test.tsx`
+- [x] Test passes (Green): `cd frontend && npx vitest run __tests__/components/ReadAloudToggle.test.tsx`
+- [x] All existing tests still pass: `cd frontend && npx vitest run`
 
 ---
 
@@ -1649,9 +1649,9 @@ export class TTSQueue {
 
 ### Success Criteria
 **Automated:**
-- [ ] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/lib/tts-queue.test.ts`
-- [ ] Test passes (Green): `cd frontend && npx vitest run __tests__/lib/tts-queue.test.ts`
-- [ ] All existing tests still pass: `cd frontend && npx vitest run`
+- [x] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/lib/tts-queue.test.ts`
+- [x] Test passes (Green): `cd frontend && npx vitest run __tests__/lib/tts-queue.test.ts`
+- [x] All existing tests still pass: `cd frontend && npx vitest run`
 
 ---
 
@@ -1788,8 +1788,8 @@ export function useAutoReadAloud({ readAloudEnabled, isConnected, sendEvent }: U
 
 ### Success Criteria
 **Automated:**
-- [ ] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/hooks/useAutoReadAloud.test.ts`
-- [ ] Test passes (Green): `cd frontend && npx vitest run __tests__/hooks/useAutoReadAloud.test.ts`
+- [x] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/hooks/useAutoReadAloud.test.ts`
+- [x] Test passes (Green): `cd frontend && npx vitest run __tests__/hooks/useAutoReadAloud.test.ts`
 
 ---
 
