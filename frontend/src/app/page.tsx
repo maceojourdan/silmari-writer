@@ -147,7 +147,7 @@ export default function HomePage() {
 
   return (
     <AppLayout>
-      <div className="flex h-full">
+      <div className="flex h-full overflow-hidden">
         {/* Sidebar */}
         <div className="w-64 border-r border-border bg-card hidden lg:block">
           <div className="p-4">
@@ -162,7 +162,7 @@ export default function HomePage() {
         </div>
 
         {/* Main content area */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {activeProjectId ? (
             <>
               <ConversationView messages={activeMessages} />
