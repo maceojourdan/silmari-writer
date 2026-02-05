@@ -14,8 +14,18 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const mode: VoiceMode = body.mode in MODEL_MAP ? body.mode : 'read_aloud';
   const model = MODEL_MAP[mode];
+  const sdp = body.sdp;
 
+  if (!sdp || typeof sdp !== 'string') {
+    return NextResponse.json(
+      { error: 'Missing SDP offer' },
+      { status: 400 },
+    );
+  }
+
+  // Build session config matching the official docs format
   const sessionConfig: Record<string, unknown> = {
+    type: 'realtime',
     model,
     voice: DEFAULT_VOICE,
   };
@@ -27,39 +37,41 @@ export async function POST(request: NextRequest) {
     sessionConfig.tools = body.tools;
   }
 
-  const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(sessionConfig),
-  });
+  // Proxy the SDP exchange to OpenAI using our API key
+  // See: https://platform.openai.com/docs/api-reference/realtime/create-call
+  const formData = new FormData();
+  formData.set('sdp', new Blob([sdp], { type: 'application/sdp' }));
+  formData.set('session', new Blob([JSON.stringify(sessionConfig)], { type: 'application/json' }));
+
+  let response: Response;
+  try {
+    response = await fetch('https://api.openai.com/v1/realtime/calls', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: formData,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Network error connecting to OpenAI', detail: String(error) },
+      { status: 502 },
+    );
+  }
 
   if (!response.ok) {
-    const errBody = await response.json().catch(() => ({}));
-    console.error('[Voice Session] OpenAI error:', response.status, errBody);
+    const errBody = await response.text().catch(() => '');
     return NextResponse.json(
-      { error: 'Failed to create voice session', detail: errBody },
-      { status: 502 },
+      { error: 'OpenAI rejected the session', detail: errBody },
+      { status: response.status },
     );
   }
 
-  const data = await response.json();
-  console.log('[Voice Session] Response keys:', Object.keys(data), JSON.stringify(data).slice(0, 500));
-
-  // Extract token - handle both possible response formats
-  const token = data.client_secret?.value ?? data.client_secret ?? data.value;
-  if (!token || typeof token !== 'string') {
-    console.error('[Voice Session] Could not extract token from response:', JSON.stringify(data).slice(0, 500));
-    return NextResponse.json(
-      { error: 'Failed to extract session token', detail: { keys: Object.keys(data) } },
-      { status: 502 },
-    );
-  }
+  // Return the SDP answer from OpenAI
+  const answerSdp = await response.text();
 
   return NextResponse.json({
-    token,
+    sdp: answerSdp,
     model,
     sessionLimitMinutes: SESSION_LIMIT_MINUTES,
   });

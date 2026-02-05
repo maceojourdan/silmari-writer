@@ -35,32 +35,18 @@ export function useRealtimeSession() {
     setVoiceSessionState('connecting');
 
     try {
-      const response = await fetch('/api/voice/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode,
-          instructions: options?.instructions,
-          tools: options?.tools,
-        }),
-      });
-
-      if (!response.ok) throw new Error('Failed to create session');
-
-      const { token, model, sessionLimitMinutes } = await response.json();
-
       const session = await createVoiceSession({
-        token,
-        model,
-        sessionLimitMinutes,
+        mode,
         needsMicrophone: mode === VOICE_MODES.VOICE_EDIT,
+        instructions: options?.instructions,
+        tools: options?.tools,
       });
 
       sessionRef.current = session;
       setVoiceSessionState('connected');
 
       // Start countdown timer
-      const endTime = Date.now() + sessionLimitMinutes * 60 * 1000;
+      const endTime = Date.now() + session.sessionLimitMinutes * 60 * 1000;
       timerRef.current = setInterval(() => {
         const remaining = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
         setTimeRemaining(remaining);

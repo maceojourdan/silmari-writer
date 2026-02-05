@@ -11,10 +11,10 @@ export class VoiceSessionError extends Error {
 }
 
 export interface VoiceSessionOptions {
-  token: string;
-  model: string;
-  sessionLimitMinutes: number;
+  mode: string;
   needsMicrophone: boolean;
+  instructions?: string;
+  tools?: unknown[];
 }
 
 export interface VoiceSession {
@@ -22,12 +22,14 @@ export interface VoiceSession {
   dc: RTCDataChannel;
   audioEl: HTMLAudioElement;
   stream: MediaStream | null;
+  model: string;
+  sessionLimitMinutes: number;
   sessionTimeout: ReturnType<typeof setTimeout>;
   close: () => void;
 }
 
 export async function createVoiceSession(options: VoiceSessionOptions): Promise<VoiceSession> {
-  const { token, model, sessionLimitMinutes, needsMicrophone } = options;
+  const { mode, needsMicrophone, instructions, tools } = options;
   const pc = new RTCPeerConnection();
 
   // Audio output
@@ -59,31 +61,34 @@ export async function createVoiceSession(options: VoiceSessionOptions): Promise<
   // Data channel for API events
   const dc = pc.createDataChannel('oai-events');
 
-  // SDP exchange — GA endpoint uses FormData
+  // Create SDP offer
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
 
-  const formData = new FormData();
-  formData.set('sdp', pc.localDescription!.sdp!);
-  formData.set('session', JSON.stringify({ type: 'realtime', model }));
-
-  const sdpResponse = await fetch('https://api.openai.com/v1/realtime/calls', {
+  // Send SDP to our server, which proxies to OpenAI with the API key
+  const response = await fetch('/api/voice/session', {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}` },
-    body: formData,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sdp: pc.localDescription!.sdp!,
+      mode,
+      instructions,
+      tools,
+    }),
   });
 
-  if (!sdpResponse.ok) {
+  if (!response.ok) {
     pc.close();
     stream?.getTracks().forEach((t) => t.stop());
+    const detail = await response.json().catch(() => ({}));
     throw new VoiceSessionError(
-      'SDP exchange failed',
+      detail.error || 'SDP exchange failed',
       'SDP_EXCHANGE_FAILED',
       true,
     );
   }
 
-  const answerSdp = await sdpResponse.text();
+  const { sdp: answerSdp, model, sessionLimitMinutes } = await response.json();
   await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
 
   // Session timer
@@ -97,5 +102,5 @@ export async function createVoiceSession(options: VoiceSessionOptions): Promise<
     stream?.getTracks().forEach((t) => t.stop());
   }
 
-  return { pc, dc, audioEl, stream, sessionTimeout, close };
+  return { pc, dc, audioEl, stream, model, sessionLimitMinutes, sessionTimeout, close };
 }

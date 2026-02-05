@@ -16,6 +16,9 @@ function createRequest(body: Record<string, unknown>): NextRequest {
   });
 }
 
+const MOCK_SDP = 'v=0\r\no=- 123 2 IN IP4 127.0.0.1\r\ns=-\r\n';
+const MOCK_ANSWER_SDP = 'v=0\r\no=- 456 2 IN IP4 10.0.0.1\r\ns=-\r\n';
+
 describe('POST /api/voice/session', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -27,73 +30,58 @@ describe('POST /api/voice/session', () => {
     process.env = originalEnv;
   });
 
-  it('should return ephemeral token for read_aloud mode', async () => {
+  it('should proxy SDP exchange and return answer for read_aloud mode', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ client_secret: { value: 'ek_test_token_123', expires_at: 1234567890 }, session: {} }),
+      text: async () => MOCK_ANSWER_SDP,
     });
 
     const { POST } = await import('@/app/api/voice/session/route');
-    const response = await POST(createRequest({ mode: 'read_aloud' }));
+    const response = await POST(createRequest({ mode: 'read_aloud', sdp: MOCK_SDP }));
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.token).toBe('ek_test_token_123');
+    expect(data.sdp).toBe(MOCK_ANSWER_SDP);
     expect(data.model).toBe('gpt-4o-realtime-preview');
     expect(data.sessionLimitMinutes).toBe(60);
   });
 
-  it('should use gpt-4o-realtime-preview model for voice_edit mode', async () => {
+  it('should forward SDP to OpenAI /v1/realtime/calls with API key', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ client_secret: { value: 'ek_edit_token_456', expires_at: 1234567890 }, session: {} }),
+      text: async () => MOCK_ANSWER_SDP,
     });
 
     const { POST } = await import('@/app/api/voice/session/route');
-    const response = await POST(createRequest({
-      mode: 'voice_edit',
-      instructions: 'Edit the document',
-      tools: [{ type: 'function', name: 'send_edit_instruction' }],
-    }));
-    const data = await response.json();
+    await POST(createRequest({ mode: 'voice_edit', sdp: MOCK_SDP }));
 
-    expect(data.model).toBe('gpt-4o-realtime-preview');
-
-    // Verify OpenAI was called with correct endpoint and flat body
     expect(mockFetch).toHaveBeenCalledWith(
-      'https://api.openai.com/v1/realtime/sessions',
+      'https://api.openai.com/v1/realtime/calls',
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({
           'Authorization': 'Bearer test-key',
         }),
-        body: expect.stringContaining('gpt-4o-realtime-preview'),
+        body: expect.any(FormData),
       }),
     );
   });
 
-  it('should send correct session config format', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ client_secret: { value: 'ek_token', expires_at: 1234567890 }, session: {} }),
-    });
-
+  it('should return 400 when SDP is missing', async () => {
     const { POST } = await import('@/app/api/voice/session/route');
-    await POST(createRequest({ mode: 'read_aloud' }));
+    const response = await POST(createRequest({ mode: 'read_aloud' }));
 
-    const fetchBody = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(fetchBody.model).toBe('gpt-4o-realtime-preview');
-    expect(fetchBody.voice).toBe('alloy');
+    expect(response.status).toBe(400);
   });
 
   it('should default to read_aloud when mode is invalid', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ client_secret: { value: 'ek_token', expires_at: 1234567890 }, session: {} }),
+      text: async () => MOCK_ANSWER_SDP,
     });
 
     const { POST } = await import('@/app/api/voice/session/route');
-    const response = await POST(createRequest({ mode: 'invalid_mode' }));
+    const response = await POST(createRequest({ mode: 'invalid_mode', sdp: MOCK_SDP }));
     const data = await response.json();
 
     expect(data.model).toBe('gpt-4o-realtime-preview');
@@ -103,23 +91,23 @@ describe('POST /api/voice/session', () => {
     delete process.env.OPENAI_API_KEY;
 
     const { POST } = await import('@/app/api/voice/session/route');
-    const response = await POST(createRequest({ mode: 'read_aloud' }));
+    const response = await POST(createRequest({ mode: 'read_aloud', sdp: MOCK_SDP }));
 
     expect(response.status).toBe(500);
     const data = await response.json();
     expect(data.error).toContain('configured');
   });
 
-  it('should return 502 when OpenAI API fails', async () => {
+  it('should return error status when OpenAI API fails', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
-      status: 500,
-      json: async () => ({ error: { message: 'Internal Server Error' } }),
+      status: 400,
+      text: async () => '{"error": "bad request"}',
     });
 
     const { POST } = await import('@/app/api/voice/session/route');
-    const response = await POST(createRequest({ mode: 'read_aloud' }));
+    const response = await POST(createRequest({ mode: 'read_aloud', sdp: MOCK_SDP }));
 
-    expect(response.status).toBe(502);
+    expect(response.status).toBe(400);
   });
 });

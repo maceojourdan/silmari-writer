@@ -35,7 +35,7 @@ const MockRTCPeerConnection = vi.fn().mockImplementation(function (this: any) {
 
 vi.stubGlobal('RTCPeerConnection', MockRTCPeerConnection);
 
-// Mock fetch for SDP exchange
+// Mock fetch for SDP exchange via our proxy route
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
@@ -62,7 +62,11 @@ describe('createVoiceSession', () => {
     mockAudioEl.srcObject = null;
     mockFetch.mockResolvedValue({
       ok: true,
-      text: async () => 'mock-answer-sdp',
+      json: async () => ({
+        sdp: 'mock-answer-sdp',
+        model: 'gpt-4o-realtime-preview',
+        sessionLimitMinutes: 60,
+      }),
     });
     mockGetUserMedia.mockResolvedValue({
       getAudioTracks: () => [{ stop: vi.fn(), kind: 'audio' }],
@@ -77,9 +81,7 @@ describe('createVoiceSession', () => {
   it('should create RTCPeerConnection and data channel', async () => {
     const { createVoiceSession } = await import('@/lib/voice-session');
     const session = await createVoiceSession({
-      token: 'ek_test',
-      model: 'gpt-4o-realtime-preview',
-      sessionLimitMinutes: 60,
+      mode: 'read_aloud',
       needsMicrophone: false,
     });
 
@@ -92,9 +94,7 @@ describe('createVoiceSession', () => {
   it('should set audio element autoplay and attach to ontrack', async () => {
     const { createVoiceSession } = await import('@/lib/voice-session');
     await createVoiceSession({
-      token: 'ek_test',
-      model: 'gpt-4o-realtime-preview',
-      sessionLimitMinutes: 60,
+      mode: 'read_aloud',
       needsMicrophone: false,
     });
 
@@ -108,9 +108,7 @@ describe('createVoiceSession', () => {
   it('should NOT request microphone for read_aloud (needsMicrophone: false)', async () => {
     const { createVoiceSession } = await import('@/lib/voice-session');
     await createVoiceSession({
-      token: 'ek_test',
-      model: 'gpt-4o-realtime-preview',
-      sessionLimitMinutes: 60,
+      mode: 'read_aloud',
       needsMicrophone: false,
     });
 
@@ -123,9 +121,7 @@ describe('createVoiceSession', () => {
   it('should request microphone for voice_edit (needsMicrophone: true)', async () => {
     const { createVoiceSession } = await import('@/lib/voice-session');
     await createVoiceSession({
-      token: 'ek_test',
-      model: 'gpt-4o-realtime-preview',
-      sessionLimitMinutes: 60,
+      mode: 'voice_edit',
       needsMicrophone: true,
     });
 
@@ -133,25 +129,21 @@ describe('createVoiceSession', () => {
     expect(mockAddTrack).toHaveBeenCalled();
   });
 
-  it('should perform SDP offer/answer exchange with OpenAI GA endpoint using FormData', async () => {
+  it('should send SDP offer to /api/voice/session proxy route', async () => {
     const { createVoiceSession } = await import('@/lib/voice-session');
     await createVoiceSession({
-      token: 'ek_test',
-      model: 'gpt-4o-realtime-preview',
-      sessionLimitMinutes: 60,
+      mode: 'read_aloud',
       needsMicrophone: false,
     });
 
     expect(mockCreateOffer).toHaveBeenCalled();
     expect(mockSetLocalDescription).toHaveBeenCalled();
     expect(mockFetch).toHaveBeenCalledWith(
-      'https://api.openai.com/v1/realtime/calls',
+      '/api/voice/session',
       expect.objectContaining({
         method: 'POST',
-        headers: expect.objectContaining({
-          'Authorization': 'Bearer ek_test',
-        }),
-        body: expect.any(FormData),
+        headers: { 'Content-Type': 'application/json' },
+        body: expect.stringContaining('mock-offer-sdp'),
       }),
     );
     expect(mockSetRemoteDescription).toHaveBeenCalledWith({
@@ -163,9 +155,7 @@ describe('createVoiceSession', () => {
   it('should set up session timeout that closes connection', async () => {
     const { createVoiceSession } = await import('@/lib/voice-session');
     const session = await createVoiceSession({
-      token: 'ek_test',
-      model: 'gpt-4o-realtime-preview',
-      sessionLimitMinutes: 60,
+      mode: 'read_aloud',
       needsMicrophone: false,
     });
 
@@ -182,21 +172,21 @@ describe('createVoiceSession', () => {
 
     const { createVoiceSession, VoiceSessionError } = await import('@/lib/voice-session');
     await expect(createVoiceSession({
-      token: 'ek_test',
-      model: 'gpt-4o-realtime-preview',
-      sessionLimitMinutes: 60,
+      mode: 'voice_edit',
       needsMicrophone: true,
     })).rejects.toThrow(VoiceSessionError);
   });
 
   it('should throw VoiceSessionError when SDP exchange fails', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: false, status: 500, text: async () => 'Error' });
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: 'Server error' }),
+    });
 
     const { createVoiceSession, VoiceSessionError } = await import('@/lib/voice-session');
     await expect(createVoiceSession({
-      token: 'ek_test',
-      model: 'gpt-4o-realtime-preview',
-      sessionLimitMinutes: 60,
+      mode: 'read_aloud',
       needsMicrophone: false,
     })).rejects.toThrow(VoiceSessionError);
   });
@@ -204,9 +194,7 @@ describe('createVoiceSession', () => {
   it('should return cleanup function that releases all resources', async () => {
     const { createVoiceSession } = await import('@/lib/voice-session');
     const session = await createVoiceSession({
-      token: 'ek_test',
-      model: 'gpt-4o-realtime-preview',
-      sessionLimitMinutes: 60,
+      mode: 'voice_edit',
       needsMicrophone: true,
     });
 
