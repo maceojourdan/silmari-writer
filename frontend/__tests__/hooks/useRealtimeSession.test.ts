@@ -33,7 +33,7 @@ describe('useRealtimeSession', () => {
       ok: true,
       json: async () => ({
         token: 'ek_test',
-        model: 'gpt-realtime-mini',
+        model: 'gpt-4o-realtime-preview',
         sessionLimitMinutes: 60,
       }),
     });
@@ -80,7 +80,7 @@ describe('useRealtimeSession', () => {
     expect(mockCreateVoiceSession).toHaveBeenCalledWith(
       expect.objectContaining({
         token: 'ek_test',
-        model: 'gpt-realtime-mini',
+        model: 'gpt-4o-realtime-preview',
         needsMicrophone: false,
       }),
     );

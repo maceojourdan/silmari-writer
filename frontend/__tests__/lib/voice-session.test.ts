@@ -78,7 +78,7 @@ describe('createVoiceSession', () => {
     const { createVoiceSession } = await import('@/lib/voice-session');
     const session = await createVoiceSession({
       token: 'ek_test',
-      model: 'gpt-realtime-mini',
+      model: 'gpt-4o-realtime-preview',
       sessionLimitMinutes: 60,
       needsMicrophone: false,
     });
@@ -93,7 +93,7 @@ describe('createVoiceSession', () => {
     const { createVoiceSession } = await import('@/lib/voice-session');
     await createVoiceSession({
       token: 'ek_test',
-      model: 'gpt-realtime-mini',
+      model: 'gpt-4o-realtime-preview',
       sessionLimitMinutes: 60,
       needsMicrophone: false,
     });
@@ -109,7 +109,7 @@ describe('createVoiceSession', () => {
     const { createVoiceSession } = await import('@/lib/voice-session');
     await createVoiceSession({
       token: 'ek_test',
-      model: 'gpt-realtime-mini',
+      model: 'gpt-4o-realtime-preview',
       sessionLimitMinutes: 60,
       needsMicrophone: false,
     });
@@ -124,7 +124,7 @@ describe('createVoiceSession', () => {
     const { createVoiceSession } = await import('@/lib/voice-session');
     await createVoiceSession({
       token: 'ek_test',
-      model: 'gpt-realtime',
+      model: 'gpt-4o-realtime-preview',
       sessionLimitMinutes: 60,
       needsMicrophone: true,
     });
@@ -137,7 +137,7 @@ describe('createVoiceSession', () => {
     const { createVoiceSession } = await import('@/lib/voice-session');
     await createVoiceSession({
       token: 'ek_test',
-      model: 'gpt-realtime-mini',
+      model: 'gpt-4o-realtime-preview',
       sessionLimitMinutes: 60,
       needsMicrophone: false,
     });
@@ -164,7 +164,7 @@ describe('createVoiceSession', () => {
     const { createVoiceSession } = await import('@/lib/voice-session');
     const session = await createVoiceSession({
       token: 'ek_test',
-      model: 'gpt-realtime-mini',
+      model: 'gpt-4o-realtime-preview',
       sessionLimitMinutes: 60,
       needsMicrophone: false,
     });
@@ -183,7 +183,7 @@ describe('createVoiceSession', () => {
     const { createVoiceSession, VoiceSessionError } = await import('@/lib/voice-session');
     await expect(createVoiceSession({
       token: 'ek_test',
-      model: 'gpt-realtime',
+      model: 'gpt-4o-realtime-preview',
       sessionLimitMinutes: 60,
       needsMicrophone: true,
     })).rejects.toThrow(VoiceSessionError);
@@ -195,7 +195,7 @@ describe('createVoiceSession', () => {
     const { createVoiceSession, VoiceSessionError } = await import('@/lib/voice-session');
     await expect(createVoiceSession({
       token: 'ek_test',
-      model: 'gpt-realtime-mini',
+      model: 'gpt-4o-realtime-preview',
       sessionLimitMinutes: 60,
       needsMicrophone: false,
     })).rejects.toThrow(VoiceSessionError);
@@ -205,7 +205,7 @@ describe('createVoiceSession', () => {
     const { createVoiceSession } = await import('@/lib/voice-session');
     const session = await createVoiceSession({
       token: 'ek_test',
-      model: 'gpt-realtime',
+      model: 'gpt-4o-realtime-preview',
       sessionLimitMinutes: 60,
       needsMicrophone: true,
     });

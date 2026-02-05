@@ -6,17 +6,11 @@ interface RealtimeModelPricing {
 }
 
 export const REALTIME_PRICING: Record<string, RealtimeModelPricing> = {
-  'gpt-realtime-mini': {
-    audioInputPerMillion: 10,
-    audioOutputPerMillion: 20,
-    textInputPerMillion: 0.6,
-    textOutputPerMillion: 2.4,
-  },
-  'gpt-realtime': {
-    audioInputPerMillion: 32,
-    audioOutputPerMillion: 64,
-    textInputPerMillion: 4,
-    textOutputPerMillion: 16,
+  'gpt-4o-realtime-preview': {
+    audioInputPerMillion: 40,
+    audioOutputPerMillion: 80,
+    textInputPerMillion: 2.5,
+    textOutputPerMillion: 10,
   },
 };
 
@@ -31,7 +25,7 @@ interface CostEstimate {
 }
 
 export function estimateReadAloudCost(durationMinutes: number): CostEstimate {
-  const model = 'gpt-realtime-mini';
+  const model = 'gpt-4o-realtime-preview';
   const pricing = REALTIME_PRICING[model];
   const outputTokens = durationMinutes * TOKENS_PER_MINUTE_AUDIO_OUTPUT;
   const outputCost = (outputTokens / 1_000_000) * pricing.audioOutputPerMillion;
@@ -44,7 +38,7 @@ export function estimateReadAloudCost(durationMinutes: number): CostEstimate {
 }
 
 export function estimateVoiceEditCost(durationMinutes: number): CostEstimate {
-  const model = 'gpt-realtime';
+  const model = 'gpt-4o-realtime-preview';
   const pricing = REALTIME_PRICING[model];
   const inputTokens = durationMinutes * TOKENS_PER_MINUTE_AUDIO_INPUT;
   const outputTokens = durationMinutes * TOKENS_PER_MINUTE_AUDIO_OUTPUT;

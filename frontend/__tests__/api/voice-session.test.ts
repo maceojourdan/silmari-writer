@@ -39,11 +39,11 @@ describe('POST /api/voice/session', () => {
 
     expect(response.status).toBe(200);
     expect(data.token).toBe('ek_test_token_123');
-    expect(data.model).toBe('gpt-realtime-mini');
+    expect(data.model).toBe('gpt-4o-realtime-preview');
     expect(data.sessionLimitMinutes).toBe(60);
   });
 
-  it('should use gpt-realtime model for voice_edit mode', async () => {
+  it('should use gpt-4o-realtime-preview model for voice_edit mode', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ client_secret: 'ek_edit_token_456', expires_at: 1234567890, session: {} }),
@@ -57,7 +57,7 @@ describe('POST /api/voice/session', () => {
     }));
     const data = await response.json();
 
-    expect(data.model).toBe('gpt-realtime');
+    expect(data.model).toBe('gpt-4o-realtime-preview');
 
     // Verify OpenAI was called with correct GA endpoint and wrapped body
     expect(mockFetch).toHaveBeenCalledWith(
@@ -67,7 +67,7 @@ describe('POST /api/voice/session', () => {
         headers: expect.objectContaining({
           'Authorization': 'Bearer test-key',
         }),
-        body: expect.stringContaining('gpt-realtime'),
+        body: expect.stringContaining('gpt-4o-realtime-preview'),
       }),
     );
   });
@@ -83,7 +83,7 @@ describe('POST /api/voice/session', () => {
 
     const fetchBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(fetchBody.session.type).toBe('realtime');
-    expect(fetchBody.session.model).toBe('gpt-realtime-mini');
+    expect(fetchBody.session.model).toBe('gpt-4o-realtime-preview');
     expect(fetchBody.session.audio).toEqual({ output: { voice: 'alloy' } });
   });
 
@@ -97,7 +97,7 @@ describe('POST /api/voice/session', () => {
     const response = await POST(createRequest({ mode: 'invalid_mode' }));
     const data = await response.json();
 
-    expect(data.model).toBe('gpt-realtime-mini');
+    expect(data.model).toBe('gpt-4o-realtime-preview');
   });
 
   it('should return 500 when OPENAI_API_KEY is missing', async () => {

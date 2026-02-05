@@ -9,8 +9,8 @@ describe('Voice Types and Constants', () => {
 
   it('should export model mapping for each voice mode', async () => {
     const { MODEL_MAP } = await import('@/lib/voice-types');
-    expect(MODEL_MAP.read_aloud).toBe('gpt-realtime-mini');
-    expect(MODEL_MAP.voice_edit).toBe('gpt-realtime');
+    expect(MODEL_MAP.read_aloud).toBe('gpt-4o-realtime-preview');
+    expect(MODEL_MAP.voice_edit).toBe('gpt-4o-realtime-preview');
   });
 
   it('should export SESSION_LIMIT_MINUTES as 60', async () => {

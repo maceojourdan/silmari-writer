@@ -8,8 +8,8 @@ export type VoiceMode = (typeof VOICE_MODES)[keyof typeof VOICE_MODES];
 
 // Model mapping per voice mode
 export const MODEL_MAP: Record<VoiceMode, string> = {
-  read_aloud: 'gpt-realtime-mini',
-  voice_edit: 'gpt-realtime',
+  read_aloud: 'gpt-4o-realtime-preview',
+  voice_edit: 'gpt-4o-realtime-preview',
 } as const;
 
 // Session configuration
