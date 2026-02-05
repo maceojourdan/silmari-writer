@@ -1298,9 +1298,9 @@ export function useRealtimeSession() {
 
 ### Success Criteria
 **Automated:**
-- [ ] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/hooks/useRealtimeSession.test.ts`
-- [ ] Test passes (Green): `cd frontend && npx vitest run __tests__/hooks/useRealtimeSession.test.ts`
-- [ ] All existing tests still pass: `cd frontend && npx vitest run`
+- [x] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/hooks/useRealtimeSession.test.ts`
+- [x] Test passes (Green): `cd frontend && npx vitest run __tests__/hooks/useRealtimeSession.test.ts`
+- [x] All existing tests still pass: `cd frontend && npx vitest run`
 
 ---
 
