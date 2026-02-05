@@ -39,11 +39,28 @@ export async function createVoiceSession(options: VoiceSessionOptions): Promise<
     ],
   });
 
-  // Audio output
+  // Audio output — append to DOM for autoplay to work in some browsers
   const audioEl = document.createElement('audio');
   audioEl.autoplay = true;
+  audioEl.id = 'voice-session-audio';
+  document.body.appendChild(audioEl);
+
   pc.ontrack = (event) => {
     audioEl.srcObject = event.streams[0];
+  };
+
+  // Debug: log connection state changes
+  pc.oniceconnectionstatechange = () => {
+    if (typeof window !== 'undefined') {
+      // eslint-disable-next-line no-console
+      console.log('[Voice] ICE state:', pc.iceConnectionState);
+    }
+  };
+  pc.onconnectionstatechange = () => {
+    if (typeof window !== 'undefined') {
+      // eslint-disable-next-line no-console
+      console.log('[Voice] Connection state:', pc.connectionState);
+    }
   };
 
   // Audio input: microphone for voice_edit, receive-only for read_aloud
@@ -135,6 +152,7 @@ export async function createVoiceSession(options: VoiceSessionOptions): Promise<
     clearTimeout(sessionTimeout);
     pc.close();
     stream?.getTracks().forEach((t) => t.stop());
+    audioEl.remove();
   }
 
   return { pc, dc, audioEl, stream, model, sessionLimitMinutes, sessionTimeout, close };

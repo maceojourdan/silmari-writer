@@ -56,11 +56,14 @@ vi.stubGlobal('navigator', {
   mediaDevices: { getUserMedia: mockGetUserMedia },
 });
 
-// Mock Audio element - use a stored reference to the real createElement
+// Mock Audio element - create a real element but track its properties
 const realCreateElement = document.createElement.bind(document);
-const mockAudioEl = { autoplay: false, srcObject: null as MediaStream | null };
+let mockAudioEl: HTMLAudioElement | null = null;
 vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
-  if (tag === 'audio') return mockAudioEl as unknown as HTMLElement;
+  if (tag === 'audio') {
+    mockAudioEl = realCreateElement('audio') as HTMLAudioElement;
+    return mockAudioEl;
+  }
   return realCreateElement(tag);
 });
 
@@ -69,8 +72,7 @@ describe('createVoiceSession', () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     mockOnTrack = null;
-    mockAudioEl.autoplay = false;
-    mockAudioEl.srcObject = null;
+    mockAudioEl = null;
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -109,11 +111,12 @@ describe('createVoiceSession', () => {
       needsMicrophone: false,
     });
 
-    expect(mockAudioEl.autoplay).toBe(true);
+    expect(mockAudioEl).not.toBeNull();
+    expect(mockAudioEl!.autoplay).toBe(true);
     // Simulate track event
     const mockStream = {} as MediaStream;
     mockOnTrack?.({ streams: [mockStream] });
-    expect(mockAudioEl.srcObject).toBe(mockStream);
+    expect(mockAudioEl!.srcObject).toBe(mockStream);
   });
 
   it('should NOT request microphone for read_aloud (needsMicrophone: false)', async () => {
