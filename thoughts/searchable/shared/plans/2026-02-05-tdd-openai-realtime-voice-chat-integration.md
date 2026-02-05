@@ -817,9 +817,9 @@ export async function createVoiceSession(options: VoiceSessionOptions): Promise<
 
 ### Success Criteria
 **Automated:**
-- [ ] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/lib/voice-session.test.ts`
-- [ ] Test passes (Green): `cd frontend && npx vitest run __tests__/lib/voice-session.test.ts`
-- [ ] All existing tests still pass: `cd frontend && npx vitest run`
+- [x] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/lib/voice-session.test.ts`
+- [x] Test passes (Green): `cd frontend && npx vitest run __tests__/lib/voice-session.test.ts`
+- [x] All existing tests still pass: `cd frontend && npx vitest run`
 
 ---
 
