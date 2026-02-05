@@ -30,7 +30,7 @@ describe('POST /api/voice/session', () => {
   it('should return ephemeral token for read_aloud mode', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ client_secret: 'ek_test_token_123', expires_at: 1234567890, session: {} }),
+      json: async () => ({ client_secret: { value: 'ek_test_token_123', expires_at: 1234567890 }, session: {} }),
     });
 
     const { POST } = await import('@/app/api/voice/session/route');
@@ -46,7 +46,7 @@ describe('POST /api/voice/session', () => {
   it('should use gpt-4o-realtime-preview model for voice_edit mode', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ client_secret: 'ek_edit_token_456', expires_at: 1234567890, session: {} }),
+      json: async () => ({ client_secret: { value: 'ek_edit_token_456', expires_at: 1234567890 }, session: {} }),
     });
 
     const { POST } = await import('@/app/api/voice/session/route');
@@ -75,7 +75,7 @@ describe('POST /api/voice/session', () => {
   it('should send correct GA session config format', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ client_secret: 'ek_token', expires_at: 1234567890, session: {} }),
+      json: async () => ({ client_secret: { value: 'ek_token', expires_at: 1234567890 }, session: {} }),
     });
 
     const { POST } = await import('@/app/api/voice/session/route');
@@ -90,7 +90,7 @@ describe('POST /api/voice/session', () => {
   it('should default to read_aloud when mode is invalid', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ client_secret: 'ek_token', expires_at: 1234567890, session: {} }),
+      json: async () => ({ client_secret: { value: 'ek_token', expires_at: 1234567890 }, session: {} }),
     });
 
     const { POST } = await import('@/app/api/voice/session/route');

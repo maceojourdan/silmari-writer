@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
   // GA response: { client_secret: "ek_...", expires_at: <unix_ts>, session: {...} }
   const data = await response.json();
   return NextResponse.json({
-    token: data.client_secret,
+    token: data.client_secret.value,
     model,
     sessionLimitMinutes: SESSION_LIMIT_MINUTES,
   });
