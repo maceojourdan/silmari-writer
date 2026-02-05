@@ -19,7 +19,6 @@ export async function POST(request: NextRequest) {
     type: 'realtime',
     model,
     audio: { output: { voice: DEFAULT_VOICE } },
-    turn_detection: mode === 'voice_edit' ? { type: 'server_vad' } : null,
   };
 
   if (body.instructions) {

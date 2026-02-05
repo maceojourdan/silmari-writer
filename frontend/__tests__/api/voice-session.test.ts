@@ -72,22 +72,7 @@ describe('POST /api/voice/session', () => {
     );
   });
 
-  it('should include turn_detection for voice_edit mode', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ client_secret: 'ek_token', expires_at: 1234567890, session: {} }),
-    });
-
-    const { POST } = await import('@/app/api/voice/session/route');
-    await POST(createRequest({ mode: 'voice_edit' }));
-
-    const fetchBody = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(fetchBody.session.type).toBe('realtime');
-    expect(fetchBody.session.audio).toEqual({ output: { voice: 'alloy' } });
-    expect(fetchBody.session.turn_detection).toEqual({ type: 'server_vad' });
-  });
-
-  it('should NOT include turn_detection for read_aloud mode', async () => {
+  it('should send correct GA session config format', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ client_secret: 'ek_token', expires_at: 1234567890, session: {} }),
@@ -98,8 +83,8 @@ describe('POST /api/voice/session', () => {
 
     const fetchBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(fetchBody.session.type).toBe('realtime');
+    expect(fetchBody.session.model).toBe('gpt-realtime-mini');
     expect(fetchBody.session.audio).toEqual({ output: { voice: 'alloy' } });
-    expect(fetchBody.session.turn_detection).toBeNull();
   });
 
   it('should default to read_aloud when mode is invalid', async () => {
