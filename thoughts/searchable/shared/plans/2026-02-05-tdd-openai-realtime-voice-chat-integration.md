@@ -475,10 +475,10 @@ export async function POST(request: NextRequest) {
 
 ### Success Criteria
 **Automated:**
-- [ ] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/api/voice-session.test.ts`
-- [ ] Test passes (Green): `cd frontend && npx vitest run __tests__/api/voice-session.test.ts`
-- [ ] All existing tests still pass: `cd frontend && npx vitest run`
-- [ ] TypeScript compiles: `cd frontend && npx tsc --noEmit`
+- [x] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/api/voice-session.test.ts`
+- [x] Test passes (Green): `cd frontend && npx vitest run __tests__/api/voice-session.test.ts`
+- [x] All existing tests still pass: `cd frontend && npx vitest run`
+- [x] TypeScript compiles: `cd frontend && npx tsc --noEmit`
 
 ---
 
