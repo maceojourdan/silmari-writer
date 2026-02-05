@@ -64,8 +64,8 @@ export async function createVoiceSession(options: VoiceSessionOptions): Promise<
   await pc.setLocalDescription(offer);
 
   const formData = new FormData();
-  formData.append('sdp', new Blob([pc.localDescription!.sdp!], { type: 'application/sdp' }));
-  formData.append('session', new Blob([JSON.stringify({ type: 'realtime', model })], { type: 'application/json' }));
+  formData.set('sdp', pc.localDescription!.sdp!);
+  formData.set('session', JSON.stringify({ type: 'realtime', model }));
 
   const sdpResponse = await fetch('https://api.openai.com/v1/realtime/calls', {
     method: 'POST',
