@@ -30,7 +30,7 @@ export default function ConversationView({ messages }: ConversationViewProps) {
   }
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto p-4" data-testid="conversation-view">
+    <div className="flex-1 min-h-0 overflow-y-auto p-4 pt-8" data-testid="conversation-view">
       {messages.map((msg) => (
         <MessageBubble key={msg.id} message={msg} />
       ))}
