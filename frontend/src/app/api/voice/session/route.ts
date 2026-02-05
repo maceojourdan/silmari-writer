@@ -40,8 +40,8 @@ export async function POST(request: NextRequest) {
   // Proxy the SDP exchange to OpenAI using our API key
   // See: https://platform.openai.com/docs/api-reference/realtime/create-call
   const formData = new FormData();
-  formData.set('sdp', new Blob([sdp], { type: 'application/sdp' }));
-  formData.set('session', new Blob([JSON.stringify(sessionConfig)], { type: 'application/json' }));
+  formData.set('sdp', sdp);
+  formData.set('session', JSON.stringify(sessionConfig));
 
   let response: Response;
   try {
