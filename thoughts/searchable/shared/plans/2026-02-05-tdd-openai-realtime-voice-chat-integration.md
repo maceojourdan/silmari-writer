@@ -1897,8 +1897,8 @@ export default function VoiceSessionTimer({ timeRemaining }: VoiceSessionTimerPr
 
 ### Success Criteria
 **Automated:**
-- [ ] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/components/VoiceSessionTimer.test.tsx`
-- [ ] Test passes (Green): `cd frontend && npx vitest run __tests__/components/VoiceSessionTimer.test.tsx`
+- [x] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/components/VoiceSessionTimer.test.tsx`
+- [x] Test passes (Green): `cd frontend && npx vitest run __tests__/components/VoiceSessionTimer.test.tsx`
 
 ---
 
@@ -2133,9 +2133,9 @@ Important:
 
 ### Success Criteria
 **Automated:**
-- [ ] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/api/voice-edit.test.ts`
-- [ ] Test passes (Green): `cd frontend && npx vitest run __tests__/api/voice-edit.test.ts`
-- [ ] All existing tests still pass: `cd frontend && npx vitest run`
+- [x] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/api/voice-edit.test.ts`
+- [x] Test passes (Green): `cd frontend && npx vitest run __tests__/api/voice-edit.test.ts`
+- [x] All existing tests still pass: `cd frontend && npx vitest run`
 
 ---
 
@@ -2496,9 +2496,9 @@ export function useVoiceEdit() {
 
 ### Success Criteria
 **Automated:**
-- [ ] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/hooks/useVoiceEdit.test.ts`
-- [ ] Test passes (Green): `cd frontend && npx vitest run __tests__/hooks/useVoiceEdit.test.ts`
-- [ ] All existing tests still pass: `cd frontend && npx vitest run`
+- [x] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/hooks/useVoiceEdit.test.ts`
+- [x] Test passes (Green): `cd frontend && npx vitest run __tests__/hooks/useVoiceEdit.test.ts`
+- [x] All existing tests still pass: `cd frontend && npx vitest run`
 
 ---
 
@@ -2678,8 +2678,8 @@ export default function VoiceEditPanel() {
 
 ### Success Criteria
 **Automated:**
-- [ ] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/components/VoiceEditPanel.test.tsx`
-- [ ] Test passes (Green): `cd frontend && npx vitest run __tests__/components/VoiceEditPanel.test.tsx`
+- [x] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/components/VoiceEditPanel.test.tsx`
+- [x] Test passes (Green): `cd frontend && npx vitest run __tests__/components/VoiceEditPanel.test.tsx`
 
 ---
 
@@ -2914,8 +2914,8 @@ export function estimateVoiceEditCost(durationMinutes: number): CostEstimate {
 
 ### Success Criteria
 **Automated:**
-- [ ] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/lib/voice-cost-tracking.test.ts`
-- [ ] Test passes (Green): `cd frontend && npx vitest run __tests__/lib/voice-cost-tracking.test.ts`
+- [x] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/lib/voice-cost-tracking.test.ts`
+- [x] Test passes (Green): `cd frontend && npx vitest run __tests__/lib/voice-cost-tracking.test.ts`
 
 ---
 
