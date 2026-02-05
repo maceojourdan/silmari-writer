@@ -147,7 +147,7 @@ export default function HomePage() {
 
   return (
     <AppLayout>
-      <div className="flex h-full overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Sidebar */}
         <div className="w-64 border-r border-border bg-card hidden lg:block">
           <div className="p-4">
