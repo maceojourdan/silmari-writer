@@ -14,12 +14,23 @@ let mockOnTrack: ((event: { streams: MediaStream[] }) => void) | null = null;
 const MockRTCPeerConnection = vi.fn().mockImplementation(function (this: any) {
   this.addTrack = mockAddTrack;
   this.addTransceiver = mockAddTransceiver;
-  this.createDataChannel = mockCreateDataChannel.mockReturnValue({
-    onopen: null,
-    onclose: null,
-    onmessage: null,
-    send: vi.fn(),
-    readyState: 'open',
+  // Create a mock data channel that auto-fires onopen when handler is set
+  this.createDataChannel = mockCreateDataChannel.mockImplementation(() => {
+    let onopenHandler: (() => void) | null = null;
+    const dc = {
+      get onopen() { return onopenHandler; },
+      set onopen(handler: (() => void) | null) {
+        onopenHandler = handler;
+        // Fire immediately when handler is set
+        if (handler) Promise.resolve().then(handler);
+      },
+      onerror: null as (() => void) | null,
+      onclose: null,
+      onmessage: null,
+      send: vi.fn(),
+      readyState: 'open',
+    };
+    return dc;
   });
   this.createOffer = mockCreateOffer.mockResolvedValue({ sdp: 'mock-offer-sdp' });
   this.setLocalDescription = mockSetLocalDescription.mockResolvedValue(undefined);

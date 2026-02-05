@@ -30,7 +30,14 @@ export interface VoiceSession {
 
 export async function createVoiceSession(options: VoiceSessionOptions): Promise<VoiceSession> {
   const { mode, needsMicrophone, instructions, tools } = options;
-  const pc = new RTCPeerConnection();
+
+  // Use Google's public STUN servers for NAT traversal
+  const pc = new RTCPeerConnection({
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+    ],
+  });
 
   // Audio output
   const audioEl = document.createElement('audio');
@@ -90,6 +97,34 @@ export async function createVoiceSession(options: VoiceSessionOptions): Promise<
 
   const { sdp: answerSdp, model, sessionLimitMinutes } = await response.json();
   await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
+
+  // Wait for data channel to open, then send session.update with config
+  await new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new VoiceSessionError('Data channel timeout', 'DC_TIMEOUT', true)), 10000);
+    dc.onopen = () => {
+      clearTimeout(timeout);
+      // Send session configuration via data channel
+      const sessionUpdate: Record<string, unknown> = {
+        type: 'session.update',
+        session: {
+          voice: 'alloy',
+          turn_detection: needsMicrophone ? { type: 'server_vad' } : null,
+        },
+      };
+      if (instructions) {
+        sessionUpdate.session = { ...(sessionUpdate.session as object), instructions };
+      }
+      if (tools && tools.length > 0) {
+        sessionUpdate.session = { ...(sessionUpdate.session as object), tools };
+      }
+      dc.send(JSON.stringify(sessionUpdate));
+      resolve();
+    };
+    dc.onerror = () => {
+      clearTimeout(timeout);
+      reject(new VoiceSessionError('Data channel error', 'DC_ERROR', true));
+    };
+  });
 
   // Session timer
   const sessionTimeout = setTimeout(() => {
