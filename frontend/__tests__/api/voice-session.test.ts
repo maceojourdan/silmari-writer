@@ -59,9 +59,9 @@ describe('POST /api/voice/session', () => {
 
     expect(data.model).toBe('gpt-4o-realtime-preview');
 
-    // Verify OpenAI was called with correct GA endpoint and wrapped body
+    // Verify OpenAI was called with correct endpoint and flat body
     expect(mockFetch).toHaveBeenCalledWith(
-      'https://api.openai.com/v1/realtime/client_secrets',
+      'https://api.openai.com/v1/realtime/sessions',
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({
@@ -72,7 +72,7 @@ describe('POST /api/voice/session', () => {
     );
   });
 
-  it('should send correct GA session config format', async () => {
+  it('should send correct session config format', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ client_secret: { value: 'ek_token', expires_at: 1234567890 }, session: {} }),
@@ -82,9 +82,8 @@ describe('POST /api/voice/session', () => {
     await POST(createRequest({ mode: 'read_aloud' }));
 
     const fetchBody = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(fetchBody.session.type).toBe('realtime');
-    expect(fetchBody.session.model).toBe('gpt-4o-realtime-preview');
-    expect(fetchBody.session.audio).toEqual({ output: { voice: 'alloy' } });
+    expect(fetchBody.model).toBe('gpt-4o-realtime-preview');
+    expect(fetchBody.voice).toBe('alloy');
   });
 
   it('should default to read_aloud when mode is invalid', async () => {

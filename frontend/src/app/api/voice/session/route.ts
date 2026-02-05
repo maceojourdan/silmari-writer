@@ -16,9 +16,8 @@ export async function POST(request: NextRequest) {
   const model = MODEL_MAP[mode];
 
   const sessionConfig: Record<string, unknown> = {
-    type: 'realtime',
     model,
-    audio: { output: { voice: DEFAULT_VOICE } },
+    voice: DEFAULT_VOICE,
   };
 
   if (body.instructions) {
@@ -28,14 +27,13 @@ export async function POST(request: NextRequest) {
     sessionConfig.tools = body.tools;
   }
 
-  // GA endpoint — wraps config in { session: ... }
-  const response = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
+  const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ session: sessionConfig }),
+    body: JSON.stringify(sessionConfig),
   });
 
   if (!response.ok) {
