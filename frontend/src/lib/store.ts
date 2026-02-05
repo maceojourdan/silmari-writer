@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { Message, Project, MessageButtonState, NonBlockingOperationType, BlockingOperationType } from './types'
+import type { VoiceSessionState, EditHistory, EditEntry } from './voice-types'
+import { createEditEntry, createEditHistory } from './voice-types'
 
 interface ConversationState {
   projects: Project[]
@@ -37,6 +39,20 @@ interface ConversationState {
   getActiveMessages: () => Message[]
   hasMessages: (projectId: string) => boolean
   projectCount: () => number
+
+  // Voice state (session-scoped, not persisted)
+  readAloudEnabled: boolean
+  voiceSessionState: VoiceSessionState
+  editHistory: EditHistory | null
+
+  // Voice actions
+  setReadAloud: (enabled: boolean) => void
+  setVoiceSessionState: (state: VoiceSessionState) => void
+  initEditHistory: (projectId: string, sessionId: string) => void
+  snapshotOriginal: (messageId: string, content: string) => void
+  pushEdit: (params: Omit<EditEntry, 'timestamp'>) => void
+  popEdit: () => { messageId: string; previousContent: string } | null
+  clearEditHistory: () => void
 }
 
 export const useConversationStore = create<ConversationState>()(
@@ -265,9 +281,88 @@ export const useConversationStore = create<ConversationState>()(
       isMessageBlocked: (messageId) => {
         return !!get().buttonStates[messageId]?.blockingOperation?.isLoading
       },
+
+      // Voice state (session-scoped, not persisted)
+      readAloudEnabled: false,
+      voiceSessionState: 'idle' as VoiceSessionState,
+      editHistory: null,
+
+      // Voice actions
+      setReadAloud: (enabled) => {
+        set({ readAloudEnabled: enabled })
+      },
+      setVoiceSessionState: (state) => {
+        set({ voiceSessionState: state })
+      },
+      initEditHistory: (projectId, sessionId) => {
+        set({ editHistory: createEditHistory({ projectId, sessionId }) })
+      },
+      snapshotOriginal: (messageId, content) => {
+        set((state) => {
+          if (!state.editHistory) return state
+          if (messageId in state.editHistory.originalSnapshots) return state
+          return {
+            editHistory: {
+              ...state.editHistory,
+              originalSnapshots: {
+                ...state.editHistory.originalSnapshots,
+                [messageId]: content,
+              },
+            },
+          }
+        })
+      },
+      pushEdit: (params) => {
+        set((state) => {
+          if (!state.editHistory) return state
+          return {
+            editHistory: {
+              ...state.editHistory,
+              edits: [...state.editHistory.edits, createEditEntry(params)],
+            },
+          }
+        })
+      },
+      popEdit: () => {
+        const state = get()
+        if (!state.editHistory || state.editHistory.edits.length === 0) return null
+
+        const edits = state.editHistory.edits
+        const lastEdit = edits[edits.length - 1]
+        const messageId = lastEdit.messageId
+
+        // Find the previous content for this message: walk backwards through remaining edits
+        const remainingEdits = edits.slice(0, -1)
+        let previousContent = state.editHistory.originalSnapshots[messageId] || ''
+        for (let i = remainingEdits.length - 1; i >= 0; i--) {
+          if (remainingEdits[i].messageId === messageId) {
+            previousContent = remainingEdits[i].editedContent
+            break
+          }
+        }
+
+        set({
+          editHistory: {
+            ...state.editHistory,
+            edits: remainingEdits,
+          },
+        })
+
+        return { messageId, previousContent }
+      },
+      clearEditHistory: () => {
+        set({ editHistory: null })
+      },
     }),
     {
       name: 'conversation-storage',
+      partialize: (state) => ({
+        projects: state.projects,
+        activeProjectId: state.activeProjectId,
+        messages: state.messages,
+        buttonStates: state.buttonStates,
+        _hasHydrated: state._hasHydrated,
+      }),
       onRehydrateStorage: () => (state) => {
         if (state) {
           // Clean up any loading states from previous session

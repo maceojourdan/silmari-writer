@@ -994,10 +994,10 @@ Extend `store.ts` with the new voice state and actions. The implementation adds 
 
 ### Success Criteria
 **Automated:**
-- [ ] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/lib/voice-store.test.ts`
-- [ ] Test passes (Green): `cd frontend && npx vitest run __tests__/lib/voice-store.test.ts`
-- [ ] All existing store tests still pass: `cd frontend && npx vitest run __tests__/lib/store.test.ts`
-- [ ] Existing persistence tests still pass (editHistory not in localStorage)
+- [x] Test fails for right reason (Red): `cd frontend && npx vitest run __tests__/lib/voice-store.test.ts`
+- [x] Test passes (Green): `cd frontend && npx vitest run __tests__/lib/voice-store.test.ts`
+- [x] All existing store tests still pass: `cd frontend && npx vitest run __tests__/lib/store.test.ts`
+- [x] Existing persistence tests still pass (editHistory not in localStorage)
 
 ---
 
