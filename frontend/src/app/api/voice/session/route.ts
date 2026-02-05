@@ -23,11 +23,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Build session config matching the official docs format
+  // Build session config — only type and model per the docs
   const sessionConfig: Record<string, unknown> = {
     type: 'realtime',
     model,
-    voice: DEFAULT_VOICE,
   };
 
   if (body.instructions) {
