@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { toFile } from 'openai/uploads'
-import { del } from '@vercel/blob'
 
 const MAX_FILE_SIZE_MB = 25
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 const MAX_RETRIES = 3
 const BASE_RETRY_DELAY_MS = 2000 // Base delay for network errors
 const RATE_LIMIT_BASE_DELAY_MS = 10000 // Base delay for rate limit errors (10s)
-const MAX_RATE_LIMIT_DELAY_MS = 60000 // 60 second cap for rate limit delays
-const MAX_NETWORK_DELAY_MS = 30000 // 30 second cap for network delays
 
 // Supported audio file types per OpenAI documentation
 const SUPPORTED_AUDIO_TYPES = {
@@ -28,16 +25,36 @@ const SUPPORTED_AUDIO_TYPES = {
 } as const
 
 export async function POST(request: NextRequest) {
-  let blobUrl: string | null = null
-
   try {
-    // Parse JSON body containing blob URL
-    const body = await request.json()
-    blobUrl = body.blobUrl
+    const formData = await request.formData()
+    const file = formData.get('file') as File | null
 
-    if (!blobUrl) {
+    if (!file) {
       return NextResponse.json(
-        { error: 'No blob URL provided', code: 'NO_BLOB_URL' },
+        { error: 'No file provided', code: 'NO_FILE' },
+        { status: 400 }
+      )
+    }
+
+    // Validate file type
+    if (!SUPPORTED_AUDIO_TYPES[file.type as keyof typeof SUPPORTED_AUDIO_TYPES]) {
+      const supportedTypes = Object.values(SUPPORTED_AUDIO_TYPES)
+        .filter((v, i, a) => a.indexOf(v) === i) // unique values
+        .join(', ')
+      return NextResponse.json(
+        {
+          error: `Unsupported file type: ${file.type}. Supported types: ${supportedTypes}`,
+          code: 'UNSUPPORTED_FILE_TYPE',
+          retryable: false
+        },
+        { status: 400 }
+      )
+    }
+
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      return NextResponse.json(
+        { error: `File size exceeds ${MAX_FILE_SIZE_MB}MB limit`, code: 'FILE_TOO_LARGE', retryable: false },
         { status: 400 }
       )
     }
@@ -52,85 +69,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Fetch the file from Vercel Blob
-    const fileResponse = await fetch(blobUrl)
-    if (!fileResponse.ok) {
-      throw new Error('Failed to fetch file from blob storage')
-    }
-
-    const fileBuffer = await fileResponse.arrayBuffer()
-    const contentType = fileResponse.headers.get('content-type') || 'audio/webm'
-
-    // Validate file size
-    if (fileBuffer.byteLength > MAX_FILE_SIZE_BYTES) {
-      const actualSizeMB = (fileBuffer.byteLength / (1024 * 1024)).toFixed(1)
-      return NextResponse.json(
-        { error: `File size ${actualSizeMB}MB exceeds ${MAX_FILE_SIZE_MB}MB limit. Try recording a shorter audio clip.`, code: 'FILE_TOO_LARGE', retryable: false },
-        { status: 400 }
-      )
-    }
-
-    // Validate file type
-    if (!SUPPORTED_AUDIO_TYPES[contentType as keyof typeof SUPPORTED_AUDIO_TYPES]) {
-      const supportedTypes = Object.values(SUPPORTED_AUDIO_TYPES)
-        .filter((v, i, a) => a.indexOf(v) === i) // unique values
-        .join(', ')
-      return NextResponse.json(
-        {
-          error: `Unsupported file type: ${contentType}. Supported types: ${supportedTypes}`,
-          code: 'UNSUPPORTED_FILE_TYPE',
-          retryable: false
-        },
-        { status: 400 }
-      )
-    }
-
     // Initialize OpenAI client
     const openai = new OpenAI({ apiKey })
 
     // Get optional language parameter
-    const language = body.language as string | null
-
-    // Extract filename from blob URL
-    const filename = blobUrl.split('/').pop() || 'recording.webm'
-
-    // Convert buffer to file for OpenAI
-    const extension = SUPPORTED_AUDIO_TYPES[contentType as keyof typeof SUPPORTED_AUDIO_TYPES] || 'webm'
-    const fileForUpload = await toFile(
-      new Uint8Array(fileBuffer),
-      `${filename}.${extension}`,
-      { type: contentType }
-    )
+    const language = formData.get('language') as string | null
 
     // Call OpenAI with retry logic
-    const text = await transcribeWithRetry(openai, fileForUpload, language, 0)
-
-    // Clean up: delete the blob after successful transcription
-    try {
-      const blobToken = process.env.BLOB_READ_WRITE_TOKEN
-      if (blobToken) {
-        await del(blobUrl, { token: blobToken })
-      }
-    } catch (cleanupError) {
-      // Log but don't fail the request if cleanup fails
-      console.warn('Failed to delete blob after transcription:', cleanupError)
-    }
+    const text = await transcribeWithRetry(openai, file, language, 0)
 
     return NextResponse.json({ text })
   } catch (error) {
     console.error('Transcription error:', error)
-
-    // Clean up blob even on error
-    if (blobUrl) {
-      try {
-        const blobToken = process.env.BLOB_READ_WRITE_TOKEN
-        if (blobToken) {
-          await del(blobUrl, { token: blobToken })
-        }
-      } catch (cleanupError) {
-        console.warn('Failed to delete blob after error:', cleanupError)
-      }
-    }
 
     if (error instanceof TranscriptionError) {
       const statusCodes: Record<string, number> = {
@@ -171,44 +121,24 @@ class TranscriptionError extends Error {
 
 async function transcribeWithRetry(
   openai: OpenAI,
-  fileForUpload: Awaited<ReturnType<typeof toFile>>,
+  file: File,
   language: string | null,
   retries: number
 ): Promise<string> {
   try {
-    return await makeOpenAIRequest(openai, fileForUpload, language)
+    return await makeOpenAIRequest(openai, file, language)
   } catch (error) {
     if (error instanceof TranscriptionError && error.retryable && retries < MAX_RETRIES) {
-      const isRateLimit = error.code === 'RATE_LIMIT'
-      const baseDelay = isRateLimit ? RATE_LIMIT_BASE_DELAY_MS : BASE_RETRY_DELAY_MS
-      const maxDelay = isRateLimit ? MAX_RATE_LIMIT_DELAY_MS : MAX_NETWORK_DELAY_MS
+      // Use longer delays for rate limit errors
+      const baseDelay = error.code === 'RATE_LIMIT'
+        ? RATE_LIMIT_BASE_DELAY_MS
+        : BASE_RETRY_DELAY_MS
 
-      // Exponential backoff: baseDelay * 2^retries, capped at max
-      let delay = Math.min(baseDelay * Math.pow(2, retries), maxDelay)
-
-      // Apply jitter for network errors: delay * (0.5 + Math.random()) for +/- 50% variance
-      if (error.code === 'NETWORK') {
-        const jitterFactor = 0.5 + Math.random()
-        delay = Math.floor(delay * jitterFactor)
-        console.warn(`Network error, retrying in ${delay}ms (with jitter)`)
-      } else if (isRateLimit) {
-        console.warn(`Rate limit hit, waiting ${delay}ms before retry`)
-      }
-
+      // Exponential backoff: baseDelay * 2^retries
+      const delay = baseDelay * Math.pow(2, retries)
       console.warn(`Retry ${retries + 1}/${MAX_RETRIES} after ${delay}ms (${error.code})`)
       await new Promise(resolve => setTimeout(resolve, delay))
-      return transcribeWithRetry(openai, fileForUpload, language, retries + 1)
-    }
-
-    // Enhance error message when all retries are exhausted
-    if (error instanceof TranscriptionError && error.retryable) {
-      if (error.code === 'NETWORK') {
-        error.message = `${error.message}. All ${MAX_RETRIES} retry attempts exhausted. Please check your network connection.`
-      } else if (error.code === 'RATE_LIMIT') {
-        error.message = `${error.message}. All ${MAX_RETRIES} retry attempts exhausted. Please try again later.`
-      } else {
-        error.message = `${error.message}. All ${MAX_RETRIES} retry attempts exhausted.`
-      }
+      return transcribeWithRetry(openai, file, language, retries + 1)
     }
     throw error
   }
@@ -216,10 +146,24 @@ async function transcribeWithRetry(
 
 async function makeOpenAIRequest(
   openai: OpenAI,
-  fileForUpload: Awaited<ReturnType<typeof toFile>>,
+  file: File,
   language: string | null
 ): Promise<string> {
   try {
+    // Convert the web File object to a format the OpenAI SDK can use
+    const fileBuffer = await file.arrayBuffer()
+
+    // Get the appropriate file extension based on MIME type
+    const extension = SUPPORTED_AUDIO_TYPES[file.type as keyof typeof SUPPORTED_AUDIO_TYPES] || 'webm'
+    const fileName = `recording.${extension}`
+
+    // Use toFile to create a proper file object for the SDK
+    const fileForUpload = await toFile(
+      new Uint8Array(fileBuffer),
+      fileName,
+      { type: file.type }
+    )
+
     // Call OpenAI transcription API using the SDK
     const transcription = await openai.audio.transcriptions.create({
       file: fileForUpload,
@@ -262,18 +206,6 @@ async function makeOpenAIRequest(
             'API_ERROR',
             false
           )
-      }
-    }
-
-    // Check for specific network error codes
-    if (error instanceof Error) {
-      const errorCode = (error as Error & { code?: string }).code
-      if (errorCode === 'ECONNREFUSED' || errorCode === 'ETIMEDOUT' || errorCode === 'ENOTFOUND') {
-        throw new TranscriptionError(
-          `Network error (${errorCode}): ${error.message}`,
-          'NETWORK',
-          true
-        )
       }
     }
 

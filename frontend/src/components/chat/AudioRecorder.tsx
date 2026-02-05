@@ -2,13 +2,10 @@
 
 import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { Mic, Square, Play, Pause, RotateCcw } from 'lucide-react'
-import { toast } from 'sonner'
 
 // Constants
-export const MAX_RECORDING_TIME_MS = 5 * 60 * 1000 // 5 minutes
-export const MAX_RECORDING_TIME_SECONDS = MAX_RECORDING_TIME_MS / 1000
-const WARNING_THRESHOLD_SECONDS = 60 // 1 minute remaining
-const CRITICAL_THRESHOLD_SECONDS = 30 // 30 seconds remaining
+const MAX_RECORDING_TIME_MS = 5 * 60 * 1000 // 5 minutes
+const MAX_RECORDING_TIME_SECONDS = MAX_RECORDING_TIME_MS / 1000
 
 interface AudioRecorderProps {
   onRecordingComplete: (audioBlob: Blob) => void
@@ -34,7 +31,6 @@ const AudioRecorder = forwardRef<AudioRecorderHandle, AudioRecorderProps>(
     const audioRef = useRef<HTMLAudioElement | null>(null)
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
     const stopRecordingRef = useRef<(() => void) | null>(null)
-    const warningPlayedRef = useRef<boolean>(false)
 
   // Cleanup on unmount
   useEffect(() => {
@@ -57,47 +53,6 @@ const AudioRecorder = forwardRef<AudioRecorderHandle, AudioRecorderProps>(
     const secs = seconds % 60
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
-
-  // Get remaining time in seconds
-  const getRemainingTime = (elapsedSeconds: number): number => {
-    return MAX_RECORDING_TIME_SECONDS - elapsedSeconds
-  }
-
-  // Get timer color class based on remaining time
-  const getTimerColorClass = (elapsedSeconds: number): string => {
-    const remaining = getRemainingTime(elapsedSeconds)
-    if (remaining <= CRITICAL_THRESHOLD_SECONDS) {
-      return 'text-red-500' // Critical: red at 30 seconds remaining
-    }
-    if (remaining <= WARNING_THRESHOLD_SECONDS) {
-      return 'text-yellow-500' // Warning: yellow/orange at 1 minute remaining
-    }
-    return 'text-gray-600' // Normal
-  }
-
-  // Play audio warning beep
-  const playWarningSound = useCallback(() => {
-    try {
-      // Create a simple beep using Web Audio API
-      const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
-      const oscillator = audioContext.createOscillator()
-      const gainNode = audioContext.createGain()
-
-      oscillator.connect(gainNode)
-      gainNode.connect(audioContext.destination)
-
-      oscillator.frequency.value = 800 // Frequency in Hz
-      oscillator.type = 'sine'
-
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3)
-
-      oscillator.start(audioContext.currentTime)
-      oscillator.stop(audioContext.currentTime + 0.3)
-    } catch {
-      // Audio warning not critical, silently fail
-    }
-  }, [])
 
   // Determine supported MIME type
   const getMimeType = (): string => {
@@ -182,23 +137,13 @@ const AudioRecorder = forwardRef<AudioRecorderHandle, AudioRecorderProps>(
       // Start recording
       mediaRecorder.start()
       setState('recording')
-      warningPlayedRef.current = false
 
       // Start timer
       timerRef.current = setInterval(() => {
         setRecordingTime(prev => {
           const next = prev + 1
-          const remaining = MAX_RECORDING_TIME_SECONDS - next
-
-          // Play audio warning at 30 seconds remaining (only once)
-          if (remaining === CRITICAL_THRESHOLD_SECONDS && !warningPlayedRef.current) {
-            warningPlayedRef.current = true
-            playWarningSound()
-          }
-
           if (next >= MAX_RECORDING_TIME_SECONDS) {
             // Auto-stop at 5 minutes - use ref to avoid stale closure
-            toast.info('Recording stopped - maximum 5 minute limit reached')
             stopRecordingRef.current?.()
             return prev
           }
@@ -209,7 +154,7 @@ const AudioRecorder = forwardRef<AudioRecorderHandle, AudioRecorderProps>(
       setError('Microphone access denied. Please allow microphone access to record.')
       setState('error')
     }
-  }, [audioUrl, onRecordingComplete, playWarningSound])
+  }, [audioUrl, onRecordingComplete])
 
   // Re-record (clear and start again)
   const reRecord = useCallback(() => {
@@ -292,16 +237,8 @@ const AudioRecorder = forwardRef<AudioRecorderHandle, AudioRecorderProps>(
         />
       )}
 
-      {/* Timer display - shows remaining time during recording, elapsed time when stopped */}
-      {state === 'recording' && (
-        <span
-          data-testid="countdown-timer"
-          className={`font-mono text-sm min-w-[50px] ${getTimerColorClass(recordingTime)}`}
-        >
-          {formatTime(getRemainingTime(recordingTime))}
-        </span>
-      )}
-      {state === 'stopped' && (
+      {/* Timer display */}
+      {(state === 'recording' || state === 'stopped') && (
         <span className="font-mono text-sm text-gray-600 min-w-[50px]">
           {formatTime(recordingTime)}
         </span>

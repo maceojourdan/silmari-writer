@@ -1,16 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
-import AudioRecorder, { MAX_RECORDING_TIME_SECONDS } from '@/components/chat/AudioRecorder'
-import { toast } from 'sonner'
-
-// Mock sonner toast
-vi.mock('sonner', () => ({
-  toast: {
-    info: vi.fn(),
-    error: vi.fn(),
-    success: vi.fn(),
-  },
-}))
+import AudioRecorder from '@/components/chat/AudioRecorder'
 
 // Mock MediaRecorder
 class MockMediaRecorder {
@@ -146,7 +136,7 @@ describe('AudioRecorder', () => {
       })
     })
 
-    it('should show countdown timer when recording (displays remaining time)', async () => {
+    it('should show timer when recording', async () => {
       vi.useFakeTimers()
       render(<AudioRecorder onRecordingComplete={vi.fn()} />)
 
@@ -155,15 +145,14 @@ describe('AudioRecorder', () => {
         await vi.advanceTimersByTimeAsync(0) // Flush promises
       })
 
-      // Countdown starts at 05:00 (5 minutes remaining)
-      expect(screen.getByText('05:00')).toBeInTheDocument()
+      expect(screen.getByText('00:00')).toBeInTheDocument()
 
-      // Advance timer by 5 seconds - should show 04:55 remaining
+      // Advance timer by 5 seconds
       await act(async () => {
         await vi.advanceTimersByTimeAsync(5000)
       })
 
-      expect(screen.getByText('04:55')).toBeInTheDocument()
+      expect(screen.getByText('00:05')).toBeInTheDocument()
     })
 
     it('should show recording indicator', async () => {
@@ -246,7 +235,7 @@ describe('AudioRecorder', () => {
       expect(onRecordingComplete).toHaveBeenCalled()
     })
 
-    it('should show toast notification when auto-stopped', async () => {
+    it('should show 04:59 just before auto-stop', async () => {
       vi.useFakeTimers()
       render(<AudioRecorder onRecordingComplete={vi.fn()} />)
 
@@ -256,104 +245,14 @@ describe('AudioRecorder', () => {
         await vi.advanceTimersByTimeAsync(0)
       })
 
-      // Advance timer to 5 minutes
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(5 * 60 * 1000)
-      })
+      expect(screen.getByText('00:00')).toBeInTheDocument()
 
-      expect(toast.info).toHaveBeenCalledWith('Recording stopped - maximum 5 minute limit reached')
-    })
-  })
-
-  describe('countdown timer', () => {
-    it('should display countdown timer showing remaining time (not elapsed)', async () => {
-      vi.useFakeTimers()
-      render(<AudioRecorder onRecordingComplete={vi.fn()} />)
-
-      // Start recording
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /record/i }))
-        await vi.advanceTimersByTimeAsync(0)
-      })
-
-      // Initially should show 05:00 (5 minutes remaining)
-      const timer = screen.getByTestId('countdown-timer')
-      expect(timer).toHaveTextContent('05:00')
-
-      // After 10 seconds, should show 04:50
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(10000)
-      })
-
-      expect(timer).toHaveTextContent('04:50')
-    })
-
-    it('should show 00:01 just before auto-stop', async () => {
-      vi.useFakeTimers()
-      render(<AudioRecorder onRecordingComplete={vi.fn()} />)
-
-      // Start recording
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /record/i }))
-        await vi.advanceTimersByTimeAsync(0)
-      })
-
-      // Advance to 4:59 elapsed (1 second remaining)
+      // Advance to 4:59
       await act(async () => {
         await vi.advanceTimersByTimeAsync(299 * 1000)
       })
 
-      const timer = screen.getByTestId('countdown-timer')
-      expect(timer).toHaveTextContent('00:01')
-    })
-
-    it('should have normal color at start of recording', async () => {
-      vi.useFakeTimers()
-      render(<AudioRecorder onRecordingComplete={vi.fn()} />)
-
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /record/i }))
-        await vi.advanceTimersByTimeAsync(0)
-      })
-
-      const timer = screen.getByTestId('countdown-timer')
-      expect(timer).toHaveClass('text-gray-600')
-    })
-
-    it('should change to warning color (yellow) at 1 minute remaining', async () => {
-      vi.useFakeTimers()
-      render(<AudioRecorder onRecordingComplete={vi.fn()} />)
-
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /record/i }))
-        await vi.advanceTimersByTimeAsync(0)
-      })
-
-      // Advance to 4 minutes elapsed (1 minute remaining)
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(4 * 60 * 1000)
-      })
-
-      const timer = screen.getByTestId('countdown-timer')
-      expect(timer).toHaveClass('text-yellow-500')
-    })
-
-    it('should change to critical color (red) at 30 seconds remaining', async () => {
-      vi.useFakeTimers()
-      render(<AudioRecorder onRecordingComplete={vi.fn()} />)
-
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /record/i }))
-        await vi.advanceTimersByTimeAsync(0)
-      })
-
-      // Advance to 4:30 elapsed (30 seconds remaining)
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync((MAX_RECORDING_TIME_SECONDS - 30) * 1000)
-      })
-
-      const timer = screen.getByTestId('countdown-timer')
-      expect(timer).toHaveClass('text-red-500')
+      expect(screen.getByText('04:59')).toBeInTheDocument()
     })
   })
 
@@ -415,19 +314,19 @@ describe('AudioRecorder', () => {
       vi.useFakeTimers()
       render(<AudioRecorder onRecordingComplete={vi.fn()} />)
 
-      // First recording - countdown starts at 05:00
+      // First recording
       await act(async () => {
         fireEvent.click(screen.getByRole('button', { name: /record/i }))
         await vi.advanceTimersByTimeAsync(0)
       })
 
-      expect(screen.getByText('05:00')).toBeInTheDocument()
+      expect(screen.getByText('00:00')).toBeInTheDocument()
 
-      // Advance timer - after 10 seconds, should show 04:50 remaining
+      // Advance timer
       await act(async () => {
         await vi.advanceTimersByTimeAsync(10000)
       })
-      expect(screen.getByText('04:50')).toBeInTheDocument()
+      expect(screen.getByText('00:10')).toBeInTheDocument()
 
       // Stop
       await act(async () => {
@@ -435,13 +334,13 @@ describe('AudioRecorder', () => {
         await vi.advanceTimersByTimeAsync(0)
       })
 
-      // Re-record - countdown should reset back to 05:00
+      // Re-record
       await act(async () => {
         fireEvent.click(screen.getByRole('button', { name: /re-record/i }))
         await vi.advanceTimersByTimeAsync(0)
       })
 
-      expect(screen.getByText('05:00')).toBeInTheDocument()
+      expect(screen.getByText('00:00')).toBeInTheDocument()
     })
   })
 

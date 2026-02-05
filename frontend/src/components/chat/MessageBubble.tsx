@@ -7,7 +7,6 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import { Message } from '@/lib/types';
 import { formatRelativeTime } from '@/lib/utils';
-import ButtonRibbon from './ButtonRibbon';
 
 interface MessageBubbleProps {
   message: Message;
@@ -28,55 +27,48 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
           </div>
         </div>
       )}
-      <div className="flex flex-col max-w-[70%]">
-        <div
-          className={`rounded-lg px-4 py-2 ${
-            isUser
-              ? 'bg-blue-500 text-white'
-              : 'bg-gray-200 text-gray-900'
-          }`}
-          data-role={message.role}
-        >
-          <div className={`prose prose-sm max-w-none ${isUser ? 'prose-invert' : ''}`}>
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              components={{
-                code({ className, children, ...props }) {
-                  const match = /language-(\w+)/.exec(className || '');
-                  const codeString = String(children).replace(/\n$/, '');
-                  // Only use SyntaxHighlighter for multi-line code blocks
-                  const isBlock = codeString.includes('\n') || match;
-                  return isBlock && match ? (
-                    <SyntaxHighlighter
-                      style={oneDark}
-                      language={match[1]}
-                      PreTag="div"
-                    >
-                      {codeString}
-                    </SyntaxHighlighter>
-                  ) : (
-                    <code className={className} {...props}>
-                      {children}
-                    </code>
-                  );
-                },
-              }}
-            >
-              {message.content}
-            </ReactMarkdown>
-          </div>
-          <div
-            className={`text-xs mt-1 ${isUser ? 'text-blue-100' : 'text-gray-500'}`}
-            data-testid="message-timestamp"
+      <div
+        className={`max-w-[70%] rounded-lg px-4 py-2 ${
+          isUser
+            ? 'bg-blue-500 text-white'
+            : 'bg-gray-200 text-gray-900'
+        }`}
+        data-role={message.role}
+      >
+        <div className={`prose prose-sm max-w-none ${isUser ? 'prose-invert' : ''}`}>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              code({ className, children, ...props }) {
+                const match = /language-(\w+)/.exec(className || '');
+                const codeString = String(children).replace(/\n$/, '');
+                // Only use SyntaxHighlighter for multi-line code blocks
+                const isBlock = codeString.includes('\n') || match;
+                return isBlock && match ? (
+                  <SyntaxHighlighter
+                    style={oneDark}
+                    language={match[1]}
+                    PreTag="div"
+                  >
+                    {codeString}
+                  </SyntaxHighlighter>
+                ) : (
+                  <code className={className} {...props}>
+                    {children}
+                  </code>
+                );
+              },
+            }}
           >
-            {formatRelativeTime(message.timestamp)}
-          </div>
+            {message.content}
+          </ReactMarkdown>
         </div>
-
-        {/* ButtonRibbon for assistant messages only */}
-        {!isUser && (
-          <ButtonRibbon messageId={message.id} content={message.content} />
-        )}
+        <div
+          className={`text-xs mt-1 ${isUser ? 'text-blue-100' : 'text-gray-500'}`}
+          data-testid="message-timestamp"
+        >
+          {formatRelativeTime(message.timestamp)}
+        </div>
       </div>
       {isUser && (
         <div className="flex-shrink-0 ml-2">
