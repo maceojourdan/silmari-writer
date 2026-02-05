@@ -19,7 +19,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   }
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-dvh">
       {/* Mobile toggle button */}
       <button
         onClick={toggleSidebar}
