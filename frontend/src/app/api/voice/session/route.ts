@@ -47,10 +47,21 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // GA response: { client_secret: "ek_...", expires_at: <unix_ts>, session: {...} }
   const data = await response.json();
+  console.log('[Voice Session] Response keys:', Object.keys(data), JSON.stringify(data).slice(0, 500));
+
+  // Extract token - handle both possible response formats
+  const token = data.client_secret?.value ?? data.client_secret ?? data.value;
+  if (!token || typeof token !== 'string') {
+    console.error('[Voice Session] Could not extract token from response:', JSON.stringify(data).slice(0, 500));
+    return NextResponse.json(
+      { error: 'Failed to extract session token', detail: { keys: Object.keys(data) } },
+      { status: 502 },
+    );
+  }
+
   return NextResponse.json({
-    token: data.client_secret.value,
+    token,
     model,
     sessionLimitMinutes: SESSION_LIMIT_MINUTES,
   });
