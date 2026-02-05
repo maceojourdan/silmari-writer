@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock RTCPeerConnection
 const mockAddTrack = vi.fn();
+const mockAddTransceiver = vi.fn();
 const mockCreateDataChannel = vi.fn();
 const mockCreateOffer = vi.fn();
 const mockSetLocalDescription = vi.fn();
@@ -12,6 +13,7 @@ let mockOnTrack: ((event: { streams: MediaStream[] }) => void) | null = null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const MockRTCPeerConnection = vi.fn().mockImplementation(function (this: any) {
   this.addTrack = mockAddTrack;
+  this.addTransceiver = mockAddTransceiver;
   this.createDataChannel = mockCreateDataChannel.mockReturnValue({
     onopen: null,
     onclose: null,
@@ -114,6 +116,8 @@ describe('createVoiceSession', () => {
 
     expect(mockGetUserMedia).not.toHaveBeenCalled();
     expect(mockAddTrack).not.toHaveBeenCalled();
+    // Should add a recvonly transceiver for receiving audio
+    expect(mockAddTransceiver).toHaveBeenCalledWith('audio', { direction: 'recvonly' });
   });
 
   it('should request microphone for voice_edit (needsMicrophone: true)', async () => {

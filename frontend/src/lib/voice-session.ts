@@ -37,7 +37,7 @@ export async function createVoiceSession(options: VoiceSessionOptions): Promise<
     audioEl.srcObject = event.streams[0];
   };
 
-  // Microphone input (only for voice editing)
+  // Audio input: microphone for voice_edit, receive-only for read_aloud
   let stream: MediaStream | null = null;
   if (needsMicrophone) {
     try {
@@ -51,6 +51,9 @@ export async function createVoiceSession(options: VoiceSessionOptions): Promise<
         false,
       );
     }
+  } else {
+    // Add receive-only audio transceiver so the SDP offer includes audio
+    pc.addTransceiver('audio', { direction: 'recvonly' });
   }
 
   // Data channel for API events

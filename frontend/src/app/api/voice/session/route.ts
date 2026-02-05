@@ -16,8 +16,9 @@ export async function POST(request: NextRequest) {
   const model = MODEL_MAP[mode];
 
   const sessionConfig: Record<string, unknown> = {
+    type: 'realtime',
     model,
-    voice: DEFAULT_VOICE,
+    audio: { output: { voice: DEFAULT_VOICE } },
     turn_detection: mode === 'voice_edit' ? { type: 'server_vad' } : null,
   };
 
@@ -39,16 +40,18 @@ export async function POST(request: NextRequest) {
   });
 
   if (!response.ok) {
+    const errBody = await response.json().catch(() => ({}));
+    console.error('[Voice Session] OpenAI error:', response.status, errBody);
     return NextResponse.json(
-      { error: 'Failed to create voice session' },
+      { error: 'Failed to create voice session', detail: errBody },
       { status: 502 },
     );
   }
 
-  // GA response: { value: "ek_...", expires_at: <unix_ts>, session: {...} }
+  // GA response: { client_secret: "ek_...", expires_at: <unix_ts>, session: {...} }
   const data = await response.json();
   return NextResponse.json({
-    token: data.value,
+    token: data.client_secret,
     model,
     sessionLimitMinutes: SESSION_LIMIT_MINUTES,
   });
