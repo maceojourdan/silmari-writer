@@ -10,11 +10,14 @@ export class VoiceSessionError extends Error {
   }
 }
 
+export type VoiceEventCallback = (event: { type: string; [key: string]: unknown }) => void;
+
 export interface VoiceSessionOptions {
   mode: string;
   needsMicrophone: boolean;
   instructions?: string;
   tools?: unknown[];
+  onEvent?: VoiceEventCallback;
 }
 
 export interface VoiceSession {
@@ -29,7 +32,7 @@ export interface VoiceSession {
 }
 
 export async function createVoiceSession(options: VoiceSessionOptions): Promise<VoiceSession> {
-  const { mode, needsMicrophone, instructions, tools } = options;
+  const { mode, needsMicrophone, instructions, tools, onEvent } = options;
 
   // Use Google's public STUN servers for NAT traversal
   const pc = new RTCPeerConnection({
@@ -45,8 +48,28 @@ export async function createVoiceSession(options: VoiceSessionOptions): Promise<
   audioEl.id = 'voice-session-audio';
   document.body.appendChild(audioEl);
 
+  // Debug audio element events
+  audioEl.oncanplay = () => {
+    // eslint-disable-next-line no-console
+    console.log('[Voice] Audio can play');
+  };
+  audioEl.onplaying = () => {
+    // eslint-disable-next-line no-console
+    console.log('[Voice] Audio playing');
+  };
+  audioEl.onerror = (e) => {
+    console.error('[Voice] Audio error:', e);
+  };
+
   pc.ontrack = (event) => {
-    audioEl.srcObject = event.streams[0];
+    // eslint-disable-next-line no-console
+    console.log('[Voice] ontrack received:', event.streams.length, 'streams');
+    if (event.streams[0]) {
+      audioEl.srcObject = event.streams[0];
+      // eslint-disable-next-line no-console
+      const tracks = event.streams[0].getTracks?.() ?? [];
+      console.log('[Voice] Audio element srcObject set, tracks:', tracks.map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState })));
+    }
   };
 
   // Debug: log connection state changes
@@ -115,17 +138,56 @@ export async function createVoiceSession(options: VoiceSessionOptions): Promise<
   const { sdp: answerSdp, model, sessionLimitMinutes } = await response.json();
   await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
 
+  // Set up data channel message handler for debugging and events
+  dc.onmessage = (event) => {
+    // Handle binary data (audio might come as ArrayBuffer)
+    if (event.data instanceof ArrayBuffer) {
+      // eslint-disable-next-line no-console
+      console.log('[Voice] DC binary message:', event.data.byteLength, 'bytes');
+      return;
+    }
+
+    const rawData = typeof event.data === 'string' ? event.data : String(event.data);
+    try {
+      const data = JSON.parse(rawData);
+      // Log non-audio events (audio.delta is too verbose)
+      if (data.type && !data.type.includes('audio.delta')) {
+        // eslint-disable-next-line no-console
+        console.log('[Voice] DC event:', data.type, data);
+      }
+
+      // Handle errors from OpenAI
+      if (data.type === 'error') {
+        console.error('[Voice] OpenAI error:', data.error);
+      }
+
+      // Notify callback for all events
+      if (onEvent && data.type) {
+        onEvent(data);
+      }
+    } catch (e) {
+      // Log parse errors with context
+      // eslint-disable-next-line no-console
+      console.warn('[Voice] DC parse error:', (e as Error).message, 'length:', rawData.length, 'preview:', rawData.slice(0, 100));
+    }
+  };
+
   // Wait for data channel to open, then send session.update with config
   await new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(() => reject(new VoiceSessionError('Data channel timeout', 'DC_TIMEOUT', true)), 10000);
     dc.onopen = () => {
       clearTimeout(timeout);
+      // eslint-disable-next-line no-console
+      console.log('[Voice] Data channel opened');
       // Send session configuration via data channel
       const sessionUpdate: Record<string, unknown> = {
         type: 'session.update',
         session: {
+          modalities: ['text', 'audio'],
           voice: 'alloy',
           turn_detection: needsMicrophone ? { type: 'server_vad' } : null,
+          input_audio_format: 'pcm16',
+          output_audio_format: 'pcm16',
         },
       };
       if (instructions) {
@@ -134,11 +196,14 @@ export async function createVoiceSession(options: VoiceSessionOptions): Promise<
       if (tools && tools.length > 0) {
         sessionUpdate.session = { ...(sessionUpdate.session as object), tools };
       }
+      // eslint-disable-next-line no-console
+      console.log('[Voice] Sending session.update:', sessionUpdate);
       dc.send(JSON.stringify(sessionUpdate));
       resolve();
     };
-    dc.onerror = () => {
+    dc.onerror = (err) => {
       clearTimeout(timeout);
+      console.error('[Voice] Data channel error:', err);
       reject(new VoiceSessionError('Data channel error', 'DC_ERROR', true));
     };
   });

@@ -13,6 +13,8 @@ import VoiceEditPanel from '@/components/chat/VoiceEditPanel';
 import { useConversationStore } from '@/lib/store';
 import { transcribeAudio } from '@/lib/transcription';
 import { generateResponse } from '@/lib/api';
+import { useRealtimeSession } from '@/hooks/useRealtimeSession';
+import { useAutoReadAloud } from '@/hooks/useAutoReadAloud';
 
 export default function HomePage() {
   const {
@@ -30,6 +32,25 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const audioRecorderRef = useRef<AudioRecorderHandle>(null);
+
+  // Read Aloud integration
+  const { readAloudEnabled } = useConversationStore();
+  const { sessionState, sendEvent, setOnEvent } = useRealtimeSession();
+  const { onNewAssistantMessage, handleResponseDone } = useAutoReadAloud({
+    readAloudEnabled,
+    isConnected: sessionState === 'connected',
+    sendEvent,
+  });
+
+  // Wire up response.done event to process TTS queue
+  useEffect(() => {
+    setOnEvent((event) => {
+      if (event.type === 'response.done') {
+        handleResponseDone();
+      }
+    });
+    return () => setOnEvent(null);
+  }, [setOnEvent, handleResponseDone]);
 
   const activeMessages = activeProjectId ? getMessages(activeProjectId) : [];
 
@@ -64,6 +85,9 @@ export default function HomePage() {
         content: response,
         timestamp: new Date(),
       });
+
+      // Send to Read Aloud if enabled
+      onNewAssistantMessage(response);
     } catch (err) {
       setError('Failed to generate response. Please try again.');
       console.error('Failed to generate response:', err);

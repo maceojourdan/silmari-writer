@@ -3,15 +3,20 @@ import { createVoiceSession } from '@/lib/voice-session';
 import { useConversationStore } from '@/lib/store';
 import type { VoiceMode } from '@/lib/voice-types';
 import { VOICE_MODES } from '@/lib/voice-types';
-import type { VoiceSession } from '@/lib/voice-session';
+import type { VoiceSession, VoiceEventCallback } from '@/lib/voice-session';
 
 export function useRealtimeSession() {
   const sessionRef = useRef<VoiceSession | null>(null);
   const connectingRef = useRef(false);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const onEventRef = useRef<VoiceEventCallback | null>(null);
 
   const { voiceSessionState, setVoiceSessionState } = useConversationStore();
+
+  const setOnEvent = useCallback((callback: VoiceEventCallback | null) => {
+    onEventRef.current = callback;
+  }, []);
 
   const disconnect = useCallback(() => {
     if (timerRef.current) {
@@ -40,6 +45,10 @@ export function useRealtimeSession() {
         needsMicrophone: mode === VOICE_MODES.VOICE_EDIT,
         instructions: options?.instructions,
         tools: options?.tools,
+        onEvent: (event) => {
+          // Forward events to the registered callback
+          onEventRef.current?.(event);
+        },
       });
 
       sessionRef.current = session;
@@ -64,7 +73,12 @@ export function useRealtimeSession() {
   const sendEvent = useCallback((event: Record<string, unknown>) => {
     const dc = sessionRef.current?.dc;
     if (dc && dc.readyState === 'open') {
+      // eslint-disable-next-line no-console
+      console.log('[Voice] Sending event:', event.type, event);
       dc.send(JSON.stringify(event));
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn('[Voice] Cannot send event, dc not open:', dc?.readyState, event.type);
     }
   }, []);
 
@@ -81,6 +95,7 @@ export function useRealtimeSession() {
     connect,
     disconnect,
     sendEvent,
+    setOnEvent,
     dataChannel: sessionRef.current?.dc ?? null,
   };
 }

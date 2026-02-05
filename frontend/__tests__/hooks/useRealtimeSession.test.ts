@@ -55,12 +55,14 @@ describe('useRealtimeSession', () => {
       await result.current.connect('read_aloud');
     });
 
-    expect(mockCreateVoiceSession).toHaveBeenCalledWith({
-      mode: 'read_aloud',
-      needsMicrophone: false,
-      instructions: undefined,
-      tools: undefined,
-    });
+    expect(mockCreateVoiceSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: 'read_aloud',
+        needsMicrophone: false,
+        instructions: undefined,
+        tools: undefined,
+      }),
+    );
   });
 
   it('should set needsMicrophone true for voice_edit mode', async () => {
@@ -71,12 +73,14 @@ describe('useRealtimeSession', () => {
       await result.current.connect('voice_edit', { instructions: 'test' });
     });
 
-    expect(mockCreateVoiceSession).toHaveBeenCalledWith({
-      mode: 'voice_edit',
-      needsMicrophone: true,
-      instructions: 'test',
-      tools: undefined,
-    });
+    expect(mockCreateVoiceSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: 'voice_edit',
+        needsMicrophone: true,
+        instructions: 'test',
+        tools: undefined,
+      }),
+    );
   });
 
   it('should set state to connecting then connected on successful connect', async () => {
