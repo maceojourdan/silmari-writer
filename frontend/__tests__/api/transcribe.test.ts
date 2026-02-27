@@ -3,7 +3,7 @@ import { POST } from '@/app/api/transcribe/route'
 import { NextRequest } from 'next/server'
 
 // Create mock functions using vi.hoisted to avoid hoisting issues
-const { mockCreate, mockToFile, mockDel, mockFetch } = vi.hoisted(() => {
+const { mockCreate, mockToFile, mockDel, mockFetch, mockGetDownloadUrl } = vi.hoisted(() => {
   return {
     mockCreate: vi.fn(),
     mockToFile: vi.fn((data: Uint8Array, filename: string, options: { type?: string }) => {
@@ -17,6 +17,7 @@ const { mockCreate, mockToFile, mockDel, mockFetch } = vi.hoisted(() => {
     }),
     mockDel: vi.fn(),
     mockFetch: vi.fn(),
+    mockGetDownloadUrl: vi.fn((url: string) => url),
   }
 })
 
@@ -44,6 +45,7 @@ vi.mock('openai/uploads', () => {
 vi.mock('@vercel/blob', () => {
   return {
     del: mockDel,
+    getDownloadUrl: mockGetDownloadUrl,
   }
 })
 

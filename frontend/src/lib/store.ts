@@ -1,8 +1,52 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
 import { Message, Project, MessageButtonState, NonBlockingOperationType, BlockingOperationType } from './types'
 import type { VoiceSessionState, EditHistory, EditEntry } from './voice-types'
 import { createEditEntry, createEditHistory } from './voice-types'
+
+type PersistStorageLike = {
+  getItem: (name: string) => string | null
+  setItem: (name: string, value: string) => void
+  removeItem: (name: string) => void
+}
+
+function createMemoryStorage(): PersistStorageLike {
+  const memory = new Map<string, string>()
+  return {
+    getItem: (name) => memory.get(name) ?? null,
+    setItem: (name, value) => {
+      memory.set(name, value)
+    },
+    removeItem: (name) => {
+      memory.delete(name)
+    },
+  }
+}
+
+function getPersistStorage(): PersistStorageLike {
+  const browserStorage =
+    typeof window !== 'undefined' ? (window.localStorage as Partial<Storage> | undefined) : undefined
+  if (
+    browserStorage &&
+    typeof browserStorage.getItem === 'function' &&
+    typeof browserStorage.setItem === 'function' &&
+    typeof browserStorage.removeItem === 'function'
+  ) {
+    return browserStorage as PersistStorageLike
+  }
+
+  const globalStorage = (globalThis as { localStorage?: Partial<Storage> }).localStorage
+  if (
+    globalStorage &&
+    typeof globalStorage.getItem === 'function' &&
+    typeof globalStorage.setItem === 'function' &&
+    typeof globalStorage.removeItem === 'function'
+  ) {
+    return globalStorage as PersistStorageLike
+  }
+
+  return createMemoryStorage()
+}
 
 interface ConversationState {
   projects: Project[]
@@ -356,6 +400,7 @@ export const useConversationStore = create<ConversationState>()(
     }),
     {
       name: 'conversation-storage',
+      storage: createJSONStorage(getPersistStorage),
       partialize: (state) => ({
         projects: state.projects,
         activeProjectId: state.activeProjectId,

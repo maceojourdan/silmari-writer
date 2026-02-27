@@ -9,6 +9,7 @@ vi.mock('@/hooks/useRealtimeSession', () => ({
     connect: vi.fn(),
     disconnect: vi.fn(),
     sendEvent: vi.fn(),
+    setOnEvent: vi.fn(),
     dataChannel: null,
   }),
 }));

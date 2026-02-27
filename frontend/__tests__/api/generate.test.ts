@@ -2,38 +2,19 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { POST } from '@/app/api/generate/route';
 import { NextRequest } from 'next/server';
 
-// Mock OpenAI
-const mockCreate = vi.fn().mockResolvedValue({
-  choices: [{
-    message: {
-      content: 'Test response from assistant'
-    }
-  }]
-});
-
-vi.mock('openai', () => {
-  return {
-    default: class MockOpenAI {
-      chat = {
-        completions: {
-          create: mockCreate
-        }
-      };
-    }
-  };
-});
+const mockFetch = vi.fn();
+vi.stubGlobal('fetch', mockFetch);
 
 describe('/api/generate', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockCreate.mockResolvedValue({
-      choices: [{
-        message: {
-          content: 'Test response from assistant'
-        }
-      }]
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        output_text: 'Test response from assistant',
+      }),
     });
     process.env = { ...originalEnv, OPENAI_API_KEY: 'test-key' };
   });
@@ -56,6 +37,15 @@ describe('/api/generate', () => {
 
     expect(response.status).toBe(200);
     expect(data.content).toBe('Test response from assistant');
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://api.openai.com/v1/responses',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer test-key',
+        }),
+      }),
+    );
   });
 
   it('should generate response for voice transcription with conversation history', async () => {
@@ -89,6 +79,7 @@ describe('/api/generate', () => {
 
     expect(response.status).toBe(400);
     expect(data.error).toBe('Invalid message format');
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it('should return 500 when API key is not configured', async () => {
@@ -107,5 +98,6 @@ describe('/api/generate', () => {
 
     expect(response.status).toBe(500);
     expect(data.error).toBe('Chat service not configured');
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 });

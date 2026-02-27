@@ -4,7 +4,9 @@ import { renderHook, act } from '@testing-library/react';
 const mockConnect = vi.fn();
 const mockDisconnect = vi.fn();
 const mockSendEvent = vi.fn();
-let mockDcOnMessage: ((event: { data: string }) => void) | null = null;
+const mockAddEventListener = vi.fn();
+const mockRemoveEventListener = vi.fn();
+let mockMessageListener: ((event: MessageEvent) => void) | null = null;
 
 vi.mock('@/hooks/useRealtimeSession', () => ({
   useRealtimeSession: () => ({
@@ -14,10 +16,16 @@ vi.mock('@/hooks/useRealtimeSession', () => ({
     disconnect: mockDisconnect,
     sendEvent: mockSendEvent,
     dataChannel: {
-      set onmessage(handler: ((event: { data: string }) => void) | null) {
-        mockDcOnMessage = handler;
-      },
-      get onmessage() { return mockDcOnMessage; },
+      addEventListener: mockAddEventListener.mockImplementation((type: string, listener: EventListener) => {
+        if (type === 'message') {
+          mockMessageListener = listener as unknown as (event: MessageEvent) => void;
+        }
+      }),
+      removeEventListener: mockRemoveEventListener.mockImplementation((type: string, listener: EventListener) => {
+        if (type === 'message' && mockMessageListener === listener) {
+          mockMessageListener = null;
+        }
+      }),
     },
   }),
 }));
@@ -53,7 +61,7 @@ vi.stubGlobal('fetch', mockFetch);
 describe('useVoiceEdit', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockDcOnMessage = null;
+    mockMessageListener = null;
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -97,7 +105,7 @@ describe('useVoiceEdit', () => {
     };
 
     await act(async () => {
-      mockDcOnMessage?.(functionCallEvent);
+      mockMessageListener?.(functionCallEvent as unknown as MessageEvent);
     });
 
     expect(mockFetch).toHaveBeenCalledWith('/api/voice/edit', expect.any(Object));
