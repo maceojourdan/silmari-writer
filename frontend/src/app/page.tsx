@@ -130,6 +130,12 @@ export default function HomePage() {
 
     try {
       const text = await transcribeAudio(file);
+
+      if (!text || text.trim().length === 0) {
+        setError(`No speech detected in ${file.name}. Please try again.`);
+        return;
+      }
+
       await handleSendMessage(text, true); // Mark as voice transcription
     } catch (err) {
       setError(`Failed to transcribe ${file.name}. Please try again.`);

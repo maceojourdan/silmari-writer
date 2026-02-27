@@ -1,4 +1,4 @@
-import { TranscriptionOptions, TranscriptionError } from './types'
+import { TranscriptionOptions, TranscriptionError, TranscriptionErrorCode } from './types'
 
 // Constants
 export const MAX_FILE_SIZE_MB = 25
@@ -85,13 +85,30 @@ export async function transcribeAudio(
     )
   }
 
-  const data = await response.json()
+  let data: { text?: string; error?: string; code?: TranscriptionErrorCode; retryable?: boolean }
+  try {
+    data = await response.json()
+  } catch {
+    throw new TranscriptionError(
+      'Invalid response from transcription service',
+      'API_ERROR',
+      true
+    )
+  }
 
   if (!response.ok) {
     throw new TranscriptionError(
       data.error || 'Transcription failed',
       data.code || 'API_ERROR',
       data.retryable ?? false
+    )
+  }
+
+  if (!data.text) {
+    throw new TranscriptionError(
+      'Transcription returned empty result',
+      'API_ERROR',
+      true
     )
   }
 
