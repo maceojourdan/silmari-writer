@@ -165,6 +165,6 @@ Remember: Good validation catches issues before they reach production. Be constr
 
 After successful validation:
 1. **Close the issue**: If validation passes completely, run `bd close <id>` to mark the work as complete
-2. **Sync beads**: Run `bd sync` to commit any beads changes
+2. **Sync beads**: Run `bd dolt push and bd dolt pull` to commit any beads changes
 3. **Check unblocked work**: Run `bd blocked` to see if this completion unblocks other issues
 4. **Review ready work**: Run `bd ready` to see what's now available to work on next

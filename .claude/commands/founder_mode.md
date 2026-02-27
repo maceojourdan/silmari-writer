@@ -17,4 +17,4 @@ assuming you just made a commit, here are the next steps:
 7. git push -u origin 'BRANCHNAME'
 8. gh pr create --fill
 9. read '.claude/commands/describe_pr.md' and follow the instructions
-10. **Update beads**: If using beads, run `bd update <id> --status=in_progress` then `bd sync`
+10. **Update beads**: If using beads, run `bd update <id> --status=in_progress` then `bd dolt push and bd dolt pull`

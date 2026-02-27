@@ -23,7 +23,7 @@ After completing research:
    ```bash
    bd create --title="[Discovered item]" --type=task|bug|feature --priority=2
    ```
-3. **Sync beads**: Run `bd sync` if any issues were created or updated
+3. **Sync beads**: Run `bd dolt push and bd dolt pull` if any issues were created or updated
 
 ## Initial Setup:
 

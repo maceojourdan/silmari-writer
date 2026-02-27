@@ -66,7 +66,7 @@ type: implementation_strategy
 Before finalizing the handoff:
 1. **Check related issues**: Run `bd list --status=in_progress` to find any issues being worked on
 2. **Document issue status**: Include beads issue IDs in the handoff under "Other Notes"
-3. **Sync beads**: Run `bd sync` to ensure issue state is saved
+3. **Sync beads**: Run `bd dolt push and bd dolt pull` to ensure issue state is saved
 
 ### 4. Approve and Sync
 Ask the user to review and approve the document. if they request any changes, you should make them and ask for approval again. Once the user approves the documents, you should run `silmari-oracle sync` to save the document.

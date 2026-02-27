@@ -56,7 +56,7 @@ You have access to these key locations and tools:
 ### Step 0: Check Beads for Related Issues
 
 Before diving into investigation:
-1. **Sync beads**: Run `bd sync` to get latest issue state
+1. **Sync beads**: Run `bd dolt push and bd dolt pull` to get latest issue state
 2. **Check for related bugs**: Run `bd list --type=bug --status=open` to see known issues
 3. **Check in-progress work**: Run `bd list --status=in_progress` - the bug may be related to active work
 4. **Review blocked issues**: Run `bd blocked` - the issue might be blocking something
@@ -195,7 +195,7 @@ After presenting findings:
 4. **When the bug is fixed**:
    ```bash
    bd close <id>
-   bd sync
+   bd dolt push and bd dolt pull
    ```
 
 ## Important Notes
@@ -237,7 +237,7 @@ git diff
 
 **Beads Issue Tracking**:
 ```bash
-bd sync                              # Get latest state
+bd dolt push and bd dolt pull                              # Get latest state
 bd list --type=bug --status=open     # See known bugs
 bd list --status=in_progress         # Active work
 bd show <id>                         # Issue details

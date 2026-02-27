@@ -68,6 +68,6 @@ Remember: You're implementing a solution, not just checking boxes. Keep the end 
 ## Beads Integration
 
 When implementation is complete:
-1. **Sync beads**: Run `bd sync` to commit any beads changes
+1. **Sync beads**: Run `bd dolt push and bd dolt pull` to commit any beads changes
 2. **Close the issue**: If all work is done, run `bd close <id>`
 3. **Update dependencies**: If this unblocks other work, check `bd blocked` to see what's now ready

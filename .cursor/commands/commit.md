@@ -42,7 +42,7 @@ You are tasked with creating git commits for the changes made during this sessio
 ## Beads Integration
 
 After committing changes:
-1. **Sync beads**: Run `bd sync` to ensure any beads changes are committed
+1. **Sync beads**: Run `bd dolt push and bd dolt pull` to ensure any beads changes are committed
 2. **Update related issues**: If working on a tracked beads issue, consider:
    - `bd update <id> --status=in_progress` if work is ongoing
    - `bd close <id>` if the commit completes the issue
