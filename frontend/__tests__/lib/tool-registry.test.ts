@@ -2,14 +2,13 @@
  * Tool Registry Tests (REQ_007)
  * TDD: Write failing tests first, then implement
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type {
   ToolDefinition,
   ResponseType,
   ToolHandler,
   ToolParams,
   ToolResult,
-  ToolError,
   ToolExecutionContext,
 } from '@/lib/tool-registry'
 import {
@@ -19,7 +18,6 @@ import {
   hasToolByName,
   isPhraseMatch,
   invokeToolHandler,
-  TOOL_TRIGGER_PHRASES,
   isTextResponse,
   isImageResponse,
   isFileResponse,

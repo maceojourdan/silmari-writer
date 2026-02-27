@@ -47,7 +47,7 @@ class MockPDFDocument {
   page = { height: 800 }
   y = 100
 
-  constructor(_options?: Record<string, unknown>) {
+  constructor() {
     // Simulate async document creation
     setTimeout(() => {
       this.emit('data', Buffer.from('PDF mock content'))
