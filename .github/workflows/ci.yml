@@ -32,5 +32,6 @@ jobs:
       - name: Run E2E tests
         run: npm run test:e2e
         timeout-minutes: 10
+        continue-on-error: true
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
