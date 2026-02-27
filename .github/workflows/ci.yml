@@ -26,11 +26,14 @@ jobs:
       - name: Run unit tests (non-blocking)
         run: npm test
         continue-on-error: true
+        timeout-minutes: 10
       - name: Install Playwright (non-blocking)
         run: npx playwright install --with-deps
         continue-on-error: true
+        timeout-minutes: 10
       - name: Run E2E tests (non-blocking)
         run: npm run test:e2e
         continue-on-error: true
+        timeout-minutes: 10
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
