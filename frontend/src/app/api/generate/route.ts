@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const MAX_ROUTE_ATTACHMENTS = 10;
+export const MAX_ROUTE_PAYLOAD_BYTES = 25 * 1024 * 1024;
+
 const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY_MS = 2000;
 const RATE_LIMIT_BASE_DELAY_MS = 10000;
@@ -29,19 +32,163 @@ Rules:
 - Match the formality to the context. A tweet thread and a board memo need different registers.
 - When the user explicitly asks you to search the web, ALWAYS use the web_search_preview tool. Do not refuse or skip the search.`;
 
-interface Message {
+interface ConversationMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
 }
 
+interface FileAttachment {
+  filename: string;
+  contentType: string;
+  textContent?: string;
+  base64Data?: string;
+}
+
+type ResponseInputPart =
+  | { type: 'input_text'; text: string }
+  | { type: 'input_image'; image_url: string };
+
+type ResponseInputMessage = {
+  role: 'system' | 'user' | 'assistant';
+  content: string | ResponseInputPart[];
+};
+
+const SUPPORTED_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+const SUPPORTED_TEXT_TYPES = new Set(['text/plain', 'application/json']);
+
+function parseHistory(value: unknown): ConversationMessage[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object') {
+      return [];
+    }
+
+    const maybe = entry as Record<string, unknown>;
+    const role = maybe.role;
+    const content = maybe.content;
+
+    if (
+      typeof role !== 'string' ||
+      typeof content !== 'string' ||
+      (role !== 'user' && role !== 'assistant' && role !== 'system')
+    ) {
+      return [];
+    }
+
+    return [{ role, content }];
+  });
+}
+
+function toAttachment(value: unknown): FileAttachment | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const maybe = value as Record<string, unknown>;
+  if (typeof maybe.filename !== 'string' || typeof maybe.contentType !== 'string') {
+    return null;
+  }
+
+  return {
+    filename: maybe.filename,
+    contentType: maybe.contentType,
+    textContent: typeof maybe.textContent === 'string' ? maybe.textContent : undefined,
+    base64Data: typeof maybe.base64Data === 'string' ? maybe.base64Data : undefined,
+  };
+}
+
+function parseAttachments(value: unknown): FileAttachment[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map(toAttachment)
+    .filter((attachment): attachment is FileAttachment => attachment !== null);
+}
+
+function isSupportedAttachment(attachment: FileAttachment): boolean {
+  return (
+    SUPPORTED_IMAGE_TYPES.has(attachment.contentType) ||
+    SUPPORTED_TEXT_TYPES.has(attachment.contentType)
+  );
+}
+
+function calculatePayloadSize(attachments: FileAttachment[]): number {
+  const encoder = new TextEncoder();
+  return attachments.reduce((total, attachment) => {
+    const textSize = encoder.encode(attachment.textContent ?? '').length;
+    const imageSize = encoder.encode(attachment.base64Data ?? '').length;
+    return total + textSize + imageSize;
+  }, 0);
+}
+
+function buildUserContent(
+  message: string,
+  attachments: FileAttachment[],
+): string | ResponseInputPart[] {
+  const supported = attachments.filter(isSupportedAttachment);
+  if (supported.length === 0) {
+    return message;
+  }
+
+  const textAttachments = supported.filter((attachment) => SUPPORTED_TEXT_TYPES.has(attachment.contentType));
+  const imageAttachments = supported.filter((attachment) =>
+    SUPPORTED_IMAGE_TYPES.has(attachment.contentType),
+  );
+
+  let textContent = message;
+  if (textAttachments.length > 0) {
+    const textContext = textAttachments
+      .map((attachment) => `--- ${attachment.filename} ---\n${attachment.textContent ?? ''}`)
+      .join('\n\n');
+    textContent = `${textContext}\n\n${message}`;
+  }
+
+  if (imageAttachments.length === 0) {
+    return textContent;
+  }
+
+  const parts: ResponseInputPart[] = [{ type: 'input_text', text: textContent }];
+  for (const attachment of imageAttachments) {
+    if (attachment.base64Data) {
+      parts.push({ type: 'input_image', image_url: attachment.base64Data });
+    }
+  }
+
+  return parts;
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { message, history = [] } = await request.json();
+    const { message, history = [], attachments: rawAttachments } = await request.json();
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json(
         { error: 'Invalid message format', code: 'INVALID_MESSAGE' },
-        { status: 400 }
+        { status: 400 },
+      );
+    }
+
+    const attachmentCount = Array.isArray(rawAttachments) ? rawAttachments.length : 0;
+    if (attachmentCount > MAX_ROUTE_ATTACHMENTS) {
+      return NextResponse.json(
+        {
+          error: `Too many attachments (max ${MAX_ROUTE_ATTACHMENTS})`,
+          code: 'ATTACHMENT_LIMIT',
+        },
+        { status: 400 },
+      );
+    }
+
+    const attachments = parseAttachments(rawAttachments);
+    if (calculatePayloadSize(attachments) > MAX_ROUTE_PAYLOAD_BYTES) {
+      return NextResponse.json(
+        { error: 'Attachment payload too large', code: 'PAYLOAD_TOO_LARGE' },
+        { status: 400 },
       );
     }
 
@@ -50,18 +197,20 @@ export async function POST(request: NextRequest) {
       console.error('OPENAI_API_KEY is not configured');
       return NextResponse.json(
         { error: 'Chat service not configured', code: 'CONFIG_ERROR' },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
-    // Build input for the Responses API
-    const input: Array<{ role: string; content: string }> = [
+    const parsedHistory = parseHistory(history);
+    const userContent = buildUserContent(message, attachments);
+
+    const input: ResponseInputMessage[] = [
       { role: 'system', content: SYSTEM_PROMPT },
-      ...history.map((msg: Message) => ({
-        role: msg.role,
-        content: msg.content,
+      ...parsedHistory.map((entry) => ({
+        role: entry.role,
+        content: entry.content,
       })),
-      { role: 'user', content: message },
+      { role: 'user', content: userContent },
     ];
 
     const response = await generateWithRetry(apiKey, input, 0);
@@ -84,13 +233,13 @@ export async function POST(request: NextRequest) {
           code: error.code,
           retryable: error.retryable,
         },
-        { status: statusCodes[error.code] || 500 }
+        { status: statusCodes[error.code] || 500 },
       );
     }
 
     return NextResponse.json(
       { error: 'Failed to generate response', code: 'INTERNAL_ERROR' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -99,7 +248,7 @@ class ChatGenerationError extends Error {
   constructor(
     message: string,
     public code: string,
-    public retryable: boolean
+    public retryable: boolean,
   ) {
     super(message);
     this.name = 'ChatGenerationError';
@@ -108,86 +257,66 @@ class ChatGenerationError extends Error {
 
 async function generateWithRetry(
   apiKey: string,
-  input: Array<{ role: string; content: string }>,
-  retries: number
+  input: ResponseInputMessage[],
+  retries: number,
 ): Promise<string> {
   try {
     return await makeOpenAIRequest(apiKey, input);
   } catch (error) {
     if (error instanceof ChatGenerationError && error.retryable && retries < MAX_RETRIES) {
-      const baseDelay = error.code === 'RATE_LIMIT'
-        ? RATE_LIMIT_BASE_DELAY_MS
-        : BASE_RETRY_DELAY_MS;
-
+      const baseDelay = error.code === 'RATE_LIMIT' ? RATE_LIMIT_BASE_DELAY_MS : BASE_RETRY_DELAY_MS;
       const delay = baseDelay * Math.pow(2, retries);
       console.warn(`Retry ${retries + 1}/${MAX_RETRIES} after ${delay}ms (${error.code})`);
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
       return generateWithRetry(apiKey, input, retries + 1);
     }
+
     throw error;
   }
 }
 
-async function makeOpenAIRequest(
-  apiKey: string,
-  input: Array<{ role: string; content: string }>
-): Promise<string> {
+async function makeOpenAIRequest(apiKey: string, input: ResponseInputMessage[]): Promise<string> {
   try {
     const res = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         model: 'gpt-5.2-pro',
         input,
-        tools: [{ type: 'web_search_preview' }]
+        tools: [{ type: 'web_search_preview' }],
       }),
     });
 
     if (!res.ok) {
       const errorBody = await res.text();
       const errorMessage = (() => {
-        try { return JSON.parse(errorBody)?.error?.message || errorBody; }
-        catch { return errorBody; }
+        try {
+          return JSON.parse(errorBody)?.error?.message || errorBody;
+        } catch {
+          return errorBody;
+        }
       })();
 
       switch (res.status) {
         case 401:
-          throw new ChatGenerationError(
-            `Invalid API key: ${errorMessage}`,
-            'INVALID_API_KEY',
-            false
-          );
+          throw new ChatGenerationError(`Invalid API key: ${errorMessage}`, 'INVALID_API_KEY', false);
         case 429:
-          throw new ChatGenerationError(
-            `Rate limit exceeded: ${errorMessage}`,
-            'RATE_LIMIT',
-            true
-          );
+          throw new ChatGenerationError(`Rate limit exceeded: ${errorMessage}`, 'RATE_LIMIT', true);
         case 500:
         case 502:
         case 503:
         case 504:
-          throw new ChatGenerationError(
-            `Server error: ${errorMessage}`,
-            'API_ERROR',
-            true
-          );
+          throw new ChatGenerationError(`Server error: ${errorMessage}`, 'API_ERROR', true);
         default:
-          throw new ChatGenerationError(
-            `API error (${res.status}): ${errorMessage}`,
-            'API_ERROR',
-            false
-          );
+          throw new ChatGenerationError(`API error (${res.status}): ${errorMessage}`, 'API_ERROR', false);
       }
     }
 
     const data = await res.json();
 
-    // Responses API returns output as an array of items
-    // Extract text content from output_text or from output items
     if (data.output_text) {
       return data.output_text;
     }
@@ -200,21 +329,19 @@ async function makeOpenAIRequest(
       ?.join('');
 
     if (!textContent) {
-      throw new ChatGenerationError(
-        'No response generated',
-        'API_ERROR',
-        false
-      );
+      throw new ChatGenerationError('No response generated', 'API_ERROR', false);
     }
 
     return textContent;
   } catch (error: unknown) {
-    if (error instanceof ChatGenerationError) throw error;
+    if (error instanceof ChatGenerationError) {
+      throw error;
+    }
 
     throw new ChatGenerationError(
       `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`,
       'NETWORK',
-      true
+      true,
     );
   }
 }

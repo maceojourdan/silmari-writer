@@ -36,6 +36,7 @@ const mockSnapshotOriginal = vi.fn();
 const mockPushEdit = vi.fn();
 const mockPopEdit = vi.fn();
 const mockClearEditHistory = vi.fn();
+const mockStoreGetState = vi.fn();
 
 vi.mock('@/lib/store', () => ({
   useConversationStore: Object.assign(
@@ -51,7 +52,7 @@ vi.mock('@/lib/store', () => ({
         { id: 'msg-1', role: 'assistant', content: 'Original text', timestamp: new Date() },
       ]),
     })),
-    { getState: vi.fn() },
+    { getState: mockStoreGetState },
   ),
 }));
 
@@ -62,6 +63,7 @@ describe('useVoiceEdit', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockMessageListener = null;
+    mockStoreGetState.mockReturnValue({ voiceSessionState: 'connected' });
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -87,6 +89,28 @@ describe('useVoiceEdit', () => {
       ]),
     }));
     expect(mockInitEditHistory).toHaveBeenCalledWith('proj-1', expect.any(String));
+  });
+
+  it('should pass target message context to voice edit instructions', async () => {
+    const { useVoiceEdit } = await import('@/hooks/useVoiceEdit');
+    const { result } = renderHook(() => useVoiceEdit());
+
+    await act(async () => {
+      await result.current.startEditing({
+        targetMessageId: 'msg-1',
+        targetMessageContent: 'Original text',
+      });
+    });
+
+    expect(mockConnect).toHaveBeenCalledWith(
+      'voice_edit',
+      expect.objectContaining({
+        instructions: expect.stringContaining('TARGET MESSAGE ID: msg-1'),
+      }),
+    );
+
+    const [, options] = mockConnect.mock.calls[0];
+    expect(options.instructions).toContain('Original text');
   });
 
   it('should handle send_edit_instruction function call from Realtime API', async () => {
