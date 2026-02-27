@@ -64,6 +64,7 @@ describe('useVoiceEdit', () => {
     vi.clearAllMocks();
     mockMessageListener = null;
     mockStoreGetState.mockReturnValue({ voiceSessionState: 'connected' });
+    mockConnect.mockResolvedValue(true);
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({

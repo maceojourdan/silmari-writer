@@ -101,13 +101,12 @@ export function useVoiceEdit() {
       const assistantMessages = messages.filter((m) => m.role === 'assistant');
       const instructions = buildVoiceEditInstructions(assistantMessages, options);
 
-      await connect(VOICE_MODES.VOICE_EDIT, {
+      const connected = await connect(VOICE_MODES.VOICE_EDIT, {
         instructions,
         tools: [EDIT_TOOL],
       });
 
-      const sessionState = useConversationStore.getState().voiceSessionState;
-      if (sessionState !== 'connected') {
+      if (!connected) {
         throw new Error('Voice edit session failed to connect');
       }
 

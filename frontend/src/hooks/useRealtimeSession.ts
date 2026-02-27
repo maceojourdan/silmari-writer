@@ -32,9 +32,11 @@ export function useRealtimeSession() {
   const connect = useCallback(async (mode: VoiceMode, options?: {
     instructions?: string;
     tools?: unknown[];
-  }) => {
+  }): Promise<boolean> => {
     // Prevent double-connect
-    if (sessionRef.current || connectingRef.current) return;
+    if (sessionRef.current || connectingRef.current) {
+      return true;
+    }
     connectingRef.current = true;
 
     setVoiceSessionState('connecting');
@@ -63,8 +65,10 @@ export function useRealtimeSession() {
           disconnect();
         }
       }, 1000);
+      return true;
     } catch {
       setVoiceSessionState('error');
+      return false;
     } finally {
       connectingRef.current = false;
     }
