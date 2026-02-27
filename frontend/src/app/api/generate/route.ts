@@ -1,79 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
-
-export const MAX_ROUTE_ATTACHMENTS = 10;
-export const MAX_ROUTE_PAYLOAD_BYTES = 25 * 1024 * 1024; // 25 MB
 
 const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY_MS = 2000;
 const RATE_LIMIT_BASE_DELAY_MS = 10000;
+
+const SYSTEM_PROMPT = `You are a writing partner who writes for real-world outcomes, not academic exercises.
+
+Before you write anything, figure out what the user is actually trying to accomplish:
+- Are they trying to persuade someone? (cold email, pitch, proposal)
+- Entertain or engage? (social media, blog post, creative writing)
+- Get a reader to take action? (landing page, CTA, fundraising)
+- Inform clearly? (documentation, explainer, report)
+- Express something personal? (letter, journal, reflection)
+
+Then write for THAT outcome. Match your tone, structure, and word choices to the intent:
+- Persuasion → punchy, benefit-driven, specific. No filler.
+- Entertainment → conversational, vivid, surprising. Have a voice.
+- Call to action → clear, direct, urgent without being desperate.
+- Information → organized, scannable, precise. No fluff.
+- Personal → authentic, warm, human. Not corporate.
+
+Rules:
+- Write like a sharp human, not a committee. No "In today's fast-paced world" or "It's important to note that."
+- Use concrete details over vague claims. "Increased signups 40%" beats "significantly improved metrics."
+- If light research (recent events, Reddit discussions, industry context) would make the writing better, search the web for it. Don't guess at facts you could look up.
+- Vary sentence length. Short sentences punch. Longer ones build rhythm and carry the reader through more complex ideas.
+- Cut anything that doesn't earn its place. Every sentence should do work.
+- Match the formality to the context. A tweet thread and a board memo need different registers.
+- When the user explicitly asks you to search the web, ALWAYS use the web_search_preview tool. Do not refuse or skip the search.`;
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
 }
 
-interface FileAttachment {
-  filename: string;
-  contentType: string;
-  textContent?: string;
-  base64Data?: string;
-}
-
-type ContentPart =
-  | { type: 'text'; text: string }
-  | { type: 'image_url'; image_url: { url: string } };
-
-type MessageContent = string | ContentPart[];
-
-const SUPPORTED_IMAGE_PREFIXES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
-const SUPPORTED_TEXT_TYPES_SET = new Set(['text/plain', 'application/json']);
-
-function isSupportedAttachment(att: FileAttachment): boolean {
-  return SUPPORTED_IMAGE_PREFIXES.includes(att.contentType) || SUPPORTED_TEXT_TYPES_SET.has(att.contentType);
-}
-
-function buildUserContent(
-  message: string,
-  attachments: FileAttachment[]
-): MessageContent {
-  // Filter to only supported MIME types
-  const supported = (attachments || []).filter(isSupportedAttachment);
-
-  if (supported.length === 0) {
-    return message;
-  }
-
-  const imageAttachments = supported.filter(a => a.contentType.startsWith('image/'));
-  const textAttachments = supported.filter(a => !a.contentType.startsWith('image/'));
-
-  // Build text portion: prepend text file contents
-  let textContent = message;
-  if (textAttachments.length > 0) {
-    const fileTexts = textAttachments
-      .map(a => `--- ${a.filename} ---\n${a.textContent || ''}`)
-      .join('\n\n');
-    textContent = `${fileTexts}\n\n${message}`;
-  }
-
-  // If no images, return as string
-  if (imageAttachments.length === 0) {
-    return textContent;
-  }
-
-  // Build multipart content array
-  const parts: ContentPart[] = [{ type: 'text', text: textContent }];
-  for (const img of imageAttachments) {
-    if (img.base64Data) {
-      parts.push({ type: 'image_url', image_url: { url: img.base64Data } });
-    }
-  }
-  return parts;
-}
-
 export async function POST(request: NextRequest) {
   try {
-    const { message, history = [], attachments = [] } = await request.json();
+    const { message, history = [] } = await request.json();
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json(
@@ -82,28 +45,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate attachment limits
-    if (attachments.length > MAX_ROUTE_ATTACHMENTS) {
-      return NextResponse.json(
-        { error: `Too many attachments (max ${MAX_ROUTE_ATTACHMENTS})`, code: 'ATTACHMENT_LIMIT' },
-        { status: 400 }
-      );
-    }
-
-    if (attachments.length > 0) {
-      let totalPayloadSize = 0;
-      for (const att of attachments) {
-        totalPayloadSize += (att.base64Data?.length || 0) + (att.textContent?.length || 0);
-      }
-      if (totalPayloadSize > MAX_ROUTE_PAYLOAD_BYTES) {
-        return NextResponse.json(
-          { error: 'Attachment payload too large', code: 'PAYLOAD_TOO_LARGE' },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Validate API key exists server-side
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       console.error('OPENAI_API_KEY is not configured');
@@ -113,34 +54,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Initialize OpenAI client
-    const openai = new OpenAI({ apiKey });
-
-    // Build user content (plain string or multipart with images)
-    const userContent = buildUserContent(message, attachments);
-
-    // Format conversation history for OpenAI API
-    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: MessageContent }> = [
-      {
-        role: 'system',
-        content: 'You are a helpful writing assistant. Help users with their writing tasks, provide feedback, and assist with transcription-related queries.',
-      },
+    // Build input for the Responses API
+    const input: Array<{ role: string; content: string }> = [
+      { role: 'system', content: SYSTEM_PROMPT },
       ...history.map((msg: Message) => ({
         role: msg.role,
         content: msg.content,
       })),
-      {
-        role: 'user',
-        content: userContent,
-      },
+      { role: 'user', content: message },
     ];
 
-    // Call OpenAI with retry logic
-    const response = await generateWithRetry(openai, messages, 0);
+    const response = await generateWithRetry(apiKey, input, 0);
 
-    return NextResponse.json({
-      content: response,
-    });
+    return NextResponse.json({ content: response });
   } catch (error) {
     console.error('Chat generation error:', error);
 
@@ -181,68 +107,62 @@ class ChatGenerationError extends Error {
 }
 
 async function generateWithRetry(
-  openai: OpenAI,
-  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: MessageContent }>,
+  apiKey: string,
+  input: Array<{ role: string; content: string }>,
   retries: number
 ): Promise<string> {
   try {
-    return await makeOpenAIRequest(openai, messages);
+    return await makeOpenAIRequest(apiKey, input);
   } catch (error) {
     if (error instanceof ChatGenerationError && error.retryable && retries < MAX_RETRIES) {
-      // Use longer delays for rate limit errors
       const baseDelay = error.code === 'RATE_LIMIT'
         ? RATE_LIMIT_BASE_DELAY_MS
         : BASE_RETRY_DELAY_MS;
 
-      // Exponential backoff: baseDelay * 2^retries
       const delay = baseDelay * Math.pow(2, retries);
       console.warn(`Retry ${retries + 1}/${MAX_RETRIES} after ${delay}ms (${error.code})`);
       await new Promise(resolve => setTimeout(resolve, delay));
-      return generateWithRetry(openai, messages, retries + 1);
+      return generateWithRetry(apiKey, input, retries + 1);
     }
     throw error;
   }
 }
 
 async function makeOpenAIRequest(
-  openai: OpenAI,
-  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: MessageContent }>
+  apiKey: string,
+  input: Array<{ role: string; content: string }>
 ): Promise<string> {
   try {
-    // Call OpenAI Chat Completions API
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: messages as OpenAI.ChatCompletionMessageParam[],
-      temperature: 0.7,
-      max_tokens: 2000,
+    const res = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-5.2-pro',
+        input,
+        tools: [{ type: 'web_search_preview' }]
+      }),
     });
 
-    const content = completion.choices[0]?.message?.content;
-    if (!content) {
-      throw new ChatGenerationError(
-        'No response generated',
-        'API_ERROR',
-        false
-      );
-    }
+    if (!res.ok) {
+      const errorBody = await res.text();
+      const errorMessage = (() => {
+        try { return JSON.parse(errorBody)?.error?.message || errorBody; }
+        catch { return errorBody; }
+      })();
 
-    return content;
-  } catch (error: unknown) {
-    // Handle OpenAI SDK errors
-    if (error && typeof error === 'object' && 'status' in error) {
-      const status = (error as { status?: number }).status;
-      const message = (error as { message?: string }).message || 'Unknown error';
-
-      switch (status) {
+      switch (res.status) {
         case 401:
           throw new ChatGenerationError(
-            `Invalid API key: ${message}`,
+            `Invalid API key: ${errorMessage}`,
             'INVALID_API_KEY',
             false
           );
         case 429:
           throw new ChatGenerationError(
-            `Rate limit exceeded: ${message}`,
+            `Rate limit exceeded: ${errorMessage}`,
             'RATE_LIMIT',
             true
           );
@@ -251,20 +171,46 @@ async function makeOpenAIRequest(
         case 503:
         case 504:
           throw new ChatGenerationError(
-            `Server error: ${message}`,
+            `Server error: ${errorMessage}`,
             'API_ERROR',
             true
           );
         default:
           throw new ChatGenerationError(
-            `API error: ${message}`,
+            `API error (${res.status}): ${errorMessage}`,
             'API_ERROR',
             false
           );
       }
     }
 
-    // Network or other errors
+    const data = await res.json();
+
+    // Responses API returns output as an array of items
+    // Extract text content from output_text or from output items
+    if (data.output_text) {
+      return data.output_text;
+    }
+
+    const textContent = data.output
+      ?.filter((item: { type: string }) => item.type === 'message')
+      ?.flatMap((item: { content: Array<{ type: string; text: string }> }) => item.content)
+      ?.filter((block: { type: string }) => block.type === 'output_text')
+      ?.map((block: { text: string }) => block.text)
+      ?.join('');
+
+    if (!textContent) {
+      throw new ChatGenerationError(
+        'No response generated',
+        'API_ERROR',
+        false
+      );
+    }
+
+    return textContent;
+  } catch (error: unknown) {
+    if (error instanceof ChatGenerationError) throw error;
+
     throw new ChatGenerationError(
       `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`,
       'NETWORK',

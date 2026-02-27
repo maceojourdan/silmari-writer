@@ -16,7 +16,7 @@ export default function TestAudioPage() {
     setLoading(true)
 
     try {
-      // Send to API route for transcription
+      // Send to API route for transcription to the LLM
       const formData = new FormData()
       formData.append('file', blob, 'recording.webm')
 

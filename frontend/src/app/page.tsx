@@ -8,10 +8,13 @@ import ConversationView from '@/components/chat/ConversationView';
 import MessageInput from '@/components/chat/MessageInput';
 import FileAttachment from '@/components/chat/FileAttachment';
 import AudioRecorder, { AudioRecorderHandle } from '@/components/chat/AudioRecorder';
+import ReadAloudToggle from '@/components/chat/ReadAloudToggle';
+import VoiceEditPanel from '@/components/chat/VoiceEditPanel';
 import { useConversationStore } from '@/lib/store';
 import { transcribeAudio } from '@/lib/transcription';
 import { generateResponse } from '@/lib/api';
-import { prepareFilesContent } from '@/lib/file-content';
+import { useRealtimeSession } from '@/hooks/useRealtimeSession';
+import { useAutoReadAloud } from '@/hooks/useAutoReadAloud';
 
 export default function HomePage() {
   const {
@@ -24,12 +27,30 @@ export default function HomePage() {
     _hasHydrated,
   } = useConversationStore();
 
-  const [files, setFiles] = useState<File[]>([]);
-  const [fileResetKey, setFileResetKey] = useState(0);
+  const [, setFiles] = useState<File[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const audioRecorderRef = useRef<AudioRecorderHandle>(null);
+
+  // Read Aloud integration
+  const { readAloudEnabled } = useConversationStore();
+  const { sessionState, sendEvent, setOnEvent } = useRealtimeSession();
+  const { onNewAssistantMessage, handleResponseDone } = useAutoReadAloud({
+    readAloudEnabled,
+    isConnected: sessionState === 'connected',
+    sendEvent,
+  });
+
+  // Wire up response.done event to process TTS queue
+  useEffect(() => {
+    setOnEvent((event) => {
+      if (event.type === 'response.done') {
+        handleResponseDone();
+      }
+    });
+    return () => setOnEvent(null);
+  }, [setOnEvent, handleResponseDone]);
 
   const activeMessages = activeProjectId ? getMessages(activeProjectId) : [];
 
@@ -40,57 +61,39 @@ export default function HomePage() {
     }
   }, [_hasHydrated, projects.length, createProject]);
 
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = async (content: string, isVoiceTranscription = false) => {
     if (!activeProjectId) return;
 
     setError(null);
 
-    // Snapshot files at submit time
-    const currentFiles = [...files];
-
-    // Build attachments metadata for the stored message
-    const attachments = currentFiles.length > 0
-      ? currentFiles.map(f => ({
-          id: crypto.randomUUID(),
-          filename: f.name,
-          size: f.size,
-          type: f.type,
-        }))
-      : undefined;
-
-    // Add user message with attachments (fixes INV-1)
+    // Add user message
     addMessage(activeProjectId, {
       role: 'user',
       content,
       timestamp: new Date(),
-      ...(attachments ? { attachments } : {}),
+      isVoiceTranscription,
     });
 
     setIsGenerating(true);
 
     try {
-      // Prepare file content for API
-      const filePayloads = await prepareFilesContent(currentFiles);
-
-      // Generate AI response with file data (fixes INV-2)
-      const response = await generateResponse(
-        content,
-        activeMessages,
-        filePayloads.length > 0 ? filePayloads : undefined
-      );
+      // Generate AI response
+      const response = await generateResponse(content, activeMessages);
 
       addMessage(activeProjectId, {
         role: 'assistant',
         content: response,
         timestamp: new Date(),
       });
+
+      // Send to Read Aloud if enabled
+      onNewAssistantMessage(response);
     } catch (err) {
       setError('Failed to generate response. Please try again.');
       console.error('Failed to generate response:', err);
     } finally {
       setIsGenerating(false);
       setFiles([]);
-      setFileResetKey(k => k + 1);
     }
   };
 
@@ -102,7 +105,13 @@ export default function HomePage() {
 
     try {
       const text = await transcribeAudio(blob);
-      await handleSendMessage(text);
+
+      if (!text || text.trim().length === 0) {
+        setError('No speech detected in recording. Please try again.');
+        return;
+      }
+
+      await handleSendMessage(text, true); // Mark as voice transcription
     } catch (err) {
       setError('Failed to transcribe audio. Please try again.');
       console.error('Failed to transcribe audio:', err);
@@ -121,7 +130,13 @@ export default function HomePage() {
 
     try {
       const text = await transcribeAudio(file);
-      await handleSendMessage(text);
+
+      if (!text || text.trim().length === 0) {
+        setError(`No speech detected in ${file.name}. Please try again.`);
+        return;
+      }
+
+      await handleSendMessage(text, true); // Mark as voice transcription
     } catch (err) {
       setError(`Failed to transcribe ${file.name}. Please try again.`);
       console.error('Failed to transcribe file:', err);
@@ -138,7 +153,7 @@ export default function HomePage() {
 
   return (
     <AppLayout>
-      <div className="flex h-full">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Sidebar */}
         <div className="w-64 border-r border-border bg-card hidden lg:block">
           <div className="p-4">
@@ -153,10 +168,16 @@ export default function HomePage() {
         </div>
 
         {/* Main content area */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {activeProjectId ? (
             <>
               <ConversationView messages={activeMessages} />
+
+              {/* Voice controls */}
+              <div className="flex items-center gap-2 px-4 py-1.5 border-t">
+                <ReadAloudToggle />
+                <VoiceEditPanel />
+              </div>
 
               {/* Loading indicator */}
               {isGenerating && (
@@ -190,7 +211,6 @@ export default function HomePage() {
                 <div className="mt-4 flex gap-4">
                   <div className="flex-1">
                     <FileAttachment
-                      key={fileResetKey}
                       onFilesChange={setFiles}
                       onTranscribeFile={handleTranscribeFile}
                     />

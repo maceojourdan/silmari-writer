@@ -1,11 +1,58 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-import { Message, Project } from './types'
+import { createJSONStorage, persist } from 'zustand/middleware'
+import { Message, Project, MessageButtonState, NonBlockingOperationType, BlockingOperationType } from './types'
+import type { VoiceSessionState, EditHistory, EditEntry } from './voice-types'
+import { createEditEntry, createEditHistory } from './voice-types'
+
+type PersistStorageLike = {
+  getItem: (name: string) => string | null
+  setItem: (name: string, value: string) => void
+  removeItem: (name: string) => void
+}
+
+function createMemoryStorage(): PersistStorageLike {
+  const memory = new Map<string, string>()
+  return {
+    getItem: (name) => memory.get(name) ?? null,
+    setItem: (name, value) => {
+      memory.set(name, value)
+    },
+    removeItem: (name) => {
+      memory.delete(name)
+    },
+  }
+}
+
+function getPersistStorage(): PersistStorageLike {
+  const browserStorage =
+    typeof window !== 'undefined' ? (window.localStorage as Partial<Storage> | undefined) : undefined
+  if (
+    browserStorage &&
+    typeof browserStorage.getItem === 'function' &&
+    typeof browserStorage.setItem === 'function' &&
+    typeof browserStorage.removeItem === 'function'
+  ) {
+    return browserStorage as PersistStorageLike
+  }
+
+  const globalStorage = (globalThis as { localStorage?: Partial<Storage> }).localStorage
+  if (
+    globalStorage &&
+    typeof globalStorage.getItem === 'function' &&
+    typeof globalStorage.setItem === 'function' &&
+    typeof globalStorage.removeItem === 'function'
+  ) {
+    return globalStorage as PersistStorageLike
+  }
+
+  return createMemoryStorage()
+}
 
 interface ConversationState {
   projects: Project[]
   activeProjectId: string | null
   messages: Record<string, Message[]> // projectId -> messages
+  buttonStates: Record<string, MessageButtonState> // messageId -> button state
   _hasHydrated: boolean
 
   // Hydration
@@ -19,14 +66,37 @@ interface ConversationState {
 
   // Message actions
   addMessage: (projectId: string, message: Omit<Message, 'id'>) => void
+  replaceMessage: (projectId: string, oldMessageId: string, newMessage: Message) => void
   getMessages: (projectId: string) => Message[]
   clearMessages: (projectId: string) => void
+
+  // Button state actions (synchronous - updates are immediate)
+  setNonBlockingOperation: (messageId: string, operation: NonBlockingOperationType) => void
+  clearNonBlockingOperation: (messageId: string, operation: NonBlockingOperationType) => void
+  startBlockingOperation: (messageId: string, type: BlockingOperationType) => void
+  completeBlockingOperation: (messageId: string) => void
+  failBlockingOperation: (messageId: string, error: string) => void
+  isMessageBlocked: (messageId: string) => boolean
 
   // Selectors
   getActiveProject: () => Project | undefined
   getActiveMessages: () => Message[]
   hasMessages: (projectId: string) => boolean
   projectCount: () => number
+
+  // Voice state (session-scoped, not persisted)
+  readAloudEnabled: boolean
+  voiceSessionState: VoiceSessionState
+  editHistory: EditHistory | null
+
+  // Voice actions
+  setReadAloud: (enabled: boolean) => void
+  setVoiceSessionState: (state: VoiceSessionState) => void
+  initEditHistory: (projectId: string, sessionId: string) => void
+  snapshotOriginal: (messageId: string, content: string) => void
+  pushEdit: (params: Omit<EditEntry, 'timestamp'>) => void
+  popEdit: () => { messageId: string; previousContent: string } | null
+  clearEditHistory: () => void
 }
 
 export const useConversationStore = create<ConversationState>()(
@@ -35,6 +105,7 @@ export const useConversationStore = create<ConversationState>()(
       projects: [],
       activeProjectId: null,
       messages: {},
+      buttonStates: {},
       _hasHydrated: false,
 
       setHasHydrated: (state) => {
@@ -97,6 +168,24 @@ export const useConversationStore = create<ConversationState>()(
         }))
       },
 
+      replaceMessage: (projectId, oldMessageId, newMessage) => {
+        set((state) => {
+          const projectMessages = state.messages[projectId] || []
+          const index = projectMessages.findIndex(m => m.id === oldMessageId)
+          if (index === -1) return state
+
+          const updatedMessages = [...projectMessages]
+          updatedMessages[index] = newMessage
+
+          return {
+            messages: {
+              ...state.messages,
+              [projectId]: updatedMessages,
+            },
+          }
+        })
+      },
+
       getMessages: (projectId) => {
         return get().messages[projectId] || []
       },
@@ -130,11 +219,218 @@ export const useConversationStore = create<ConversationState>()(
       projectCount: () => {
         return get().projects.length
       },
+
+      // Button state actions
+      setNonBlockingOperation: (messageId, operation) => {
+        set((state) => ({
+          buttonStates: {
+            ...state.buttonStates,
+            [messageId]: {
+              ...state.buttonStates[messageId],
+              [operation]: {
+                isActive: true,
+                timestamp: Date.now(),
+              },
+            },
+          },
+        }))
+      },
+
+      // Note: Components are responsible for calling clearNonBlockingOperation
+      // after timeout (typically 2 seconds). Store does not auto-clear copy states.
+      clearNonBlockingOperation: (messageId, operation) => {
+        set((state) => {
+          const messageState = state.buttonStates[messageId]
+          if (!messageState) return state
+
+          const updatedMessageState = {
+            ...messageState,
+            [operation]: undefined,
+          }
+
+          // Clean up if no state remains
+          const hasAnyState = updatedMessageState.copy || updatedMessageState.blockingOperation
+          if (!hasAnyState) {
+            const { [messageId]: _removed, ...remainingStates } = state.buttonStates
+            return { buttonStates: remainingStates }
+          }
+
+          return {
+            buttonStates: {
+              ...state.buttonStates,
+              [messageId]: updatedMessageState,
+            },
+          }
+        })
+      },
+      startBlockingOperation: (messageId, type) => {
+        set((state) => ({
+          buttonStates: {
+            ...state.buttonStates,
+            [messageId]: {
+              ...state.buttonStates[messageId],
+              blockingOperation: {
+                type,
+                isLoading: true,
+              },
+            },
+          },
+        }))
+      },
+      completeBlockingOperation: (messageId) => {
+        set((state) => {
+          const messageState = state.buttonStates[messageId]
+          if (!messageState) return state
+
+          const updatedMessageState = {
+            ...messageState,
+            blockingOperation: undefined,
+          }
+
+          // Clean up if no state remains
+          const hasAnyState = updatedMessageState.copy || updatedMessageState.blockingOperation
+          if (!hasAnyState) {
+            const { [messageId]: _removed, ...remainingStates } = state.buttonStates
+            return { buttonStates: remainingStates }
+          }
+
+          return {
+            buttonStates: {
+              ...state.buttonStates,
+              [messageId]: updatedMessageState,
+            },
+          }
+        })
+      },
+      failBlockingOperation: (messageId, error) => {
+        set((state) => {
+          const messageState = state.buttonStates[messageId]
+          if (!messageState?.blockingOperation) return state
+
+          return {
+            buttonStates: {
+              ...state.buttonStates,
+              [messageId]: {
+                ...messageState,
+                blockingOperation: {
+                  ...messageState.blockingOperation,
+                  isLoading: false,
+                  error,
+                },
+              },
+            },
+          }
+        })
+      },
+      isMessageBlocked: (messageId) => {
+        return !!get().buttonStates[messageId]?.blockingOperation?.isLoading
+      },
+
+      // Voice state (session-scoped, not persisted)
+      readAloudEnabled: false,
+      voiceSessionState: 'idle' as VoiceSessionState,
+      editHistory: null,
+
+      // Voice actions
+      setReadAloud: (enabled) => {
+        set({ readAloudEnabled: enabled })
+      },
+      setVoiceSessionState: (state) => {
+        set({ voiceSessionState: state })
+      },
+      initEditHistory: (projectId, sessionId) => {
+        set({ editHistory: createEditHistory({ projectId, sessionId }) })
+      },
+      snapshotOriginal: (messageId, content) => {
+        set((state) => {
+          if (!state.editHistory) return state
+          if (messageId in state.editHistory.originalSnapshots) return state
+          return {
+            editHistory: {
+              ...state.editHistory,
+              originalSnapshots: {
+                ...state.editHistory.originalSnapshots,
+                [messageId]: content,
+              },
+            },
+          }
+        })
+      },
+      pushEdit: (params) => {
+        set((state) => {
+          if (!state.editHistory) return state
+          return {
+            editHistory: {
+              ...state.editHistory,
+              edits: [...state.editHistory.edits, createEditEntry(params)],
+            },
+          }
+        })
+      },
+      popEdit: () => {
+        const state = get()
+        if (!state.editHistory || state.editHistory.edits.length === 0) return null
+
+        const edits = state.editHistory.edits
+        const lastEdit = edits[edits.length - 1]
+        const messageId = lastEdit.messageId
+
+        // Find the previous content for this message: walk backwards through remaining edits
+        const remainingEdits = edits.slice(0, -1)
+        let previousContent = state.editHistory.originalSnapshots[messageId] || ''
+        for (let i = remainingEdits.length - 1; i >= 0; i--) {
+          if (remainingEdits[i].messageId === messageId) {
+            previousContent = remainingEdits[i].editedContent
+            break
+          }
+        }
+
+        set({
+          editHistory: {
+            ...state.editHistory,
+            edits: remainingEdits,
+          },
+        })
+
+        return { messageId, previousContent }
+      },
+      clearEditHistory: () => {
+        set({ editHistory: null })
+      },
     }),
     {
       name: 'conversation-storage',
+      storage: createJSONStorage(getPersistStorage),
+      partialize: (state) => ({
+        projects: state.projects,
+        activeProjectId: state.activeProjectId,
+        messages: state.messages,
+        buttonStates: state.buttonStates,
+        _hasHydrated: state._hasHydrated,
+      }),
       onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true)
+        if (state) {
+          // Clean up any loading states from previous session
+          const cleanedButtonStates: Record<string, MessageButtonState> = {}
+          Object.entries(state.buttonStates).forEach(([messageId, buttonState]) => {
+            const cleaned: MessageButtonState = {}
+
+            // Don't restore loading operations (they won't complete after page reload)
+            if (buttonState.blockingOperation && !buttonState.blockingOperation.isLoading) {
+              cleaned.blockingOperation = buttonState.blockingOperation
+            }
+
+            // Don't restore copy states (they're temporary UI feedback)
+            // Copy states are cleared after 2 seconds by component anyway
+
+            if (cleaned.blockingOperation) {
+              cleanedButtonStates[messageId] = cleaned
+            }
+          })
+
+          state.buttonStates = cleanedButtonStates
+          state.setHasHydrated(true)
+        }
       },
     }
   )

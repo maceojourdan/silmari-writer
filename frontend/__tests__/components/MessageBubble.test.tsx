@@ -1,103 +1,64 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import MessageBubble from '@/components/chat/MessageBubble'
 import { Message } from '@/lib/types'
 
-// Mock scrollIntoView (keeping env clean)
-const mockScrollIntoView = vi.fn()
-window.HTMLElement.prototype.scrollIntoView = mockScrollIntoView
+// Mock ButtonRibbon
+vi.mock('@/components/chat/ButtonRibbon', () => ({
+  default: ({ messageId, content }: { messageId: string; content: string }) => (
+    <div data-testid="button-ribbon" data-message-id={messageId}>
+      ButtonRibbon: {content}
+    </div>
+  ),
+}))
 
-describe('MessageBubble', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-02-27T12:00:00.000Z'))
+describe('MessageBubble with ButtonRibbon', () => {
+  const assistantMessage: Message = {
+    id: 'msg-123',
+    role: 'assistant',
+    content: 'This is an assistant message',
+    timestamp: new Date('2026-01-16T10:00:00Z'),
+  }
+
+  const userMessage: Message = {
+    id: 'msg-456',
+    role: 'user',
+    content: 'This is a user message',
+    timestamp: new Date('2026-01-16T09:00:00Z'),
+  }
+
+  it('shows ButtonRibbon for assistant messages', () => {
+    render(<MessageBubble message={assistantMessage} />)
+
+    const buttonRibbon = screen.getByTestId('button-ribbon')
+    expect(buttonRibbon).toBeInTheDocument()
+    expect(buttonRibbon).toHaveAttribute('data-message-id', 'msg-123')
   })
 
-  afterEach(() => {
-    vi.useRealTimers()
+  it('does not show ButtonRibbon for user messages', () => {
+    render(<MessageBubble message={userMessage} />)
+
+    expect(screen.queryByTestId('button-ribbon')).not.toBeInTheDocument()
   })
 
-  it('renders message content without attachments (no regression)', () => {
-    const message: Message = {
-      id: '1',
-      role: 'user',
-      content: 'Hello world',
-      timestamp: new Date(),
-    }
+  it('passes message content to ButtonRibbon', () => {
+    render(<MessageBubble message={assistantMessage} />)
 
-    render(<MessageBubble message={message} />)
-
-    expect(screen.getByText('Hello world')).toBeInTheDocument()
-    expect(screen.queryByTestId('attachment-list')).not.toBeInTheDocument()
+    const buttonRibbon = screen.getByTestId('button-ribbon')
+    expect(buttonRibbon).toHaveTextContent('This is an assistant message')
   })
 
-  it('renders attachment indicators when attachments present', () => {
-    const message: Message = {
-      id: '1',
-      role: 'user',
-      content: 'Check this file',
-      timestamp: new Date(),
-      attachments: [
-        { id: 'att-1', filename: 'report.txt', size: 2048, type: 'text/plain' },
-      ],
-    }
+  it('maintains existing message rendering', () => {
+    render(<MessageBubble message={assistantMessage} />)
 
-    render(<MessageBubble message={message} />)
+    // Message content still visible (will appear in both message and mocked ButtonRibbon)
+    const messages = screen.getAllByText(/this is an assistant message/i)
+    expect(messages.length).toBeGreaterThan(0)
 
-    expect(screen.getByText('Check this file')).toBeInTheDocument()
-    expect(screen.getByTestId('attachment-list')).toBeInTheDocument()
-    expect(screen.getByText('report.txt')).toBeInTheDocument()
-  })
+    // Avatar still present
+    expect(screen.getByLabelText(/ai/i)).toBeInTheDocument()
 
-  it('renders multiple attachment indicators', () => {
-    const message: Message = {
-      id: '1',
-      role: 'user',
-      content: 'Multiple files',
-      timestamp: new Date(),
-      attachments: [
-        { id: 'att-1', filename: 'doc.txt', size: 1024, type: 'text/plain' },
-        { id: 'att-2', filename: 'photo.png', size: 5000, type: 'image/png' },
-      ],
-    }
-
-    render(<MessageBubble message={message} />)
-
-    expect(screen.getByText('doc.txt')).toBeInTheDocument()
-    expect(screen.getByText('photo.png')).toBeInTheDocument()
-  })
-
-  it('shows formatted file size for attachments', () => {
-    const message: Message = {
-      id: '1',
-      role: 'user',
-      content: 'With size',
-      timestamp: new Date(),
-      attachments: [
-        { id: 'att-1', filename: 'data.json', size: 3072, type: 'application/json' },
-      ],
-    }
-
-    render(<MessageBubble message={message} />)
-
-    expect(screen.getByText('data.json')).toBeInTheDocument()
-    expect(screen.getByText('3 KB')).toBeInTheDocument()
-  })
-
-  it('renders attachments for assistant messages too', () => {
-    const message: Message = {
-      id: '1',
-      role: 'assistant',
-      content: 'Response with context',
-      timestamp: new Date(),
-      attachments: [
-        { id: 'att-1', filename: 'context.txt', size: 500, type: 'text/plain' },
-      ],
-    }
-
-    render(<MessageBubble message={message} />)
-
-    expect(screen.getByText('context.txt')).toBeInTheDocument()
-    expect(screen.getByTestId('attachment-list')).toBeInTheDocument()
+    // Timestamp still present
+    expect(screen.getByTestId('message-timestamp')).toBeInTheDocument()
   })
 })

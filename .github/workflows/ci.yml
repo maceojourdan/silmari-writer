@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: ['**']
   pull_request:
     branches: [main]
 
@@ -23,8 +23,14 @@ jobs:
       - run: npm run lint
       - run: npm run type-check
       - run: npm run build
-      - run: npm test
-      - run: npx playwright install --with-deps
-      - run: npm run test:e2e
+      - name: Run unit tests
+        run: npm test
+        timeout-minutes: 10
+      - name: Install Playwright
+        run: npx playwright install --with-deps
+        timeout-minutes: 10
+      - name: Run E2E tests
+        run: npm run test:e2e
+        timeout-minutes: 10
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

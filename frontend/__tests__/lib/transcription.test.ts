@@ -6,15 +6,23 @@ import { TranscriptionError } from '@/lib/types'
 const mockFetch = vi.fn()
 global.fetch = mockFetch
 
+// Helper to setup two-step mock responses (upload + transcribe)
+function setupSuccessfulTranscription(text: string, blobUrl = 'https://blob.vercel-storage.com/test-file.webm') {
+  // Step 1: Upload response
+  mockFetch.mockResolvedValueOnce({
+    ok: true,
+    json: () => Promise.resolve({ url: blobUrl }),
+  })
+  // Step 2: Transcribe response
+  mockFetch.mockResolvedValueOnce({
+    ok: true,
+    json: () => Promise.resolve({ text }),
+  })
+}
+
 describe('transcribeAudio', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    // Set default API key for tests
-    vi.stubEnv('OPENAI_API_KEY', 'sk-test-key-123')
-  })
-
-  afterEach(() => {
-    vi.unstubAllEnvs()
   })
 
   describe('file size validation', () => {
@@ -28,24 +36,25 @@ describe('transcribeAudio', () => {
       })
     })
 
+    it('should include actual file size and suggestion in error message', async () => {
+      // Create a 28MB file
+      const sizeBytes = 28 * 1024 * 1024
+      const largeBlob = new Blob([new ArrayBuffer(sizeBytes)], { type: 'audio/webm' })
+
+      await expect(transcribeAudio(largeBlob)).rejects.toThrow(/File size 28\.0MB exceeds 25MB limit/)
+      await expect(transcribeAudio(largeBlob)).rejects.toThrow(/Try recording a shorter audio clip/)
+    })
+
     it('should accept files at exactly 25MB', async () => {
       const exactBlob = new Blob([new ArrayBuffer(MAX_FILE_SIZE_BYTES)], { type: 'audio/webm' })
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ text: 'test transcription' }),
-      })
+      setupSuccessfulTranscription('test transcription')
 
       await expect(transcribeAudio(exactBlob)).resolves.toBe('test transcription')
     })
 
     it('should accept files smaller than 25MB', async () => {
       const smallBlob = new Blob(['test audio content'], { type: 'audio/webm' })
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ text: 'hello world' }),
-      })
+      setupSuccessfulTranscription('hello world')
 
       const result = await transcribeAudio(smallBlob)
       expect(result).toBe('hello world')
@@ -53,42 +62,46 @@ describe('transcribeAudio', () => {
   })
 
   describe('successful transcription', () => {
-    it('should POST to OpenAI Whisper API with correct FormData', async () => {
+    it('should POST to /api/upload then /api/transcribe in two-step process', async () => {
       const audioBlob = new Blob(['test audio'], { type: 'audio/webm' })
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ text: 'transcribed text' }),
-      })
+      setupSuccessfulTranscription('transcribed text')
 
       await transcribeAudio(audioBlob)
 
-      expect(mockFetch).toHaveBeenCalledTimes(1)
-      expect(mockFetch).toHaveBeenCalledWith(
-        'https://api.openai.com/v1/audio/transcriptions',
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+      // Step 1: Upload
+      expect(mockFetch).toHaveBeenNthCalledWith(
+        1,
+        '/api/upload',
         expect.objectContaining({
           method: 'POST',
-          headers: expect.objectContaining({
-            'Authorization': 'Bearer sk-test-key-123',
-          }),
+        })
+      )
+      // Step 2: Transcribe with blobUrl
+      expect(mockFetch).toHaveBeenNthCalledWith(
+        2,
+        '/api/transcribe',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
         })
       )
 
-      // Verify FormData contains file and model
-      const [, options] = mockFetch.mock.calls[0]
-      expect(options.body).toBeInstanceOf(FormData)
-      const formData = options.body as FormData
-      expect(formData.get('model')).toBe('whisper-1')
+      // Verify upload FormData contains file
+      const [, uploadOptions] = mockFetch.mock.calls[0]
+      expect(uploadOptions.body).toBeInstanceOf(FormData)
+      const formData = uploadOptions.body as FormData
       expect(formData.get('file')).toBeInstanceOf(Blob)
+
+      // Verify transcribe body contains blobUrl
+      const [, transcribeOptions] = mockFetch.mock.calls[1]
+      const transcribeBody = JSON.parse(transcribeOptions.body)
+      expect(transcribeBody.blobUrl).toBe('https://blob.vercel-storage.com/test-file.webm')
     })
 
     it('should return transcription text from response', async () => {
       const audioBlob = new Blob(['test audio'], { type: 'audio/webm' })
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ text: 'The quick brown fox jumps over the lazy dog' }),
-      })
+      setupSuccessfulTranscription('The quick brown fox jumps over the lazy dog')
 
       const result = await transcribeAudio(audioBlob)
       expect(result).toBe('The quick brown fox jumps over the lazy dog')
@@ -96,194 +109,165 @@ describe('transcribeAudio', () => {
 
     it('should pass language option to API', async () => {
       const audioBlob = new Blob(['test audio'], { type: 'audio/webm' })
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ text: 'transcribed text' }),
-      })
+      setupSuccessfulTranscription('transcribed text')
 
       await transcribeAudio(audioBlob, { language: 'es' })
 
-      const [, options] = mockFetch.mock.calls[0]
-      const formData = options.body as FormData
-      expect(formData.get('language')).toBe('es')
+      // Verify language is included in transcribe request body
+      const [, transcribeOptions] = mockFetch.mock.calls[1]
+      const transcribeBody = JSON.parse(transcribeOptions.body)
+      expect(transcribeBody.language).toBe('es')
     })
 
-    it('should pass prompt option to API', async () => {
+    it('should use .webm extension for audio/webm files', async () => {
       const audioBlob = new Blob(['test audio'], { type: 'audio/webm' })
+      setupSuccessfulTranscription('transcribed text')
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ text: 'transcribed text' }),
-      })
+      await transcribeAudio(audioBlob)
 
-      await transcribeAudio(audioBlob, { prompt: 'This is a technical discussion' })
+      const [, uploadOptions] = mockFetch.mock.calls[0]
+      const formData = uploadOptions.body as FormData
+      const file = formData.get('file') as File
+      expect(file.name).toMatch(/^recording-\d+\.webm$/)
+    })
 
-      const [, options] = mockFetch.mock.calls[0]
-      const formData = options.body as FormData
-      expect(formData.get('prompt')).toBe('This is a technical discussion')
+    it('should use .mp4 extension for audio/mp4 files', async () => {
+      const audioBlob = new Blob(['test audio'], { type: 'audio/mp4' })
+      setupSuccessfulTranscription('transcribed text')
+
+      await transcribeAudio(audioBlob)
+
+      const [, uploadOptions] = mockFetch.mock.calls[0]
+      const formData = uploadOptions.body as FormData
+      const file = formData.get('file') as File
+      expect(file.name).toMatch(/^recording-\d+\.mp4$/)
     })
   })
 
   describe('error handling', () => {
-    it('should throw INVALID_API_KEY error on 401 response', async () => {
-      const audioBlob = new Blob(['test audio'], { type: 'audio/webm' })
+    describe('upload errors', () => {
+      it('should throw UPLOAD_ERROR when upload fails with error response', async () => {
+        const audioBlob = new Blob(['test audio'], { type: 'audio/webm' })
 
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-        json: () => Promise.resolve({ error: { message: 'Invalid API key' } }),
-      })
-
-      await expect(transcribeAudio(audioBlob)).rejects.toMatchObject({
-        code: 'INVALID_API_KEY',
-        retryable: false,
-      })
-    })
-
-    it('should throw NETWORK error on network failure after retries', async () => {
-      vi.useFakeTimers()
-      const audioBlob = new Blob(['test audio'], { type: 'audio/webm' })
-
-      // All calls fail with network error
-      mockFetch.mockRejectedValue(new Error('Network error'))
-
-      const promise = transcribeAudio(audioBlob)
-
-      // Advance through all retry delays: 1000ms + 2000ms + 4000ms
-      await vi.advanceTimersByTimeAsync(1000)
-      await vi.advanceTimersByTimeAsync(2000)
-      await vi.advanceTimersByTimeAsync(4000)
-
-      await expect(promise).rejects.toMatchObject({
-        code: 'NETWORK',
-        retryable: true,
-      })
-      // Initial call + 3 retries = 4 total calls
-      expect(mockFetch).toHaveBeenCalledTimes(4)
-
-      vi.useRealTimers()
-    })
-
-    it('should throw API_ERROR on other API errors', async () => {
-      const audioBlob = new Blob(['test audio'], { type: 'audio/webm' })
-
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 400,
-        json: () => Promise.resolve({ error: { message: 'Bad request' } }),
-      })
-
-      await expect(transcribeAudio(audioBlob)).rejects.toMatchObject({
-        code: 'API_ERROR',
-        retryable: false,
-      })
-    })
-  })
-
-  describe('retry logic', () => {
-    beforeEach(() => {
-      vi.useFakeTimers()
-    })
-
-    afterEach(async () => {
-      // Run all pending timers to avoid unhandled promise rejections
-      await vi.runAllTimersAsync()
-      vi.useRealTimers()
-    })
-
-    it('should retry on 429 rate limit error with exponential backoff', async () => {
-      const audioBlob = new Blob(['test audio'], { type: 'audio/webm' })
-
-      // First two calls return 429, third succeeds
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 429,
-          json: () => Promise.resolve({ error: { message: 'Rate limit exceeded' } }),
-        })
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 429,
-          json: () => Promise.resolve({ error: { message: 'Rate limit exceeded' } }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ text: 'success after retry' }),
-        })
-
-      const promise = transcribeAudio(audioBlob)
-
-      // First retry after 1000ms
-      await vi.advanceTimersByTimeAsync(1000)
-      // Second retry after 2000ms (exponential backoff)
-      await vi.advanceTimersByTimeAsync(2000)
-
-      const result = await promise
-      expect(result).toBe('success after retry')
-      expect(mockFetch).toHaveBeenCalledTimes(3)
-    })
-
-    it('should retry on 500 server errors', async () => {
-      const audioBlob = new Blob(['test audio'], { type: 'audio/webm' })
-
-      mockFetch
-        .mockResolvedValueOnce({
+        mockFetch.mockResolvedValueOnce({
           ok: false,
           status: 500,
-          json: () => Promise.resolve({ error: { message: 'Internal server error' } }),
+          json: () => Promise.resolve({
+            error: 'Upload failed',
+            code: 'UPLOAD_ERROR',
+          }),
         })
-        .mockResolvedValueOnce({
+
+        await expect(transcribeAudio(audioBlob)).rejects.toMatchObject({
+          code: 'UPLOAD_ERROR',
+          retryable: false,
+        })
+      })
+
+      it('should throw UPLOAD_ERROR with retryable=true on network failure during upload', async () => {
+        const audioBlob = new Blob(['test audio'], { type: 'audio/webm' })
+
+        mockFetch.mockRejectedValueOnce(new Error('Network error'))
+
+        await expect(transcribeAudio(audioBlob)).rejects.toMatchObject({
+          code: 'UPLOAD_ERROR',
+          retryable: true,
+        })
+      })
+    })
+
+    describe('transcription errors', () => {
+      it('should throw INVALID_API_KEY error on 401 response from transcribe', async () => {
+        const audioBlob = new Blob(['test audio'], { type: 'audio/webm' })
+
+        // Upload succeeds
+        mockFetch.mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({ text: 'success after retry' }),
+          json: () => Promise.resolve({ url: 'https://blob.vercel-storage.com/test.webm' }),
+        })
+        // Transcribe fails with 401
+        mockFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+          json: () => Promise.resolve({
+            error: 'Invalid API key',
+            code: 'INVALID_API_KEY',
+            retryable: false
+          }),
         })
 
-      const promise = transcribeAudio(audioBlob)
-      await vi.advanceTimersByTimeAsync(1000)
-
-      const result = await promise
-      expect(result).toBe('success after retry')
-      expect(mockFetch).toHaveBeenCalledTimes(2)
-    })
-
-    it('should fail after max retries exceeded', async () => {
-      const audioBlob = new Blob(['test audio'], { type: 'audio/webm' })
-
-      // All calls return 429
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 429,
-        json: () => Promise.resolve({ error: { message: 'Rate limit exceeded' } }),
+        await expect(transcribeAudio(audioBlob)).rejects.toMatchObject({
+          code: 'INVALID_API_KEY',
+          retryable: false,
+        })
       })
 
-      const promise = transcribeAudio(audioBlob)
+      it('should throw NETWORK error on network failure during transcribe', async () => {
+        const audioBlob = new Blob(['test audio'], { type: 'audio/webm' })
 
-      // Advance through all retry delays: 1000ms + 2000ms + 4000ms
-      await vi.advanceTimersByTimeAsync(1000)
-      await vi.advanceTimersByTimeAsync(2000)
-      await vi.advanceTimersByTimeAsync(4000)
+        // Upload succeeds
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ url: 'https://blob.vercel-storage.com/test.webm' }),
+        })
+        // Transcribe fails with network error
+        mockFetch.mockRejectedValueOnce(new Error('Network error'))
 
-      await expect(promise).rejects.toMatchObject({
-        code: 'RATE_LIMIT',
-        retryable: true,
-      })
-      // Initial call + 3 retries = 4 total calls
-      expect(mockFetch).toHaveBeenCalledTimes(4)
-    })
-
-    it('should not retry on non-retryable errors', async () => {
-      const audioBlob = new Blob(['test audio'], { type: 'audio/webm' })
-
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-        json: () => Promise.resolve({ error: { message: 'Invalid API key' } }),
+        await expect(transcribeAudio(audioBlob)).rejects.toMatchObject({
+          code: 'NETWORK',
+          retryable: true,
+        })
       })
 
-      await expect(transcribeAudio(audioBlob)).rejects.toMatchObject({
-        code: 'INVALID_API_KEY',
+      it('should throw API_ERROR on other API errors from transcribe', async () => {
+        const audioBlob = new Blob(['test audio'], { type: 'audio/webm' })
+
+        // Upload succeeds
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ url: 'https://blob.vercel-storage.com/test.webm' }),
+        })
+        // Transcribe fails with 400
+        mockFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 400,
+          json: () => Promise.resolve({
+            error: 'Bad request',
+            code: 'API_ERROR',
+            retryable: false
+          }),
+        })
+
+        await expect(transcribeAudio(audioBlob)).rejects.toMatchObject({
+          code: 'API_ERROR',
+          retryable: false,
+        })
       })
-      expect(mockFetch).toHaveBeenCalledTimes(1)
+
+      it('should handle error responses with retryable flag from transcribe', async () => {
+        const audioBlob = new Blob(['test audio'], { type: 'audio/webm' })
+
+        // Upload succeeds
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ url: 'https://blob.vercel-storage.com/test.webm' }),
+        })
+        // Transcribe fails with 429
+        mockFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+          json: () => Promise.resolve({
+            error: 'Rate limit exceeded',
+            code: 'RATE_LIMIT',
+            retryable: true
+          }),
+        })
+
+        await expect(transcribeAudio(audioBlob)).rejects.toMatchObject({
+          code: 'RATE_LIMIT',
+          retryable: true,
+        })
+      })
     })
   })
 })

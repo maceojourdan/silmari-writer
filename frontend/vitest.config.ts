@@ -14,6 +14,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // Stub missing optional deps used by components but not installed in test env
+      'sonner': path.resolve(__dirname, './test/__mocks__/sonner.ts'),
     },
   },
 })

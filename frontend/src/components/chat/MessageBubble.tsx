@@ -1,12 +1,13 @@
 'use client';
 
-import { User, Bot, Paperclip } from 'lucide-react';
+import { User, Bot } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import { Message } from '@/lib/types';
-import { formatRelativeTime, formatBytes } from '@/lib/utils';
+import { formatRelativeTime } from '@/lib/utils';
+import ButtonRibbon from './ButtonRibbon';
 
 interface MessageBubbleProps {
   message: Message;
@@ -27,64 +28,55 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
           </div>
         </div>
       )}
-      <div
-        className={`max-w-[70%] rounded-lg px-4 py-2 ${
-          isUser
-            ? 'bg-blue-500 text-white'
-            : 'bg-gray-200 text-gray-900'
-        }`}
-        data-role={message.role}
-      >
-        <div className={`prose prose-sm max-w-none ${isUser ? 'prose-invert' : ''}`}>
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              code({ className, children, ...props }) {
-                const match = /language-(\w+)/.exec(className || '');
-                const codeString = String(children).replace(/\n$/, '');
-                // Only use SyntaxHighlighter for multi-line code blocks
-                const isBlock = codeString.includes('\n') || match;
-                return isBlock && match ? (
-                  <SyntaxHighlighter
-                    style={oneDark}
-                    language={match[1]}
-                    PreTag="div"
-                  >
-                    {codeString}
-                  </SyntaxHighlighter>
-                ) : (
-                  <code className={className} {...props}>
-                    {children}
-                  </code>
-                );
-              },
-            }}
-          >
-            {message.content}
-          </ReactMarkdown>
-        </div>
-        {message.attachments && message.attachments.length > 0 && (
-          <div data-testid="attachment-list" className="mt-2 space-y-1">
-            {message.attachments.map((att) => (
-              <div
-                key={att.id}
-                className={`flex items-center gap-2 text-xs rounded px-2 py-1 ${
-                  isUser ? 'bg-blue-600/30' : 'bg-gray-300/50'
-                }`}
-              >
-                <Paperclip className="h-3 w-3 flex-shrink-0" />
-                <span className="truncate">{att.filename}</span>
-                <span className="flex-shrink-0 opacity-70">{formatBytes(att.size)}</span>
-              </div>
-            ))}
-          </div>
-        )}
+      <div className="flex flex-col max-w-[70%]">
         <div
-          className={`text-xs mt-1 ${isUser ? 'text-blue-100' : 'text-gray-500'}`}
-          data-testid="message-timestamp"
+          className={`rounded-lg px-4 py-2 ${
+            isUser
+              ? 'bg-blue-500 text-white'
+              : 'bg-gray-200 text-gray-900'
+          }`}
+          data-role={message.role}
         >
-          {formatRelativeTime(message.timestamp)}
+          <div className={`prose prose-sm max-w-none ${isUser ? 'prose-invert' : ''}`}>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                code({ className, children, ...props }) {
+                  const match = /language-(\w+)/.exec(className || '');
+                  const codeString = String(children).replace(/\n$/, '');
+                  // Only use SyntaxHighlighter for multi-line code blocks
+                  const isBlock = codeString.includes('\n') || match;
+                  return isBlock && match ? (
+                    <SyntaxHighlighter
+                      style={oneDark}
+                      language={match[1]}
+                      PreTag="div"
+                    >
+                      {codeString}
+                    </SyntaxHighlighter>
+                  ) : (
+                    <code className={className} {...props}>
+                      {children}
+                    </code>
+                  );
+                },
+              }}
+            >
+              {message.content}
+            </ReactMarkdown>
+          </div>
+          <div
+            className={`text-xs mt-1 ${isUser ? 'text-blue-100' : 'text-gray-500'}`}
+            data-testid="message-timestamp"
+          >
+            {formatRelativeTime(message.timestamp)}
+          </div>
         </div>
+
+        {/* ButtonRibbon for assistant messages only */}
+        {!isUser && (
+          <ButtonRibbon messageId={message.id} content={message.content} />
+        )}
       </div>
       {isUser && (
         <div className="flex-shrink-0 ml-2">
