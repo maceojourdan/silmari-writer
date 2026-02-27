@@ -79,4 +79,14 @@ describe('formatRelativeTime', () => {
     expect(formatRelativeTime(new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000))).toBe('2 days ago')
     expect(formatRelativeTime(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000))).toBe('7 days ago')
   })
+
+  it('handles ISO string timestamps', () => {
+    expect(formatRelativeTime('2026-01-14T11:59:30.000Z')).toBe('Just now')
+  })
+
+  it('handles malformed timestamps without throwing', () => {
+    expect(formatRelativeTime({})).toBe('Just now')
+    expect(formatRelativeTime('not-a-date')).toBe('Just now')
+    expect(formatRelativeTime(null)).toBe('Just now')
+  })
 })

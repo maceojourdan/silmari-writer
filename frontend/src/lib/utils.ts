@@ -17,13 +17,31 @@ export function formatBytes(bytes: number): string {
 
 /**
  * Format a Date as a relative time string
- * @param date - The date to format (Date object or string)
+ * @param date - The date to format
  * @returns Relative time string (e.g., "Just now", "5 minutes ago", "2 hours ago")
  */
-export function formatRelativeTime(date: Date | string): string {
-  const now = new Date();
-  const dateObj = date instanceof Date ? date : new Date(date);
-  const diffMs = now.getTime() - dateObj.getTime();
+function parseDateLike(value: unknown): Date | null {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  if (typeof value === 'string' || typeof value === 'number') {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  return null;
+}
+
+export function formatRelativeTime(date: unknown): string {
+  const now = Date.now();
+  const dateObj = parseDateLike(date);
+
+  if (!dateObj) {
+    return 'Just now';
+  }
+
+  const diffMs = Math.max(0, now - dateObj.getTime());
   const diffSecs = Math.floor(diffMs / 1000);
   const diffMins = Math.floor(diffSecs / 60);
   const diffHours = Math.floor(diffMins / 60);

@@ -657,6 +657,22 @@ describe('useConversationStore', () => {
       expect(result2.current.getMessages('test-uuid-1')).toHaveLength(1)
     })
 
+    it('coerces message timestamps into Date objects', () => {
+      const { result } = renderHook(() => useConversationStore())
+
+      act(() => {
+        result.current.createProject('Project 1')
+        result.current.addMessage('test-uuid-1', {
+          role: 'user',
+          content: 'Timestamp coercion',
+          timestamp: '2026-01-14T11:10:00.000Z' as unknown as Date,
+        })
+      })
+
+      const messages = result.current.getMessages('test-uuid-1')
+      expect(messages[0].timestamp).toBeInstanceOf(Date)
+    })
+
     it('persist.setOptions returns configuration', () => {
       const options = useConversationStore.persist.getOptions()
 

@@ -48,6 +48,49 @@ function getPersistStorage(): PersistStorageLike {
   return createMemoryStorage()
 }
 
+function toValidDate(value: unknown): Date {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? new Date() : value
+  }
+
+  if (typeof value === 'string' || typeof value === 'number') {
+    const parsed = new Date(value)
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed
+  }
+
+  return new Date()
+}
+
+function normalizeProjects(projects: Project[] | unknown): Project[] {
+  if (!Array.isArray(projects)) {
+    return []
+  }
+
+  return projects.map((project) => ({
+    ...project,
+    createdAt: toValidDate((project as Project).createdAt),
+    updatedAt: toValidDate((project as Project).updatedAt),
+  }))
+}
+
+function normalizeMessages(messages: Record<string, Message[]> | unknown): Record<string, Message[]> {
+  if (!messages || typeof messages !== 'object') {
+    return {}
+  }
+
+  const normalizedEntries = Object.entries(messages).map(([projectId, projectMessages]) => [
+    projectId,
+    Array.isArray(projectMessages)
+      ? projectMessages.map((message) => ({
+          ...message,
+          timestamp: toValidDate((message as Message).timestamp),
+        }))
+      : [],
+  ])
+
+  return Object.fromEntries(normalizedEntries)
+}
+
 interface ConversationState {
   projects: Project[]
   activeProjectId: string | null
@@ -159,6 +202,7 @@ export const useConversationStore = create<ConversationState>()(
         const fullMessage: Message = {
           ...message,
           id: crypto.randomUUID(),
+          timestamp: toValidDate(message.timestamp),
         }
         set((state) => ({
           messages: {
@@ -175,7 +219,10 @@ export const useConversationStore = create<ConversationState>()(
           if (index === -1) return state
 
           const updatedMessages = [...projectMessages]
-          updatedMessages[index] = newMessage
+          updatedMessages[index] = {
+            ...newMessage,
+            timestamp: toValidDate(newMessage.timestamp),
+          }
 
           return {
             messages: {
@@ -410,9 +457,18 @@ export const useConversationStore = create<ConversationState>()(
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
+          // Dates in persisted JSON are strings. Normalize to Date objects
+          // and guard against malformed values to prevent runtime crashes.
+          state.projects = normalizeProjects(state.projects)
+          state.messages = normalizeMessages(state.messages)
+          const persistedButtonStates =
+            state.buttonStates && typeof state.buttonStates === 'object'
+              ? state.buttonStates
+              : {}
+
           // Clean up any loading states from previous session
           const cleanedButtonStates: Record<string, MessageButtonState> = {}
-          Object.entries(state.buttonStates).forEach(([messageId, buttonState]) => {
+          Object.entries(persistedButtonStates).forEach(([messageId, buttonState]) => {
             const cleaned: MessageButtonState = {}
 
             // Don't restore loading operations (they won't complete after page reload)
