@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from '@/app/api/upload/route'
 import { NextRequest } from 'next/server'
 
@@ -16,19 +16,24 @@ vi.mock('@vercel/blob', () => {
   }
 })
 
+function createRequest(formData: FormData): NextRequest {
+  return new NextRequest('http://localhost:3000/api/upload', {
+    method: 'POST',
+    body: formData,
+  })
+}
+
 describe('POST /api/upload', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     delete process.env.BLOB_READ_WRITE_TOKEN
+    delete process.env.BLOB_ACCESS
   })
 
   describe('validation', () => {
     it('should return 400 if no file is provided', async () => {
       const formData = new FormData()
-      const request = new NextRequest('http://localhost:3000/api/upload', {
-        method: 'POST',
-        body: formData,
-      })
+      const request = createRequest(formData)
 
       const response = await POST(request)
       const data = await response.json()
@@ -49,10 +54,7 @@ describe('POST /api/upload', () => {
       )
       formData.append('file', largeFile)
 
-      const request = new NextRequest('http://localhost:3000/api/upload', {
-        method: 'POST',
-        body: formData,
-      })
+      const request = createRequest(formData)
 
       const response = await POST(request)
       const data = await response.json()
@@ -66,10 +68,7 @@ describe('POST /api/upload', () => {
       const file = new File(['test audio'], 'audio.webm', { type: 'audio/webm' })
       formData.append('file', file)
 
-      const request = new NextRequest('http://localhost:3000/api/upload', {
-        method: 'POST',
-        body: formData,
-      })
+      const request = createRequest(formData)
 
       const response = await POST(request)
       const data = await response.json()
@@ -95,10 +94,7 @@ describe('POST /api/upload', () => {
         url: 'https://blob.vercel-storage.com/recording.webm',
       })
 
-      const request = new NextRequest('http://localhost:3000/api/upload', {
-        method: 'POST',
-        body: formData,
-      })
+      const request = createRequest(formData)
 
       const response = await POST(request)
       const data = await response.json()
@@ -135,6 +131,60 @@ describe('POST /api/upload', () => {
       expect(fileArg).toHaveProperty('size')
       expect(fileArg).toHaveProperty('type', 'audio/webm')
       expect(options).toEqual({
+        access: 'private',
+        token: 'test-blob-token',
+      })
+    })
+
+    it('should respect BLOB_ACCESS=public when configured', async () => {
+      process.env.BLOB_ACCESS = 'public'
+
+      const formData = new FormData()
+      const file = new File(['test audio'], 'recording.webm', {
+        type: 'audio/webm',
+      })
+      formData.append('file', file)
+
+      mockPut.mockResolvedValueOnce({
+        url: 'https://blob.vercel-storage.com/recording.webm',
+      })
+
+      const request = createRequest(formData)
+      const response = await POST(request)
+
+      expect(response.status).toBe(200)
+      const [, , options] = mockPut.mock.calls[0]
+      expect(options).toEqual({
+        access: 'public',
+        token: 'test-blob-token',
+      })
+    })
+
+    it('should retry with required access when Vercel reports mismatch', async () => {
+      const formData = new FormData()
+      const file = new File(['test audio'], 'recording.webm', {
+        type: 'audio/webm',
+      })
+      formData.append('file', file)
+
+      mockPut
+        .mockRejectedValueOnce(new Error('Vercel Blob: access must be "public"'))
+        .mockResolvedValueOnce({
+          url: 'https://blob.vercel-storage.com/recording.webm',
+        })
+
+      const request = createRequest(formData)
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.url).toBe('https://blob.vercel-storage.com/recording.webm')
+      expect(mockPut).toHaveBeenCalledTimes(2)
+      expect(mockPut.mock.calls[0][2]).toEqual({
+        access: 'private',
+        token: 'test-blob-token',
+      })
+      expect(mockPut.mock.calls[1][2]).toEqual({
         access: 'public',
         token: 'test-blob-token',
       })
@@ -153,10 +203,7 @@ describe('POST /api/upload', () => {
         url: 'https://blob.vercel-storage.com/large-but-valid.webm',
       })
 
-      const request = new NextRequest('http://localhost:3000/api/upload', {
-        method: 'POST',
-        body: formData,
-      })
+      const request = createRequest(formData)
 
       const response = await POST(request)
       expect(response.status).toBe(200)
@@ -177,10 +224,7 @@ describe('POST /api/upload', () => {
 
       mockPut.mockRejectedValueOnce(new Error('Blob upload failed'))
 
-      const request = new NextRequest('http://localhost:3000/api/upload', {
-        method: 'POST',
-        body: formData,
-      })
+      const request = createRequest(formData)
 
       const response = await POST(request)
       const data = await response.json()
