@@ -360,6 +360,66 @@ describe('useConversationStore', () => {
     })
   })
 
+  describe('Message Attachments', () => {
+    it('addMessage stores attachments when provided', () => {
+      const { result } = renderHook(() => useConversationStore())
+
+      act(() => {
+        result.current.createProject('Project 1')
+        result.current.addMessage('test-uuid-1', {
+          role: 'user',
+          content: 'Check this file',
+          timestamp: new Date(),
+          attachments: [
+            { id: 'att-1', filename: 'test.txt', size: 1024, type: 'text/plain' },
+          ],
+        })
+      })
+
+      const messages = result.current.getMessages('test-uuid-1')
+      expect(messages[0].attachments).toHaveLength(1)
+      expect(messages[0].attachments![0].filename).toBe('test.txt')
+    })
+
+    it('addMessage without attachments stores undefined attachments', () => {
+      const { result } = renderHook(() => useConversationStore())
+
+      act(() => {
+        result.current.createProject('Project 1')
+        result.current.addMessage('test-uuid-1', {
+          role: 'user',
+          content: 'Text only',
+          timestamp: new Date(),
+        })
+      })
+
+      const messages = result.current.getMessages('test-uuid-1')
+      expect(messages[0].attachments).toBeUndefined()
+    })
+
+    it('addMessage preserves multiple attachments in order', () => {
+      const { result } = renderHook(() => useConversationStore())
+
+      act(() => {
+        result.current.createProject('Project 1')
+        result.current.addMessage('test-uuid-1', {
+          role: 'user',
+          content: 'Multiple files',
+          timestamp: new Date(),
+          attachments: [
+            { id: 'att-1', filename: 'a.txt', size: 100, type: 'text/plain' },
+            { id: 'att-2', filename: 'b.png', size: 200, type: 'image/png' },
+            { id: 'att-3', filename: 'c.json', size: 300, type: 'application/json' },
+          ],
+        })
+      })
+
+      const messages = result.current.getMessages('test-uuid-1')
+      expect(messages[0].attachments).toHaveLength(3)
+      expect(messages[0].attachments!.map(a => a.filename)).toEqual(['a.txt', 'b.png', 'c.json'])
+    })
+  })
+
   describe('Selectors', () => {
     it('getActiveProject returns the active project', () => {
       const { result } = renderHook(() => useConversationStore())

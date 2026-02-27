@@ -11,6 +11,7 @@ import AudioRecorder, { AudioRecorderHandle } from '@/components/chat/AudioRecor
 import { useConversationStore } from '@/lib/store';
 import { transcribeAudio } from '@/lib/transcription';
 import { generateResponse } from '@/lib/api';
+import { prepareFilesContent } from '@/lib/file-content';
 
 export default function HomePage() {
   const {
@@ -23,7 +24,8 @@ export default function HomePage() {
     _hasHydrated,
   } = useConversationStore();
 
-  const [, setFiles] = useState<File[]>([]);
+  const [files, setFiles] = useState<File[]>([]);
+  const [fileResetKey, setFileResetKey] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -43,18 +45,39 @@ export default function HomePage() {
 
     setError(null);
 
-    // Add user message
+    // Snapshot files at submit time
+    const currentFiles = [...files];
+
+    // Build attachments metadata for the stored message
+    const attachments = currentFiles.length > 0
+      ? currentFiles.map(f => ({
+          id: crypto.randomUUID(),
+          filename: f.name,
+          size: f.size,
+          type: f.type,
+        }))
+      : undefined;
+
+    // Add user message with attachments (fixes INV-1)
     addMessage(activeProjectId, {
       role: 'user',
       content,
       timestamp: new Date(),
+      ...(attachments ? { attachments } : {}),
     });
 
     setIsGenerating(true);
 
     try {
-      // Generate AI response
-      const response = await generateResponse(content, activeMessages);
+      // Prepare file content for API
+      const filePayloads = await prepareFilesContent(currentFiles);
+
+      // Generate AI response with file data (fixes INV-2)
+      const response = await generateResponse(
+        content,
+        activeMessages,
+        filePayloads.length > 0 ? filePayloads : undefined
+      );
 
       addMessage(activeProjectId, {
         role: 'assistant',
@@ -67,6 +90,7 @@ export default function HomePage() {
     } finally {
       setIsGenerating(false);
       setFiles([]);
+      setFileResetKey(k => k + 1);
     }
   };
 
@@ -166,6 +190,7 @@ export default function HomePage() {
                 <div className="mt-4 flex gap-4">
                   <div className="flex-1">
                     <FileAttachment
+                      key={fileResetKey}
                       onFilesChange={setFiles}
                       onTranscribeFile={handleTranscribeFile}
                     />

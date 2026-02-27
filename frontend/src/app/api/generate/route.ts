@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
+export const MAX_ROUTE_ATTACHMENTS = 10;
+export const MAX_ROUTE_PAYLOAD_BYTES = 25 * 1024 * 1024; // 25 MB
+
 const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY_MS = 2000;
 const RATE_LIMIT_BASE_DELAY_MS = 10000;
@@ -10,15 +13,94 @@ interface Message {
   content: string;
 }
 
+interface FileAttachment {
+  filename: string;
+  contentType: string;
+  textContent?: string;
+  base64Data?: string;
+}
+
+type ContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } };
+
+type MessageContent = string | ContentPart[];
+
+const SUPPORTED_IMAGE_PREFIXES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+const SUPPORTED_TEXT_TYPES_SET = new Set(['text/plain', 'application/json']);
+
+function isSupportedAttachment(att: FileAttachment): boolean {
+  return SUPPORTED_IMAGE_PREFIXES.includes(att.contentType) || SUPPORTED_TEXT_TYPES_SET.has(att.contentType);
+}
+
+function buildUserContent(
+  message: string,
+  attachments: FileAttachment[]
+): MessageContent {
+  // Filter to only supported MIME types
+  const supported = (attachments || []).filter(isSupportedAttachment);
+
+  if (supported.length === 0) {
+    return message;
+  }
+
+  const imageAttachments = supported.filter(a => a.contentType.startsWith('image/'));
+  const textAttachments = supported.filter(a => !a.contentType.startsWith('image/'));
+
+  // Build text portion: prepend text file contents
+  let textContent = message;
+  if (textAttachments.length > 0) {
+    const fileTexts = textAttachments
+      .map(a => `--- ${a.filename} ---\n${a.textContent || ''}`)
+      .join('\n\n');
+    textContent = `${fileTexts}\n\n${message}`;
+  }
+
+  // If no images, return as string
+  if (imageAttachments.length === 0) {
+    return textContent;
+  }
+
+  // Build multipart content array
+  const parts: ContentPart[] = [{ type: 'text', text: textContent }];
+  for (const img of imageAttachments) {
+    if (img.base64Data) {
+      parts.push({ type: 'image_url', image_url: { url: img.base64Data } });
+    }
+  }
+  return parts;
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { message, history = [] } = await request.json();
+    const { message, history = [], attachments = [] } = await request.json();
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json(
         { error: 'Invalid message format', code: 'INVALID_MESSAGE' },
         { status: 400 }
       );
+    }
+
+    // Validate attachment limits
+    if (attachments.length > MAX_ROUTE_ATTACHMENTS) {
+      return NextResponse.json(
+        { error: `Too many attachments (max ${MAX_ROUTE_ATTACHMENTS})`, code: 'ATTACHMENT_LIMIT' },
+        { status: 400 }
+      );
+    }
+
+    if (attachments.length > 0) {
+      let totalPayloadSize = 0;
+      for (const att of attachments) {
+        totalPayloadSize += (att.base64Data?.length || 0) + (att.textContent?.length || 0);
+      }
+      if (totalPayloadSize > MAX_ROUTE_PAYLOAD_BYTES) {
+        return NextResponse.json(
+          { error: 'Attachment payload too large', code: 'PAYLOAD_TOO_LARGE' },
+          { status: 400 }
+        );
+      }
     }
 
     // Validate API key exists server-side
@@ -34,8 +116,11 @@ export async function POST(request: NextRequest) {
     // Initialize OpenAI client
     const openai = new OpenAI({ apiKey });
 
+    // Build user content (plain string or multipart with images)
+    const userContent = buildUserContent(message, attachments);
+
     // Format conversation history for OpenAI API
-    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: MessageContent }> = [
       {
         role: 'system',
         content: 'You are a helpful writing assistant. Help users with their writing tasks, provide feedback, and assist with transcription-related queries.',
@@ -46,7 +131,7 @@ export async function POST(request: NextRequest) {
       })),
       {
         role: 'user',
-        content: message,
+        content: userContent,
       },
     ];
 
@@ -97,7 +182,7 @@ class ChatGenerationError extends Error {
 
 async function generateWithRetry(
   openai: OpenAI,
-  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: MessageContent }>,
   retries: number
 ): Promise<string> {
   try {
@@ -121,13 +206,13 @@ async function generateWithRetry(
 
 async function makeOpenAIRequest(
   openai: OpenAI,
-  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: MessageContent }>
 ): Promise<string> {
   try {
     // Call OpenAI Chat Completions API
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
-      messages,
+      messages: messages as OpenAI.ChatCompletionMessageParam[],
       temperature: 0.7,
       max_tokens: 2000,
     });
