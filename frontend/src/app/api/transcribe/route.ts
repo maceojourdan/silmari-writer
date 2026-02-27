@@ -52,9 +52,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Fetch the file from Vercel Blob (private store requires authenticated download)
-    const blobToken = process.env.BLOB_READ_WRITE_TOKEN
-    const downloadUrl = await getDownloadUrl(blobUrl, { token: blobToken })
+    // Fetch the file from Vercel Blob (private store requires authenticated download URL)
+    const downloadUrl = getDownloadUrl(blobUrl)
     const fileResponse = await fetch(downloadUrl)
     if (!fileResponse.ok) {
       throw new Error('Failed to fetch file from blob storage')
