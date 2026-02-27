@@ -55,4 +55,4 @@ During/after review:
    bd create --title="Review: [finding]" --type=bug|task --priority=2
    ```
 2. **Link to PR work**: If the PR implements a tracked issue, note the connection
-3. **Sync beads**: Run `bd sync` after creating any issues
+3. **Sync beads**: Run `bd dolt push and bd dolt pull` after creating any issues

@@ -349,4 +349,4 @@ After completing review:
 1. **Create tracking issue** if critical issues found: `bd create --title="Plan Review: [Plan Name]" --type=task --priority=1`
 2. **Link issues**: If plan amendments create new work items, create and link them with `bd dep add`
 3. **Update existing issue**: If reviewing a plan for an existing issue, add review findings as notes
-4. **Sync beads**: Run `bd sync` to persist any beads changes
+4. **Sync beads**: Run `bd dolt push and bd dolt pull` to persist any beads changes

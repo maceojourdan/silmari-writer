@@ -43,7 +43,7 @@ Then wait for the user's input.
 ### Step 0: Check Beads Status
 
 Before diving into the handoff:
-1. **Sync beads**: Run `bd sync` to get latest issue state
+1. **Sync beads**: Run `bd dolt push and bd dolt pull` to get latest issue state
 2. **Check related issues**: Run `bd list --status=in_progress` to see what work is tracked
 3. **Review any mentioned issues**: If the handoff mentions beads issue IDs, run `bd show <id>` for details
 
