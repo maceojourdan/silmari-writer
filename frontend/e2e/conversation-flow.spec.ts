@@ -2,6 +2,22 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Conversation Flow', () => {
   test.beforeEach(async ({ page }) => {
+    await page.route('**/api/generate', async (route) => {
+      const rawBody = route.request().postData() ?? '{}';
+      let message = '';
+      try {
+        message = (JSON.parse(rawBody).message as string) ?? '';
+      } catch {
+        message = '';
+      }
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ content: `You said: "${message}"` }),
+      });
+    });
+
     // Clear localStorage before each test by navigating and evaluating
     await page.goto('/');
     await page.evaluate(() => localStorage.clear());
