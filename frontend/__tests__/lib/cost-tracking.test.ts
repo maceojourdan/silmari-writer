@@ -4,7 +4,7 @@
  * Tests for cost estimation, tracking, confirmation, and logging functionality.
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   // REQ_010.1: Deep Research cost estimates
   estimateDeepResearchCost,
@@ -48,12 +48,7 @@ import {
   costLogger,
 
   // Types
-  type DeepResearchCostEstimate,
-  type ImageGenerationCostEstimate,
-  type ToolCostTracking,
   type CostLogEntry,
-  type DailyCostAggregation,
-  type CostConfirmationOptions,
 } from '../../src/lib/cost-tracking';
 
 describe('REQ_010: Cost Tracking and Display', () => {

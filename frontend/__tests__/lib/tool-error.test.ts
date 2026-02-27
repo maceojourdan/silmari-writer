@@ -26,7 +26,6 @@ import {
   logToolError,
   isToolError,
   toToolError,
-  type LogLevel,
   type LogContext,
   type StructuredLogEntry,
 } from '@/lib/tool-error';
