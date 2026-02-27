@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { toFile } from 'openai/uploads'
-import { del } from '@vercel/blob'
+import { del, getDownloadUrl } from '@vercel/blob'
 
 const MAX_FILE_SIZE_MB = 25
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
@@ -52,8 +52,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Fetch the file from Vercel Blob
-    const fileResponse = await fetch(blobUrl)
+    // Fetch the file from Vercel Blob (private store requires authenticated download)
+    const blobToken = process.env.BLOB_READ_WRITE_TOKEN
+    const downloadUrl = await getDownloadUrl(blobUrl, { token: blobToken })
+    const fileResponse = await fetch(downloadUrl)
     if (!fileResponse.ok) {
       throw new Error('Failed to fetch file from blob storage')
     }
