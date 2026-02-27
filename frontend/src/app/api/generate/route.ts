@@ -26,7 +26,8 @@ Rules:
 - If light research (recent events, Reddit discussions, industry context) would make the writing better, search the web for it. Don't guess at facts you could look up.
 - Vary sentence length. Short sentences punch. Longer ones build rhythm and carry the reader through more complex ideas.
 - Cut anything that doesn't earn its place. Every sentence should do work.
-- Match the formality to the context. A tweet thread and a board memo need different registers.`;
+- Match the formality to the context. A tweet thread and a board memo need different registers.
+- When the user explicitly asks you to search the web, ALWAYS use the web_search_preview tool. Do not refuse or skip the search.`;
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
