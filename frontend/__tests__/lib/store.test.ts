@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import { useConversationStore } from '@/lib/store'
+import type { MessageButtonState } from '@/lib/types'
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -1304,13 +1305,13 @@ describe('useConversationStore', () => {
         localStorage.setItem('conversation-storage', JSON.stringify(mockState))
 
         // Manually trigger rehydration by setting state
-        useConversationStore.setState(mockState.state as any)
+        useConversationStore.setState(mockState.state as Parameters<typeof useConversationStore.setState>[0])
 
         // Manually trigger onRehydrateStorage cleanup
         const state = useConversationStore.getState()
-        const cleanedButtonStates: Record<string, any> = {}
-        Object.entries(state.buttonStates).forEach(([messageId, buttonState]: [string, any]) => {
-          const cleaned: any = {}
+        const cleanedButtonStates: Record<string, MessageButtonState> = {}
+        Object.entries(state.buttonStates).forEach(([messageId, buttonState]: [string, MessageButtonState]) => {
+          const cleaned: MessageButtonState = {}
           if (buttonState.blockingOperation && !buttonState.blockingOperation.isLoading) {
             cleaned.blockingOperation = buttonState.blockingOperation
           }
@@ -1399,13 +1400,13 @@ describe('useConversationStore', () => {
         localStorage.setItem('conversation-storage', JSON.stringify(mockState))
 
         // Manually trigger rehydration by setting state
-        useConversationStore.setState(mockState.state as any)
+        useConversationStore.setState(mockState.state as Parameters<typeof useConversationStore.setState>[0])
 
         // Manually trigger onRehydrateStorage cleanup
         const state = useConversationStore.getState()
-        const cleanedButtonStates: Record<string, any> = {}
-        Object.entries(state.buttonStates).forEach(([messageId, buttonState]: [string, any]) => {
-          const cleaned: any = {}
+        const cleanedButtonStates: Record<string, MessageButtonState> = {}
+        Object.entries(state.buttonStates).forEach(([messageId, buttonState]: [string, MessageButtonState]) => {
+          const cleaned: MessageButtonState = {}
           if (buttonState.blockingOperation && !buttonState.blockingOperation.isLoading) {
             cleaned.blockingOperation = buttonState.blockingOperation
           }

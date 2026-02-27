@@ -127,8 +127,8 @@ describe('/api/tools/deep-research - Phase 2: Tool Configuration', () => {
     mockFetch.mockReset();
 
     // Dynamically import after mocks are set up
-    const module = await import('@/app/api/tools/deep-research/route');
-    POST = module.POST;
+    const routeModule = await import('@/app/api/tools/deep-research/route');
+    POST = routeModule.POST;
   });
 
   afterEach(() => {

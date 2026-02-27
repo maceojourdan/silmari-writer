@@ -10,7 +10,7 @@ interface UseAutoReadAloudOptions {
 export function useAutoReadAloud({ readAloudEnabled, isConnected, sendEvent }: UseAutoReadAloudOptions) {
   const queueRef = useRef<TTSQueue | null>(null);
 
-  if (!queueRef.current) {
+  if (queueRef.current == null) {
     queueRef.current = new TTSQueue(sendEvent);
   }
 

@@ -6,7 +6,7 @@ import { NextRequest } from 'next/server'
 const { mockCreate, mockToFile, mockDel, mockFetch } = vi.hoisted(() => {
   return {
     mockCreate: vi.fn(),
-    mockToFile: vi.fn((data: Uint8Array, filename: string, options: any) => {
+    mockToFile: vi.fn((data: Uint8Array, filename: string, options: { type?: string }) => {
       // Return a mock file object that includes the data for verification
       return Promise.resolve({
         name: filename,

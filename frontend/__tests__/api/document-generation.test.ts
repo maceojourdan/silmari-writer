@@ -141,8 +141,8 @@ describe('POST /api/tools/document-generation', () => {
     mockPut.mockReset()
 
     // Dynamically import after mocks are set up
-    const module = await import('@/app/api/tools/document-generation/route')
-    POST = module.POST
+    const routeModule = await import('@/app/api/tools/document-generation/route')
+    POST = routeModule.POST
   })
 
   afterEach(() => {
@@ -267,8 +267,8 @@ describe('POST /api/tools/document-generation', () => {
         delete process.env.OPENAI_API_KEY
 
         vi.resetModules()
-        const module = await import('@/app/api/tools/document-generation/route')
-        POST = module.POST
+        const routeModule = await import('@/app/api/tools/document-generation/route')
+        POST = routeModule.POST
 
         const request = createRequest({ prompt: 'test', documentType: 'report', format: 'pdf' })
         const response = await POST(request)
@@ -282,8 +282,8 @@ describe('POST /api/tools/document-generation', () => {
         delete process.env.BLOB_READ_WRITE_TOKEN
 
         vi.resetModules()
-        const module = await import('@/app/api/tools/document-generation/route')
-        POST = module.POST
+        const routeModule = await import('@/app/api/tools/document-generation/route')
+        POST = routeModule.POST
 
         const request = createRequest({ prompt: 'test', documentType: 'report', format: 'pdf' })
         const response = await POST(request)

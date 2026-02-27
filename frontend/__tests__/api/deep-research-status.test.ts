@@ -70,8 +70,8 @@ describe('/api/tools/deep-research/[responseId]/status', () => {
     process.env = { ...originalEnv, OPENAI_API_KEY: 'test-api-key-123' };
     mockFetch.mockReset();
 
-    const module = await import('@/app/api/tools/deep-research/[responseId]/status/route');
-    GET = module.GET;
+    const routeModule = await import('@/app/api/tools/deep-research/[responseId]/status/route');
+    GET = routeModule.GET;
   });
 
   afterEach(() => {
@@ -231,11 +231,11 @@ describe('/api/tools/deep-research/[responseId]/status', () => {
     it('should return 500 when OPENAI_API_KEY is not configured', async () => {
       delete process.env.OPENAI_API_KEY;
       vi.resetModules();
-      const module = await import('@/app/api/tools/deep-research/[responseId]/status/route');
+      const routeModule = await import('@/app/api/tools/deep-research/[responseId]/status/route');
 
       const request = new NextRequest('http://localhost:3000/api/tools/deep-research/job_123/status');
 
-      const response = await module.GET(request, { params: Promise.resolve({ responseId: 'job_123' }) });
+      const response = await routeModule.GET(request, { params: Promise.resolve({ responseId: 'job_123' }) });
       const data = await response.json();
 
       expect(response.status).toBe(500);

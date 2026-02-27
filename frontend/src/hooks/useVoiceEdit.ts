@@ -136,6 +136,7 @@ export function useVoiceEdit() {
     if (!dataChannel) return;
 
     const handleMessage = async (event: MessageEvent) => {
+      if (typeof event.data !== 'string') return;
       const msg = JSON.parse(event.data);
       if (
         msg.type === 'response.function_call_arguments.done' &&
@@ -146,9 +147,9 @@ export function useVoiceEdit() {
       }
     };
 
-    dataChannel.onmessage = handleMessage;
+    dataChannel.addEventListener('message', handleMessage as EventListener);
     return () => {
-      dataChannel.onmessage = null;
+      dataChannel.removeEventListener('message', handleMessage as EventListener);
     };
   }, [dataChannel, handleEditInstruction]);
 

@@ -5,11 +5,25 @@ import ConversationView from '@/components/chat/ConversationView'
 import { useConversationStore } from '@/lib/store'
 import { Message } from '@/lib/types'
 
+type MockConversationStore = {
+  buttonStates: Record<string, unknown>
+  setNonBlockingOperation: ReturnType<typeof vi.fn>
+  clearNonBlockingOperation: ReturnType<typeof vi.fn>
+  startBlockingOperation: ReturnType<typeof vi.fn>
+  completeBlockingOperation: ReturnType<typeof vi.fn>
+  failBlockingOperation: ReturnType<typeof vi.fn>
+  isMessageBlocked: ReturnType<typeof vi.fn>
+  messages: Message[]
+  activeProjectId: string
+  getActiveMessages: ReturnType<typeof vi.fn>
+  replaceMessage: ReturnType<typeof vi.fn>
+}
+
 // Create a mock store that will be updated in beforeEach
-let globalMockStore: any = null
+let globalMockStore: MockConversationStore | null = null
 
 vi.mock('@/lib/store', () => ({
-  useConversationStore: vi.fn((selector?: any) => {
+  useConversationStore: vi.fn((selector?: (state: MockConversationStore) => unknown) => {
     if (selector && globalMockStore) {
       return selector(globalMockStore)
     }
@@ -47,7 +61,7 @@ describe('E2E Button Interactions', () => {
     },
   ]
 
-  let mockStore: any
+  let mockStore: MockConversationStore
   let mockWriteText: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
@@ -95,7 +109,7 @@ describe('E2E Button Interactions', () => {
     globalMockStore = mockStore
 
     // Mock getState for Zustand pattern (used by regenerate handler)
-    ;(useConversationStore as any).getState = () => mockStore
+    ;(useConversationStore as unknown as { getState: () => MockConversationStore }).getState = () => mockStore
   })
 
   afterEach(() => {

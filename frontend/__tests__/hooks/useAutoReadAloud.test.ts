@@ -2,9 +2,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 
 const mockEnqueue = vi.fn();
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+interface MockQueueInstance {
+  enqueue: typeof mockEnqueue;
+  handleResponseDone: ReturnType<typeof vi.fn>;
+  reset: ReturnType<typeof vi.fn>;
+  setSendEvent: ReturnType<typeof vi.fn>;
+  length: number;
+}
+
 vi.mock('@/lib/tts-queue', () => ({
-  TTSQueue: vi.fn().mockImplementation(function (this: any) {
+  TTSQueue: vi.fn().mockImplementation(function (this: MockQueueInstance) {
     this.enqueue = mockEnqueue;
     this.handleResponseDone = vi.fn();
     this.reset = vi.fn();

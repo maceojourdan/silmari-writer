@@ -57,8 +57,8 @@ describe('/api/tools/deep-research', () => {
     mockFetch.mockReset();
 
     // Dynamically import after mocks are set up
-    const module = await import('@/app/api/tools/deep-research/route');
-    POST = module.POST;
+    const routeModule = await import('@/app/api/tools/deep-research/route');
+    POST = routeModule.POST;
   });
 
   afterEach(() => {
@@ -140,9 +140,9 @@ describe('/api/tools/deep-research', () => {
     it('should return 500 when OPENAI_API_KEY is not configured', async () => {
       delete process.env.OPENAI_API_KEY;
 
-      // Re-import to get fresh module with new env
+      // Re-import to get fresh routeModule with new env
       vi.resetModules();
-      const module = await import('@/app/api/tools/deep-research/route');
+      const routeModule = await import('@/app/api/tools/deep-research/route');
 
       const request = new NextRequest('http://localhost:3000/api/tools/deep-research', {
         method: 'POST',
@@ -151,7 +151,7 @@ describe('/api/tools/deep-research', () => {
         })
       });
 
-      const response = await module.POST(request);
+      const response = await routeModule.POST(request);
       const data = await response.json();
 
       expect(response.status).toBe(500);

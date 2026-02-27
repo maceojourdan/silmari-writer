@@ -35,8 +35,8 @@ describe('POST /api/tools/image-generation', () => {
     mockPut.mockReset()
 
     // Dynamically import after mocks are set up
-    const module = await import('@/app/api/tools/image-generation/route')
-    POST = module.POST
+    const routeModule = await import('@/app/api/tools/image-generation/route')
+    POST = routeModule.POST
   })
 
   afterEach(() => {
@@ -113,8 +113,8 @@ describe('POST /api/tools/image-generation', () => {
 
         // Re-import to pick up environment change
         vi.resetModules()
-        const module = await import('@/app/api/tools/image-generation/route')
-        POST = module.POST
+        const routeModule = await import('@/app/api/tools/image-generation/route')
+        POST = routeModule.POST
 
         const request = createRequest({ prompt: 'test' })
         const response = await POST(request)
@@ -129,8 +129,8 @@ describe('POST /api/tools/image-generation', () => {
 
         // Re-import to pick up environment change
         vi.resetModules()
-        const module = await import('@/app/api/tools/image-generation/route')
-        POST = module.POST
+        const routeModule = await import('@/app/api/tools/image-generation/route')
+        POST = routeModule.POST
 
         const request = createRequest({ prompt: 'test' })
         const response = await POST(request)

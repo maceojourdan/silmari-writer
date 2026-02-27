@@ -95,7 +95,7 @@ describe('Progress Indicator Utilities (REQ_011.3)', () => {
   describe('calculateOverallProgress (REQ_011.3.10)', () => {
     it('should return 0 for unknown operation type', () => {
       const result = calculateOverallProgress(
-        'unknown' as any,
+        'unknown' as unknown as Parameters<typeof calculateOverallProgress>[0],
         'phase1',
         50,
         []
