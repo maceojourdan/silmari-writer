@@ -1305,7 +1305,9 @@ describe('useConversationStore', () => {
         localStorage.setItem('conversation-storage', JSON.stringify(mockState))
 
         // Manually trigger rehydration by setting state
-        useConversationStore.setState(mockState.state as Parameters<typeof useConversationStore.setState>[0])
+        useConversationStore.setState(
+          mockState.state as unknown as Parameters<typeof useConversationStore.setState>[0]
+        )
 
         // Manually trigger onRehydrateStorage cleanup
         const state = useConversationStore.getState()
@@ -1400,7 +1402,9 @@ describe('useConversationStore', () => {
         localStorage.setItem('conversation-storage', JSON.stringify(mockState))
 
         // Manually trigger rehydration by setting state
-        useConversationStore.setState(mockState.state as Parameters<typeof useConversationStore.setState>[0])
+        useConversationStore.setState(
+          mockState.state as unknown as Parameters<typeof useConversationStore.setState>[0]
+        )
 
         // Manually trigger onRehydrateStorage cleanup
         const state = useConversationStore.getState()

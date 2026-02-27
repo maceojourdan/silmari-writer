@@ -35,7 +35,7 @@ describe('TTSQueue', () => {
 
     // Only first should be sent immediately
     const createCalls = mockSendEvent.mock.calls.filter(
-      ([e]: [{ type: string }]) => e.type === 'conversation.item.create',
+      (call) => (call[0] as { type?: string })?.type === 'conversation.item.create',
     );
     expect(createCalls).toHaveLength(1);
     expect(createCalls[0][0].item.content[0].text).toBe('First message');
@@ -53,7 +53,7 @@ describe('TTSQueue', () => {
     queue.handleResponseDone();
 
     const createCalls = mockSendEvent.mock.calls.filter(
-      ([e]: [{ type: string }]) => e.type === 'conversation.item.create',
+      (call) => (call[0] as { type?: string })?.type === 'conversation.item.create',
     );
     expect(createCalls).toHaveLength(2);
     expect(createCalls[1][0].item.content[0].text).toBe('Second');
@@ -82,7 +82,7 @@ describe('TTSQueue', () => {
 
     // Only the initial first message should have been sent
     const createCalls = mockSendEvent.mock.calls.filter(
-      ([e]: [{ type: string }]) => e.type === 'conversation.item.create',
+      (call) => (call[0] as { type?: string })?.type === 'conversation.item.create',
     );
     expect(createCalls).toHaveLength(1);
   });

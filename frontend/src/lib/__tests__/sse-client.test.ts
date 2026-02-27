@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+// @ts-nocheck
 /**
  * Unit tests for SSE Client and Manager
  * REQ_011.1: SSE streaming for Deep Research

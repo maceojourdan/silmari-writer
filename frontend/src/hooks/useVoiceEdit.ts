@@ -147,9 +147,13 @@ export function useVoiceEdit() {
       }
     };
 
-    dataChannel.addEventListener('message', handleMessage as EventListener);
+    const listener: EventListener = (event) => {
+      void handleMessage(event as MessageEvent);
+    };
+
+    dataChannel.addEventListener('message', listener);
     return () => {
-      dataChannel.removeEventListener('message', handleMessage as EventListener);
+      dataChannel.removeEventListener('message', listener);
     };
   }, [dataChannel, handleEditInstruction]);
 

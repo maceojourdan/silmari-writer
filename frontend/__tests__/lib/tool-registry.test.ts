@@ -142,7 +142,7 @@ describe('REQ_007.1: toolRegistry Map and ToolDefinition', () => {
 
       // Test that the registry cannot be modified
       expect(() => {
-        toolRegistry.set('new_tool', {} as ToolDefinition)
+        ;(toolRegistry as unknown as Map<string, ToolDefinition>).set('new_tool', {} as ToolDefinition)
       }).toThrow()
 
       expect(toolRegistry.size).toBe(originalSize)
