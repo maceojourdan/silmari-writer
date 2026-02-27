@@ -13,6 +13,12 @@ import VoiceEditPanel from '@/components/chat/VoiceEditPanel';
 import { useConversationStore } from '@/lib/store';
 import { transcribeAudio } from '@/lib/transcription';
 import { generateResponse } from '@/lib/api';
+import {
+  prepareFilesContent,
+  UnsupportedFileError,
+  validateAttachments,
+} from '@/lib/file-content';
+import type { FileContentPayload } from '@/lib/file-content';
 import { useRealtimeSession } from '@/hooks/useRealtimeSession';
 import { useAutoReadAloud } from '@/hooks/useAutoReadAloud';
 
@@ -27,7 +33,8 @@ export default function HomePage() {
     _hasHydrated,
   } = useConversationStore();
 
-  const [, setFiles] = useState<File[]>([]);
+  const [files, setFiles] = useState<File[]>([]);
+  const [fileResetKey, setFileResetKey] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -61,10 +68,46 @@ export default function HomePage() {
     }
   }, [_hasHydrated, projects.length, createProject]);
 
+  const mapAttachmentError = (err: unknown): string => {
+    if (err instanceof UnsupportedFileError) {
+      return `Unsupported file type: ${err.filename}. Please attach PNG/JPEG/GIF/WebP images or TXT/JSON files.`;
+    }
+
+    if (err instanceof Error && err.message) {
+      return err.message;
+    }
+
+    return 'Failed to process file attachments. Please try again.';
+  };
+
   const handleSendMessage = async (content: string, isVoiceTranscription = false) => {
     if (!activeProjectId) return;
 
     setError(null);
+
+    const currentFiles = [...files];
+    const validation = validateAttachments(currentFiles);
+    if (!validation.valid) {
+      setError(validation.error || 'Invalid attachments. Please review selected files.');
+      return;
+    }
+
+    let preparedAttachments: FileContentPayload[] = [];
+    try {
+      preparedAttachments = await prepareFilesContent(currentFiles);
+    } catch (err) {
+      setError(mapAttachmentError(err));
+      return;
+    }
+
+    const attachmentMetadata = currentFiles.length > 0
+      ? currentFiles.map((file) => ({
+          id: crypto.randomUUID(),
+          filename: file.name,
+          size: file.size,
+          type: file.type,
+        }))
+      : undefined;
 
     // Add user message
     addMessage(activeProjectId, {
@@ -72,13 +115,18 @@ export default function HomePage() {
       content,
       timestamp: new Date(),
       isVoiceTranscription,
+      ...(attachmentMetadata ? { attachments: attachmentMetadata } : {}),
     });
 
     setIsGenerating(true);
 
     try {
       // Generate AI response
-      const response = await generateResponse(content, activeMessages);
+      const response = await generateResponse(
+        content,
+        activeMessages,
+        preparedAttachments.length > 0 ? preparedAttachments : undefined,
+      );
 
       addMessage(activeProjectId, {
         role: 'assistant',
@@ -94,6 +142,7 @@ export default function HomePage() {
     } finally {
       setIsGenerating(false);
       setFiles([]);
+      setFileResetKey((current) => current + 1);
     }
   };
 
@@ -211,6 +260,7 @@ export default function HomePage() {
                 <div className="mt-4 flex gap-4">
                   <div className="flex-1">
                     <FileAttachment
+                      key={fileResetKey}
                       onFilesChange={setFiles}
                       onTranscribeFile={handleTranscribeFile}
                     />

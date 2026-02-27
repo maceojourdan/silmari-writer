@@ -1,12 +1,12 @@
 'use client';
 
-import { User, Bot } from 'lucide-react';
+import { User, Bot, Paperclip } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import { Message } from '@/lib/types';
-import { formatRelativeTime } from '@/lib/utils';
+import { formatBytes, formatRelativeTime } from '@/lib/utils';
 import ButtonRibbon from './ButtonRibbon';
 
 interface MessageBubbleProps {
@@ -65,6 +65,22 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
               {message.content}
             </ReactMarkdown>
           </div>
+          {message.attachments && message.attachments.length > 0 && (
+            <div data-testid="attachment-list" className="mt-2 space-y-1">
+              {message.attachments.map((attachment) => (
+                <div
+                  key={attachment.id}
+                  className={`flex items-center gap-2 text-xs rounded px-2 py-1 ${
+                    isUser ? 'bg-blue-600/30' : 'bg-gray-300/50'
+                  }`}
+                >
+                  <Paperclip className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">{attachment.filename}</span>
+                  <span className="flex-shrink-0 opacity-70">{formatBytes(attachment.size)}</span>
+                </div>
+              ))}
+            </div>
+          )}
           <div
             className={`text-xs mt-1 ${isUser ? 'text-blue-100' : 'text-gray-500'}`}
             data-testid="message-timestamp"

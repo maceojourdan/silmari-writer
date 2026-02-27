@@ -3,9 +3,27 @@ import { render, screen, waitFor } from '@testing-library/react'
 import ButtonRibbon from '@/components/chat/ButtonRibbon'
 import { useConversationStore } from '@/lib/store'
 
+const mockStartEditing = vi.fn()
+
 // Mock the store
 vi.mock('@/lib/store', () => ({
   useConversationStore: vi.fn(),
+}))
+
+vi.mock('@/hooks/useVoiceEdit', () => ({
+  useVoiceEdit: () => ({
+    startEditing: mockStartEditing,
+    stopEditing: vi.fn(),
+    undo: vi.fn(),
+  }),
+}))
+
+vi.mock('@/hooks/useButtonAnalytics', () => ({
+  useButtonAnalytics: () => ({
+    trackClick: vi.fn().mockResolvedValue(undefined),
+    trackSuccess: vi.fn().mockResolvedValue(undefined),
+    trackError: vi.fn().mockResolvedValue(undefined),
+  }),
 }))
 
 describe('ButtonRibbon', () => {
@@ -18,10 +36,14 @@ describe('ButtonRibbon', () => {
     completeBlockingOperation: vi.fn(),
     failBlockingOperation: vi.fn(),
     isMessageBlocked: vi.fn(() => false),
+    replaceMessage: vi.fn(),
   }
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockStore.buttonStates = {}
+    mockStore.isMessageBlocked = vi.fn(() => false)
+    mockStartEditing.mockResolvedValue(undefined)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(useConversationStore).mockReturnValue(mockStore as any)
   })
@@ -126,6 +148,38 @@ describe('ButtonRibbon', () => {
 
     expect(screen.getByText(/copied!/i)).toBeInTheDocument()
   })
+
+  it('routes Edit click to voice edit start path', async () => {
+    render(<ButtonRibbon messageId={mockMessageId} content="Test message" />)
+
+    const editButton = screen.getByRole('button', { name: /edit/i })
+    editButton.click()
+
+    await waitFor(() => {
+      expect(mockStore.startBlockingOperation).toHaveBeenCalledWith(mockMessageId, 'edit')
+    })
+
+    await waitFor(() => {
+      expect(mockStartEditing).toHaveBeenCalledWith({
+        targetMessageId: mockMessageId,
+        targetMessageContent: 'Test message',
+      })
+    })
+  })
+
+  it('falls back to text modal when voice edit start fails', async () => {
+    mockStartEditing.mockRejectedValueOnce(new Error('Microphone denied'))
+    render(<ButtonRibbon messageId={mockMessageId} content="Fallback content" />)
+
+    const editButton = screen.getByRole('button', { name: /edit/i })
+    editButton.click()
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+    })
+
+    expect(screen.getByDisplayValue(/fallback content/i)).toBeInTheDocument()
+  })
 })
 
 describe('Copy button', () => {
@@ -138,6 +192,7 @@ describe('Copy button', () => {
     completeBlockingOperation: vi.fn(),
     failBlockingOperation: vi.fn(),
     isMessageBlocked: vi.fn(() => false),
+    replaceMessage: vi.fn(),
   }
 
   beforeEach(() => {
@@ -146,6 +201,7 @@ describe('Copy button', () => {
     // Reset mock store to initial state
     mockStore.buttonStates = {}
     mockStore.isMessageBlocked = vi.fn(() => false)
+    mockStartEditing.mockResolvedValue(undefined)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(useConversationStore).mockReturnValue(mockStore as any)
 
@@ -276,6 +332,7 @@ describe('Regenerate button', () => {
     completeBlockingOperation: vi.fn(),
     failBlockingOperation: vi.fn(),
     isMessageBlocked: vi.fn(() => false),
+    replaceMessage: vi.fn(),
   }
 
   beforeEach(() => {
@@ -284,6 +341,7 @@ describe('Regenerate button', () => {
     // Reset mock store to initial state
     mockStore.buttonStates = {}
     mockStore.isMessageBlocked = vi.fn(() => false)
+    mockStartEditing.mockResolvedValue(undefined)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(useConversationStore).mockReturnValue(mockStore as any)
   })

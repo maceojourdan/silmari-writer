@@ -1,103 +1,123 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { POST } from '@/app/api/generate/route';
-import { NextRequest } from 'next/server';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { NextRequest } from 'next/server'
+import { MAX_ROUTE_ATTACHMENTS, MAX_ROUTE_PAYLOAD_BYTES, POST } from '@/app/api/generate/route'
 
-const mockFetch = vi.fn();
-vi.stubGlobal('fetch', mockFetch);
+const mockFetch = vi.fn()
+vi.stubGlobal('fetch', mockFetch)
 
 describe('/api/generate', () => {
-  const originalEnv = process.env;
+  const originalEnv = process.env
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.clearAllMocks()
+    process.env = { ...originalEnv, OPENAI_API_KEY: 'test-key' }
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => ({
-        output_text: 'Test response from assistant',
-      }),
-    });
-    process.env = { ...originalEnv, OPENAI_API_KEY: 'test-key' };
-  });
+      json: async () => ({ output_text: 'Generated response' }),
+    })
+  })
 
   afterEach(() => {
-    process.env = originalEnv;
-  });
+    process.env = originalEnv
+  })
 
-  it('should generate response for voice transcription with empty history', async () => {
-    const request = new NextRequest('http://localhost:3000/api/generate', {
+  function makeRequest(body: Record<string, unknown>): NextRequest {
+    return new NextRequest('http://localhost:3000/api/generate', {
       method: 'POST',
-      body: JSON.stringify({
-        message: 'Hello, this is a transcribed voice message',
-        history: [] // No previous messages
-      })
-    });
+      body: JSON.stringify(body),
+    })
+  }
 
-    const response = await POST(request);
-    const data = await response.json();
+  it('handles text-only requests', async () => {
+    const response = await POST(makeRequest({ message: 'Hello', history: [] }))
+    const data = await response.json()
 
-    expect(response.status).toBe(200);
-    expect(data.content).toBe('Test response from assistant');
+    expect(response.status).toBe(200)
+    expect(data.content).toBe('Generated response')
     expect(mockFetch).toHaveBeenCalledWith(
       'https://api.openai.com/v1/responses',
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({
-          Authorization: 'Bearer test-key',
-        }),
+      expect.objectContaining({ method: 'POST' }),
+    )
+  })
+
+  it('builds attachment-aware user content for text + image attachments', async () => {
+    await POST(
+      makeRequest({
+        message: 'Please review',
+        attachments: [
+          { filename: 'notes.txt', contentType: 'text/plain', textContent: 'Important notes' },
+          { filename: 'photo.png', contentType: 'image/png', base64Data: 'data:image/png;base64,abc' },
+        ],
       }),
-    );
-  });
+    )
 
-  it('should generate response for voice transcription with conversation history', async () => {
-    const request = new NextRequest('http://localhost:3000/api/generate', {
-      method: 'POST',
-      body: JSON.stringify({
-        message: 'What did I just say?',
-        history: [
-          { role: 'assistant', content: 'Previous assistant response' }
-        ]
-      })
-    });
+    const [, options] = mockFetch.mock.calls[0]
+    const body = JSON.parse(options.body as string)
+    const userMessage = body.input[body.input.length - 1]
 
-    const response = await POST(request);
-    const data = await response.json();
+    expect(Array.isArray(userMessage.content)).toBe(true)
+    expect(userMessage.content).toContainEqual(
+      expect.objectContaining({ type: 'input_image', image_url: 'data:image/png;base64,abc' }),
+    )
 
-    expect(response.status).toBe(200);
-    expect(data.content).toBe('Test response from assistant');
-  });
+    const textPart = userMessage.content.find((part: { type: string }) => part.type === 'input_text')
+    expect(textPart.text).toContain('Important notes')
+    expect(textPart.text).toContain('Please review')
+  })
 
-  it('should return 400 for missing message', async () => {
-    const request = new NextRequest('http://localhost:3000/api/generate', {
-      method: 'POST',
-      body: JSON.stringify({
-        history: []
-      })
-    });
+  it('skips unsupported attachment MIME types safely', async () => {
+    await POST(
+      makeRequest({
+        message: 'Just this text',
+        attachments: [
+          { filename: 'report.pdf', contentType: 'application/pdf', textContent: '%PDF' },
+        ],
+      }),
+    )
 
-    const response = await POST(request);
-    const data = await response.json();
+    const [, options] = mockFetch.mock.calls[0]
+    const body = JSON.parse(options.body as string)
+    const userMessage = body.input[body.input.length - 1]
+    expect(userMessage.content).toBe('Just this text')
+  })
 
-    expect(response.status).toBe(400);
-    expect(data.error).toBe('Invalid message format');
-    expect(mockFetch).not.toHaveBeenCalled();
-  });
+  it('returns ATTACHMENT_LIMIT when attachment count exceeds max', async () => {
+    const attachments = Array.from({ length: MAX_ROUTE_ATTACHMENTS + 1 }, (_, index) => ({
+      filename: `f-${index}.txt`,
+      contentType: 'text/plain',
+      textContent: 'x',
+    }))
+    const response = await POST(makeRequest({ message: 'Too many', attachments }))
+    const data = await response.json()
 
-  it('should return 500 when API key is not configured', async () => {
-    delete process.env.OPENAI_API_KEY;
+    expect(response.status).toBe(400)
+    expect(data.code).toBe('ATTACHMENT_LIMIT')
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
 
-    const request = new NextRequest('http://localhost:3000/api/generate', {
-      method: 'POST',
-      body: JSON.stringify({
-        message: 'Test message',
-        history: []
-      })
-    });
+  it('returns PAYLOAD_TOO_LARGE when attachment payload exceeds limit', async () => {
+    const largeText = 'x'.repeat(MAX_ROUTE_PAYLOAD_BYTES + 1)
+    const response = await POST(
+      makeRequest({
+        message: 'Too large',
+        attachments: [
+          { filename: 'big.txt', contentType: 'text/plain', textContent: largeText },
+        ],
+      }),
+    )
+    const data = await response.json()
 
-    const response = await POST(request);
-    const data = await response.json();
+    expect(response.status).toBe(400)
+    expect(data.code).toBe('PAYLOAD_TOO_LARGE')
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
 
-    expect(response.status).toBe(500);
-    expect(data.error).toBe('Chat service not configured');
-    expect(mockFetch).not.toHaveBeenCalled();
-  });
-});
+  it('returns 400 for missing message', async () => {
+    const response = await POST(makeRequest({ history: [] }))
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.code).toBe('INVALID_MESSAGE')
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+})

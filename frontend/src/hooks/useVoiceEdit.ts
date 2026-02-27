@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useRealtimeSession } from '@/hooks/useRealtimeSession';
 import { useConversationStore } from '@/lib/store';
 import { VOICE_MODES, createEditEntry } from '@/lib/voice-types';
+import type { Message } from '@/lib/types';
 
 const EDIT_TOOL = {
   type: 'function' as const,
@@ -24,6 +25,57 @@ const EDIT_TOOL = {
   },
 };
 
+const MESSAGE_PREVIEW_LIMIT = 200;
+const TARGET_CONTENT_LIMIT = 500;
+
+export interface StartEditingOptions {
+  targetMessageId?: string;
+  targetMessageContent?: string;
+}
+
+type AssistantMessagePreview = Pick<Message, 'id' | 'content'>;
+
+function truncateContent(content: string, maxLength: number): string {
+  if (content.length <= maxLength) {
+    return content;
+  }
+
+  return `${content.slice(0, maxLength)}...`;
+}
+
+export function buildVoiceEditInstructions(
+  assistantMessages: AssistantMessagePreview[],
+  options?: StartEditingOptions,
+): string {
+  const documentPreview =
+    assistantMessages.length === 0
+      ? '[No assistant messages available yet]'
+      : assistantMessages
+          .map((m) => `[Message ${m.id}]: ${truncateContent(m.content, MESSAGE_PREVIEW_LIMIT)}`)
+          .join('\n');
+
+  const selectedTarget = options?.targetMessageId
+    ? assistantMessages.find((m) => m.id === options.targetMessageId)
+    : null;
+
+  const targetMessageId = options?.targetMessageId;
+  const targetMessageContent = selectedTarget?.content ?? options?.targetMessageContent;
+  const targetContext = targetMessageId
+    ? `TARGET MESSAGE ID: ${targetMessageId}\nTARGET MESSAGE CONTENT: ${
+        targetMessageContent
+          ? truncateContent(targetMessageContent, TARGET_CONTENT_LIMIT)
+          : '[Unavailable]'
+      }`
+    : 'TARGET MESSAGE ID: [Not specified]';
+
+  return `You are a voice editing assistant. The user will speak edit instructions for their document. When the user describes an edit, call send_edit_instruction with the instruction text.
+
+${targetContext}
+
+DOCUMENT MESSAGES:
+${documentPreview}`;
+}
+
 export function useVoiceEdit() {
   const { connect, disconnect, sendEvent, dataChannel } = useRealtimeSession();
   const {
@@ -39,24 +91,32 @@ export function useVoiceEdit() {
 
   const sessionIdRef = useRef<string | null>(null);
 
-  const startEditing = useCallback(async () => {
-    if (!activeProjectId) return;
+  const startEditing = useCallback(
+    async (options?: StartEditingOptions) => {
+      if (!activeProjectId) {
+        throw new Error('No active project');
+      }
 
-    const sessionId = crypto.randomUUID();
-    sessionIdRef.current = sessionId;
-    initEditHistory(activeProjectId, sessionId);
+      const messages = getMessages(activeProjectId);
+      const assistantMessages = messages.filter((m) => m.role === 'assistant');
+      const instructions = buildVoiceEditInstructions(assistantMessages, options);
 
-    const messages = getMessages(activeProjectId);
-    const assistantMessages = messages.filter((m) => m.role === 'assistant');
-    const documentPreview = assistantMessages
-      .map((m) => `[Message ${m.id}]: ${m.content.slice(0, 200)}...`)
-      .join('\n');
+      await connect(VOICE_MODES.VOICE_EDIT, {
+        instructions,
+        tools: [EDIT_TOOL],
+      });
 
-    await connect(VOICE_MODES.VOICE_EDIT, {
-      instructions: `You are a voice editing assistant. The user will speak edit instructions for their document. When the user describes an edit, call send_edit_instruction with the instruction text.\n\nDOCUMENT MESSAGES:\n${documentPreview}`,
-      tools: [EDIT_TOOL],
-    });
-  }, [activeProjectId, connect, getMessages, initEditHistory]);
+      const sessionState = useConversationStore.getState().voiceSessionState;
+      if (sessionState !== 'connected') {
+        throw new Error('Voice edit session failed to connect');
+      }
+
+      const sessionId = crypto.randomUUID();
+      sessionIdRef.current = sessionId;
+      initEditHistory(activeProjectId, sessionId);
+    },
+    [activeProjectId, connect, getMessages, initEditHistory],
+  );
 
   const handleEditInstruction = useCallback(
     async (instruction: string, targetMessageId?: string) => {

@@ -6,6 +6,7 @@ import { useConversationStore } from '@/lib/store';
 import { regenerateMessage } from '@/lib/messageActions';
 import EditMessageModal from './EditMessageModal';
 import { useButtonAnalytics } from '@/hooks/useButtonAnalytics';
+import { useVoiceEdit } from '@/hooks/useVoiceEdit';
 
 interface ButtonRibbonProps {
   messageId: string;
@@ -45,6 +46,7 @@ export default function ButtonRibbon({ messageId, content }: ButtonRibbonProps) 
   } = useConversationStore();
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const { startEditing } = useVoiceEdit();
 
   const buttonState = buttonStates[messageId];
   const isBlocked = isMessageBlocked(messageId);
@@ -121,9 +123,22 @@ export default function ButtonRibbon({ messageId, content }: ButtonRibbonProps) 
   };
 
   const handleEditClick = async () => {
+    const startTime = Date.now();
     await editAnalytics.trackClick();
-    setIsEditModalOpen(true);
     startBlockingOperation(messageId, 'edit');
+
+    // Prefer voice-edit entrypoint from message-level Edit. Fallback to text modal.
+    try {
+      await startEditing({
+        targetMessageId: messageId,
+        targetMessageContent: content,
+      });
+      completeBlockingOperation(messageId);
+      await editAnalytics.trackSuccess(startTime);
+    } catch (error) {
+      console.error('Failed to start voice edit, falling back to text modal:', error);
+      setIsEditModalOpen(true);
+    }
   };
 
   const handleEditSave = async (newContent: string) => {

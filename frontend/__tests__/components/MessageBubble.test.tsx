@@ -61,4 +61,24 @@ describe('MessageBubble with ButtonRibbon', () => {
     // Timestamp still present
     expect(screen.getByTestId('message-timestamp')).toBeInTheDocument()
   })
+
+  it('renders attachment metadata when present', () => {
+    const messageWithAttachment: Message = {
+      ...userMessage,
+      attachments: [
+        {
+          id: 'att-1',
+          filename: 'draft.txt',
+          size: 2048,
+          type: 'text/plain',
+        },
+      ],
+    }
+
+    render(<MessageBubble message={messageWithAttachment} />)
+
+    expect(screen.getByTestId('attachment-list')).toBeInTheDocument()
+    expect(screen.getByText('draft.txt')).toBeInTheDocument()
+    expect(screen.getByText('2 KB')).toBeInTheDocument()
+  })
 })

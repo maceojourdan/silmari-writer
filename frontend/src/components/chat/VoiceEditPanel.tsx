@@ -18,7 +18,9 @@ export default function VoiceEditPanel() {
   if (!isActive && !isConnecting) {
     return (
       <button
-        onClick={startEditing}
+        onClick={() => {
+          void startEditing();
+        }}
         aria-label="Voice Edit"
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm bg-muted text-muted-foreground hover:bg-muted/80"
       >
