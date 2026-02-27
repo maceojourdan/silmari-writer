@@ -142,9 +142,7 @@ async function makeOpenAIRequest(
       body: JSON.stringify({
         model: 'gpt-5.2-pro',
         input,
-        tools: [{ type: 'web_search_preview' }],
-        temperature: 0.7,
-        max_output_tokens: 4096,
+        tools: [{ type: 'web_search_preview' }]
       }),
     });
 
