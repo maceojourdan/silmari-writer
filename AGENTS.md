@@ -12,6 +12,36 @@ bd close <id>         # Complete work
 bd sync               # Sync with git
 ```
 
+## Voice & API Architecture
+
+### API Endpoints & Models
+| Endpoint | Model | Notes |
+|----------|-------|-------|
+| `/api/transcribe` | `whisper-1` | Audio → text via OpenAI SDK |
+| `/api/generate` | `gpt-4o-mini` | Chat completions, imports BAML client (critical infra) |
+| `/api/voice/session` | `gpt-4o-realtime-preview` | WebRTC SDP proxy to `api.openai.com/v1/realtime/calls` |
+| `/api/voice/edit` | `gpt-4o-mini` | Processes voice edit instructions |
+| `/api/tools/document-generation` | `gpt-4o` (default) | Also supports `gpt-4o-mini`, `gpt-4-turbo` |
+| `/api/tools/intent-classification` | `gpt-4o-mini` | Intent classification |
+| `/api/tools/deep-research` | OpenAI Responses API | Deep research with web search |
+
+### Voice Flow (Read Aloud / Voice Edit)
+- Client creates WebRTC peer connection + SDP offer (`voice-session.ts`)
+- SDP is sent to `/api/voice/session` which proxies to OpenAI Realtime API with server-side API key
+- OpenAI returns SDP answer; client sets remote description
+- Data channel (`oai-events`) used for session config and events
+- **No client-side code calls OpenAI directly** — all auth is server-side
+
+### Known Gotchas
+- All API routes use `process.env.OPENAI_API_KEY` (single key, must have Realtime API access for voice)
+- BAML client is imported in `/api/generate` — do NOT remove, it's critical infrastructure
+- `next.config.ts` has `removeConsole` in production — Vercel logs will have empty messages, making debugging harder
+- BAML version in `generators.baml` must match installed `@boundaryml/baml` package version
+
+### Git Configuration
+- Repo uses `maceojourdan / me@maceojourdan.com` for commits
+- Two remotes: `origin` (tha-hammer) and `github-maceo` (maceojourdan) — push to both
+
 ## Landing the Plane (Session Completion)
 
 **When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
