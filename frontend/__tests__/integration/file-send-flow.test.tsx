@@ -105,11 +105,35 @@ describe('file send flow', () => {
     expect(screen.getByText('doc.txt')).toBeInTheDocument()
   })
 
+  it('passes document rawBlob payload into generateResponse', async () => {
+    const user = userEvent.setup()
+    const file = new File(['%PDF-fake'], 'report.pdf', { type: 'application/pdf' })
+    vi.mocked(prepareFilesContent).mockResolvedValueOnce([
+      { filename: 'report.pdf', contentType: 'application/pdf', rawBlob: 'JVBER2Zha2U=' },
+    ])
+
+    render(<HomePage />)
+
+    await user.upload(screen.getByTestId('file-input'), file)
+    await user.type(screen.getByRole('textbox', { name: /message input/i }), 'Summarize this PDF')
+    await user.keyboard('{Enter}')
+
+    await vi.waitFor(() => {
+      expect(generateResponse).toHaveBeenCalled()
+    })
+
+    expect(generateResponse).toHaveBeenCalledWith(
+      'Summarize this PDF',
+      expect.any(Array),
+      [{ filename: 'report.pdf', contentType: 'application/pdf', rawBlob: 'JVBER2Zha2U=' }],
+    )
+  })
+
   it('shows unsupported-file error and skips generation', async () => {
     const user = userEvent.setup()
-    const file = new File(['%PDF'], 'report.pdf', { type: 'application/pdf' })
+    const file = new File(['data'], 'video.mp4', { type: 'video/mp4' })
     vi.mocked(prepareFilesContent).mockRejectedValueOnce(
-      new UnsupportedFileError('report.pdf', 'application/pdf'),
+      new UnsupportedFileError('video.mp4', 'video/mp4'),
     )
 
     render(<HomePage />)
