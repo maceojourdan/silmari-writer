@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { SUPPORTED_IMAGE_TYPES, SUPPORTED_TEXT_TYPES, isSupportedMimeType } from '@/lib/attachment-types';
 
 export const MAX_ROUTE_ATTACHMENTS = 10;
 export const MAX_ROUTE_PAYLOAD_BYTES = 25 * 1024 * 1024;
@@ -42,6 +43,7 @@ interface FileAttachment {
   contentType: string;
   textContent?: string;
   base64Data?: string;
+  rawBlob?: string;
 }
 
 type ResponseInputPart =
@@ -53,8 +55,6 @@ type ResponseInputMessage = {
   content: string | ResponseInputPart[];
 };
 
-const SUPPORTED_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
-const SUPPORTED_TEXT_TYPES = new Set(['text/plain', 'application/json']);
 
 function parseHistory(value: unknown): ConversationMessage[] {
   if (!Array.isArray(value)) {
@@ -97,6 +97,7 @@ function toAttachment(value: unknown): FileAttachment | null {
     contentType: maybe.contentType,
     textContent: typeof maybe.textContent === 'string' ? maybe.textContent : undefined,
     base64Data: typeof maybe.base64Data === 'string' ? maybe.base64Data : undefined,
+    rawBlob: typeof maybe.rawBlob === 'string' ? maybe.rawBlob : undefined,
   };
 }
 
@@ -111,10 +112,7 @@ function parseAttachments(value: unknown): FileAttachment[] {
 }
 
 function isSupportedAttachment(attachment: FileAttachment): boolean {
-  return (
-    SUPPORTED_IMAGE_TYPES.has(attachment.contentType) ||
-    SUPPORTED_TEXT_TYPES.has(attachment.contentType)
-  );
+  return isSupportedMimeType(attachment.contentType);
 }
 
 function calculatePayloadSize(attachments: FileAttachment[]): number {
@@ -122,7 +120,8 @@ function calculatePayloadSize(attachments: FileAttachment[]): number {
   return attachments.reduce((total, attachment) => {
     const textSize = encoder.encode(attachment.textContent ?? '').length;
     const imageSize = encoder.encode(attachment.base64Data ?? '').length;
-    return total + textSize + imageSize;
+    const blobSize = encoder.encode(attachment.rawBlob ?? '').length;
+    return total + textSize + imageSize + blobSize;
   }, 0);
 }
 

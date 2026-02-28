@@ -1,3 +1,12 @@
+import {
+  SUPPORTED_IMAGE_TYPES,
+  SUPPORTED_TEXT_TYPES,
+  SUPPORTED_DOCUMENT_TYPES,
+  isSupportedMimeType,
+} from './attachment-types'
+
+export { SUPPORTED_IMAGE_TYPES, SUPPORTED_TEXT_TYPES, SUPPORTED_DOCUMENT_TYPES, isSupportedMimeType }
+
 export const MAX_ATTACHMENT_COUNT = 10
 export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
 export const MAX_TOTAL_SIZE_BYTES = 25 * 1024 * 1024
@@ -5,22 +14,6 @@ export const MAX_TOTAL_SIZE_BYTES = 25 * 1024 * 1024
 export interface AttachmentValidationResult {
   valid: boolean
   error?: string
-}
-
-export const SUPPORTED_IMAGE_TYPES = new Set([
-  'image/png',
-  'image/jpeg',
-  'image/gif',
-  'image/webp',
-])
-
-export const SUPPORTED_TEXT_TYPES = new Set([
-  'text/plain',
-  'application/json',
-])
-
-export function isSupportedMimeType(mimeType: string): boolean {
-  return SUPPORTED_IMAGE_TYPES.has(mimeType) || SUPPORTED_TEXT_TYPES.has(mimeType)
 }
 
 export class UnsupportedFileError extends Error {
@@ -42,6 +35,7 @@ export interface FileContentPayload {
   contentType: string
   textContent?: string
   base64Data?: string
+  rawBlob?: string
 }
 
 export function validateAttachments(files: File[]): AttachmentValidationResult {
@@ -95,29 +89,45 @@ function readAsText(file: File): Promise<string> {
   })
 }
 
+function readAsArrayBuffer(file: File): Promise<ArrayBuffer> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as ArrayBuffer)
+    reader.onerror = () => reject(reader.error ?? new Error('Failed to read file as array buffer'))
+    reader.readAsArrayBuffer(file)
+  })
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer)
+  let binary = ''
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i])
+  }
+  return btoa(binary)
+}
+
 export async function prepareFileContent(file: File): Promise<FileContentPayload> {
   const filename = file.name
   const contentType = file.type
 
-  if (!isSupportedMimeType(contentType)) {
-    throw new UnsupportedFileError(filename, contentType)
-  }
-
   if (SUPPORTED_IMAGE_TYPES.has(contentType)) {
     const base64Data = await readAsDataURL(file)
-    return {
-      filename,
-      contentType,
-      base64Data,
-    }
+    return { filename, contentType, base64Data }
   }
 
-  const textContent = await readAsText(file)
-  return {
-    filename,
-    contentType,
-    textContent,
+  if (SUPPORTED_TEXT_TYPES.has(contentType)) {
+    const textContent = await readAsText(file)
+    return { filename, contentType, textContent }
   }
+
+  if (SUPPORTED_DOCUMENT_TYPES.has(contentType)) {
+    const buffer = await readAsArrayBuffer(file)
+    const rawBlob = arrayBufferToBase64(buffer)
+    return { filename, contentType, rawBlob }
+  }
+
+  throw new UnsupportedFileError(filename, contentType)
 }
 
 export async function prepareFilesContent(files: File[]): Promise<FileContentPayload[]> {
