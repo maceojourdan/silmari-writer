@@ -65,12 +65,12 @@ describe('/api/generate', () => {
     expect(textPart.text).toContain('Please review')
   })
 
-  it('skips unsupported attachment MIME types safely', async () => {
+  it('skips truly unsupported attachment MIME types safely', async () => {
     await POST(
       makeRequest({
         message: 'Just this text',
         attachments: [
-          { filename: 'report.pdf', contentType: 'application/pdf', textContent: '%PDF' },
+          { filename: 'archive.zip', contentType: 'application/zip', textContent: 'PK' },
         ],
       }),
     )
@@ -79,6 +79,77 @@ describe('/api/generate', () => {
     const body = JSON.parse(options.body as string)
     const userMessage = body.input[body.input.length - 1]
     expect(userMessage.content).toBe('Just this text')
+  })
+
+  it('extracts text from PDF attachment and includes in user message', async () => {
+    await POST(
+      makeRequest({
+        message: 'Summarize this',
+        attachments: [
+          {
+            filename: 'report.pdf',
+            contentType: 'application/pdf',
+            rawBlob: 'JVBERi0xLjQ=',  // base64 of %PDF-1.4
+          },
+        ],
+      }),
+    )
+
+    const [, options] = mockFetch.mock.calls[0]
+    const body = JSON.parse(options.body as string)
+    const userMessage = body.input[body.input.length - 1]
+
+    expect(typeof userMessage.content).toBe('string')
+    expect(userMessage.content).toContain('report.pdf')
+    expect(userMessage.content).toContain('Summarize this')
+  })
+
+  it('includes CSV attachment content in user message as text prefix', async () => {
+    await POST(
+      makeRequest({
+        message: 'Analyze this data',
+        attachments: [
+          { filename: 'data.csv', contentType: 'text/csv', textContent: 'name,age\nAlice,30' },
+        ],
+      }),
+    )
+
+    const [, options] = mockFetch.mock.calls[0]
+    const body = JSON.parse(options.body as string)
+    const userMessage = body.input[body.input.length - 1]
+
+    expect(userMessage.content).toContain('data.csv')
+    expect(userMessage.content).toContain('name,age')
+    expect(userMessage.content).toContain('Analyze this data')
+  })
+
+  it('assembles mixed text + document + image attachments correctly', async () => {
+    await POST(
+      makeRequest({
+        message: 'Review all',
+        attachments: [
+          { filename: 'notes.txt', contentType: 'text/plain', textContent: 'Meeting notes' },
+          { filename: 'report.pdf', contentType: 'application/pdf', rawBlob: 'JVBERi0=' },
+          { filename: 'diagram.png', contentType: 'image/png', base64Data: 'data:image/png;base64,abc' },
+        ],
+      }),
+    )
+
+    const [, options] = mockFetch.mock.calls[0]
+    const body = JSON.parse(options.body as string)
+    const userMessage = body.input[body.input.length - 1]
+
+    // Should be multipart (has image)
+    expect(Array.isArray(userMessage.content)).toBe(true)
+
+    const textPart = userMessage.content.find((p: { type: string }) => p.type === 'input_text')
+    expect(textPart.text).toContain('Meeting notes')
+    expect(textPart.text).toContain('report.pdf')
+    expect(textPart.text).toContain('Review all')
+
+    expect(userMessage.content).toContainEqual(
+      expect.objectContaining({ type: 'input_image' }),
+    )
   })
 
   it('returns ATTACHMENT_LIMIT when attachment count exceeds max', async () => {

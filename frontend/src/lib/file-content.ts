@@ -22,7 +22,7 @@ export class UnsupportedFileError extends Error {
 
   constructor(filename: string, mimeType: string) {
     super(
-      `Unsupported file type: "${filename}" (${mimeType}). Only images (PNG, JPEG, GIF, WebP) and text (plain text, JSON) files are supported.`,
+      `Unsupported file type: "${filename}" (${mimeType}). Only images (PNG, JPEG, GIF, WebP), text (plain text, JSON, CSV), and documents (PDF, Word, Excel) are supported.`,
     )
     this.name = 'UnsupportedFileError'
     this.filename = filename

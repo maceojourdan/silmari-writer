@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SUPPORTED_IMAGE_TYPES, SUPPORTED_TEXT_TYPES, isSupportedMimeType } from '@/lib/attachment-types';
+import {
+  SUPPORTED_IMAGE_TYPES,
+  SUPPORTED_TEXT_TYPES,
+  SUPPORTED_DOCUMENT_TYPES,
+  isSupportedMimeType,
+} from '@/lib/attachment-types';
 
 export const MAX_ROUTE_ATTACHMENTS = 10;
 export const MAX_ROUTE_PAYLOAD_BYTES = 25 * 1024 * 1024;
@@ -125,6 +130,17 @@ function calculatePayloadSize(attachments: FileAttachment[]): number {
   }, 0);
 }
 
+async function extractDocumentText(attachment: FileAttachment): Promise<string | null> {
+  if (!attachment.rawBlob) return null;
+  try {
+    const buffer = Buffer.from(attachment.rawBlob, 'base64');
+    return buffer.toString('utf-8');
+  } catch {
+    console.error(`Failed to extract text from ${attachment.filename}`);
+    return null;
+  }
+}
+
 function buildUserContent(
   message: string,
   attachments: FileAttachment[],
@@ -134,15 +150,15 @@ function buildUserContent(
     return message;
   }
 
-  const textAttachments = supported.filter((attachment) => SUPPORTED_TEXT_TYPES.has(attachment.contentType));
-  const imageAttachments = supported.filter((attachment) =>
-    SUPPORTED_IMAGE_TYPES.has(attachment.contentType),
-  );
+  const textAttachments = supported.filter((a) => SUPPORTED_TEXT_TYPES.has(a.contentType));
+  const documentAttachments = supported.filter((a) => SUPPORTED_DOCUMENT_TYPES.has(a.contentType));
+  const imageAttachments = supported.filter((a) => SUPPORTED_IMAGE_TYPES.has(a.contentType));
 
   let textContent = message;
-  if (textAttachments.length > 0) {
-    const textContext = textAttachments
-      .map((attachment) => `--- ${attachment.filename} ---\n${attachment.textContent ?? ''}`)
+  const textLikeAttachments = [...textAttachments, ...documentAttachments];
+  if (textLikeAttachments.length > 0) {
+    const textContext = textLikeAttachments
+      .map((a) => `--- ${a.filename} ---\n${a.textContent ?? ''}`)
       .join('\n\n');
     textContent = `${textContext}\n\n${message}`;
   }
@@ -198,6 +214,17 @@ export async function POST(request: NextRequest) {
         { error: 'Chat service not configured', code: 'CONFIG_ERROR' },
         { status: 500 },
       );
+    }
+
+    // Extract text from document attachments
+    for (const attachment of attachments) {
+      if (SUPPORTED_DOCUMENT_TYPES.has(attachment.contentType) && attachment.rawBlob) {
+        const extracted = await extractDocumentText(attachment);
+        if (extracted) {
+          attachment.textContent = extracted;
+          delete attachment.rawBlob;
+        }
+      }
     }
 
     const parsedHistory = parseHistory(history);

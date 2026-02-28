@@ -151,15 +151,15 @@ export function isSupportedMimeType(mimeType: string): boolean {
 
 ### Success Criteria
 **Automated:**
-- [ ] `attachment-types.test.ts` fails before implementation (Red)
-- [ ] `attachment-types.test.ts` passes after implementation (Green)
-- [ ] All existing tests still pass: `npx vitest run`
-- [ ] TypeScript compiles: `npx tsc --noEmit`
+- [x] `attachment-types.test.ts` fails before implementation (Red)
+- [x] `attachment-types.test.ts` passes after implementation (Green)
+- [x] All existing tests still pass: `npx vitest run`
+- [x] TypeScript compiles: `npx tsc --noEmit`
 
 **Manual:**
-- [ ] `file-content.ts` has no local type set declarations
-- [ ] `route.ts` has no local type set declarations
-- [ ] Both import from `attachment-types.ts`
+- [x] `file-content.ts` has no local type set declarations
+- [x] `route.ts` has no local type set declarations
+- [x] Both import from `attachment-types.ts`
 
 ---
 
@@ -231,13 +231,13 @@ The code is already clean. The structural change is the value.
 
 ### Success Criteria
 **Automated:**
-- [ ] All existing `file-content.test.ts` tests pass unchanged
-- [ ] All `generate.test.ts` tests pass unchanged
-- [ ] TypeScript compiles
+- [x] All existing `file-content.test.ts` tests pass unchanged
+- [x] All `generate.test.ts` tests pass unchanged
+- [x] TypeScript compiles
 
 **Manual:**
-- [ ] `prepareFileContent` has explicit `SUPPORTED_TEXT_TYPES.has()` check before `readAsText`
-- [ ] No catch-all else that calls `readAsText`
+- [x] `prepareFileContent` has explicit `SUPPORTED_TEXT_TYPES.has()` check before `readAsText`
+- [x] No catch-all else that calls `readAsText`
 
 ---
 
@@ -323,12 +323,12 @@ Update `UnsupportedFileError` constructor message to include CSV:
 
 ### Success Criteria
 **Automated:**
-- [ ] New CSV tests fail before adding `text/csv` (Red)
-- [ ] All tests pass after adding `text/csv` (Green)
-- [ ] TypeScript compiles
+- [x] New CSV tests fail before adding `text/csv` (Red)
+- [x] All tests pass after adding `text/csv` (Green)
+- [x] TypeScript compiles
 
 **Manual:**
-- [ ] CSV file flows through existing text path — no new code paths exercised
+- [x] CSV file flows through existing text path — no new code paths exercised
 
 ---
 
@@ -727,19 +727,19 @@ function calculatePayloadSize(attachments: FileAttachment[]): number {
 
 ### Step 4 Success Criteria
 **Automated:**
-- [ ] All 4a tests fail before `SUPPORTED_DOCUMENT_TYPES` exists (Red)
-- [ ] All 4b tests fail before document branch in `prepareFileContent` (Red)
-- [ ] All 4c tests fail before extraction in route (Red)
-- [ ] All 4d tests fail before three-way `buildUserContent` (Red)
-- [ ] All tests pass after each sub-step (Green)
-- [ ] Full suite: `npx vitest run`
-- [ ] TypeScript: `npx tsc --noEmit`
+- [x] All 4a tests fail before `SUPPORTED_DOCUMENT_TYPES` exists (Red)
+- [x] All 4b tests fail before document branch in `prepareFileContent` (Red)
+- [x] All 4c tests fail before extraction in route (Red)
+- [x] All 4d tests fail before three-way `buildUserContent` (Red)
+- [x] All tests pass after each sub-step (Green)
+- [x] Full suite: `npx vitest run`
+- [x] TypeScript: `npx tsc --noEmit`
 
 **Manual:**
-- [ ] PDF file flows: readAsArrayBuffer → rawBlob → server extraction → textContent → input_text
-- [ ] CSV file still flows through text path (no extraction)
-- [ ] Image files unchanged
-- [ ] Unknown types still rejected at Gate 1 / dropped at Gate 2
+- [x] PDF file flows: readAsArrayBuffer → rawBlob → server extraction → textContent → input_text
+- [x] CSV file still flows through text path (no extraction)
+- [x] Image files unchanged
+- [x] Unknown types still rejected at Gate 1 / dropped at Gate 2
 
 ---
 
