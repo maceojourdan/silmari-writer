@@ -260,7 +260,7 @@ describe('Path 311 Integration: reject-duplicate-session-initialization', () => 
 
       // Validation error takes priority over uniqueness check
       expect(response.status).toBe(400);
-      expect(data.code).toBe('INVALID_REQUEST');
+      expect(data.code).toBe('INVALID_REQUEST_FORMAT');
       // DAO should not have been called at all
       expect(mockDAO.getActiveSession).not.toHaveBeenCalled();
     });

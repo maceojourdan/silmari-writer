@@ -9,14 +9,19 @@
  *   - 309-reject-modifications-to-finalized-session
  *   - 310-initialize-new-session-with-provided-objects
  *   - 311-reject-duplicate-session-initialization
+ *   - 312-reject-session-initialization-when-required-objects-missing-or-invalid
  */
 
 export type SessionErrorCode =
   | 'INVALID_REQUEST'
+  | 'INVALID_REQUEST_FORMAT'
   | 'PARSE_FAILURE'
   | 'VALIDATION_FAILURE'
+  | 'MISSING_REQUIRED_OBJECT'
   | 'PERSISTENCE_FAILURE'
+  | 'INTERNAL_PERSISTENCE_VIOLATION'
   | 'SERVICE_ERROR'
+  | 'SERVICE_INVOCATION_FAILED'
   | 'SESSION_PERSISTENCE_ERROR'
   | 'STORY_PERSISTENCE_ERROR'
   | 'INVALID_STATE'
@@ -26,7 +31,8 @@ export type SessionErrorCode =
   | 'SESSION_NOT_FOUND'
   | 'SESSION_ALREADY_FINALIZED'
   | 'SESSION_ALREADY_ACTIVE'
-  | 'CONFLICT_GENERIC';
+  | 'CONFLICT_GENERIC'
+  | 'GENERIC_USER_ERROR';
 
 export class SessionError extends Error {
   code: SessionErrorCode;
@@ -51,18 +57,34 @@ export const SessionErrors = {
   InvalidRequest: (message = 'Invalid session initialization request') =>
     new SessionError(message, 'INVALID_REQUEST', 400, false),
 
+  // Path 312: reject-session-initialization-when-required-objects-missing-or-invalid
+  InvalidRequestFormat: (message = 'Request payload could not be parsed') =>
+    new SessionError(message, 'INVALID_REQUEST_FORMAT', 400, false),
+
   ParseFailure: (message = 'Failed to parse session input') =>
     new SessionError(message, 'PARSE_FAILURE', 422, false),
 
   ValidationFailure: (message = 'Session input validation failed') =>
     new SessionError(message, 'VALIDATION_FAILURE', 422, false),
 
+  // Path 312: Missing or invalid required domain object
+  MissingRequiredObject: (message = 'One or more required objects are missing or invalid') =>
+    new SessionError(message, 'MISSING_REQUIRED_OBJECT', 400, false),
+
   PersistenceFailure: (message = 'Failed to persist session data') =>
     new SessionError(message, 'PERSISTENCE_FAILURE', 500, true),
+
+  // Path 312: Defense-in-depth guard against persistence after validation failure
+  InternalPersistenceViolation: (message = 'Attempted to persist session despite validation errors') =>
+    new SessionError(message, 'INTERNAL_PERSISTENCE_VIOLATION', 500, false),
 
   // Path 310: initialize-new-session-with-provided-objects
   ServiceError: (message = 'Service-level error during session initialization') =>
     new SessionError(message, 'SERVICE_ERROR', 500, false),
+
+  // Path 312: Handler-to-service contract violation
+  ServiceInvocationFailed: (message = 'Failed to invoke session initialization service') =>
+    new SessionError(message, 'SERVICE_INVOCATION_FAILED', 500, false),
 
   // Path 306: initiate-voice-assisted-answer-session
   SessionPersistenceError: (message = 'Failed to persist answer session') =>
@@ -97,4 +119,8 @@ export const SessionErrors = {
 
   ConflictGeneric: (message = 'A conflict occurred while processing the session modification') =>
     new SessionError(message, 'CONFLICT_GENERIC', 409, false),
+
+  // Path 312: Fallback user-safe error when error mapping fails
+  GenericUserError: (message = 'An error occurred during session initialization') =>
+    new SessionError(message, 'GENERIC_USER_ERROR', 500, false),
 } as const;

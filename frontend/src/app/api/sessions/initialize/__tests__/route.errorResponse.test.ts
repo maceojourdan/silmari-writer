@@ -109,7 +109,7 @@ describe('POST /api/sessions/initialize — Step 4: Return error response to cli
   });
 
   describe('ErrorConsistency: transformation failures → HTTP 500', () => {
-    it('should return HTTP 500 with INTERNAL_ERROR for unexpected errors', async () => {
+    it('should return HTTP 500 with GENERIC_USER_ERROR for unexpected errors', async () => {
       mockHandler.handle.mockRejectedValue(
         new Error('Unexpected crash during error transformation'),
       );
@@ -119,7 +119,7 @@ describe('POST /api/sessions/initialize — Step 4: Return error response to cli
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.code).toBe('INTERNAL_ERROR');
+      expect(data.code).toBe('GENERIC_USER_ERROR');
     });
 
     it('should return HTTP 500 with GenericError code for generic errors', async () => {

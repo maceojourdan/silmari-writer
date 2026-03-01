@@ -1,9 +1,11 @@
 /**
  * SessionObjectVerifier - Validates structured session objects against
- * cross-layer rules using Zod schemas.
+ * cross-layer rules using Zod schemas and backend-specific semantic rules.
  *
- * Resource: cfg-g1u4 (shared_verifier)
- * Path: 294-parse-and-store-session-input-objects
+ * Resource: cfg-g1u4 (shared_verifier) + db-j6x9 (backend_verifier)
+ * Paths:
+ *   - 294-parse-and-store-session-input-objects
+ *   - 312-reject-session-initialization-when-required-objects-missing-or-invalid
  */
 
 import {
@@ -50,6 +52,40 @@ export const SessionObjectVerifier = {
           (issue) => `question.${issue.path.join('.')}: ${issue.message}`,
         ),
       );
+    }
+
+    if (errors.length > 0) {
+      return { valid: false, errors };
+    }
+
+    return { valid: true };
+  },
+
+  /**
+   * Verify that all required domain objects are present (not null/undefined).
+   * Returns { valid: true } or { valid: false, errors: [...] } identifying
+   * which object(s) are missing.
+   *
+   * Path: 312-reject-session-initialization-when-required-objects-missing-or-invalid
+   * Resource: db-j6x9 (backend_verifier)
+   */
+  verifyPresence(objects: {
+    resume: unknown;
+    job: unknown;
+    question: unknown;
+  }): VerificationResult {
+    const errors: string[] = [];
+
+    if (objects.resume == null) {
+      errors.push('ResumeObject is required but missing');
+    }
+
+    if (objects.job == null) {
+      errors.push('JobObject is required but missing');
+    }
+
+    if (objects.question == null) {
+      errors.push('QuestionObject is required but missing');
     }
 
     if (errors.length > 0) {

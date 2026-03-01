@@ -189,7 +189,7 @@ describe('Path 310 Integration: initialize-new-session-with-provided-objects', (
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.code).toBe('INVALID_REQUEST');
+      expect(data.code).toBe('INVALID_REQUEST_FORMAT');
       expect(mockDAO.persist).not.toHaveBeenCalled();
     });
 
