@@ -9,13 +9,14 @@
  * Paths:
  *   - 325-generate-draft-from-confirmed-claims
  *   - 327-prevent-draft-generation-without-confirmed-claims
+ *   - 328-exclude-incomplete-claim-during-draft-generation
  */
 
 import { StoryDAO } from '@/server/data_access_objects/StoryDAO';
 import { ClaimDAO } from '@/server/data_access_objects/ClaimDAO';
 import type { StoryClaim, StructuredDraft } from '@/server/data_structures/StoryStructures';
 import { StructuredDraftSchema } from '@/server/data_structures/StoryStructures';
-import type { CaseClaim, CaseDraft, StoryRecordClaim } from '@/server/data_structures/Claim';
+import type { CaseClaim, CaseDraft, StoryRecordClaim, DraftGenerationResult } from '@/server/data_structures/Claim';
 import { CaseDraftSchema } from '@/server/data_structures/Claim';
 import {
   DraftDocumentStructure,
@@ -26,9 +27,12 @@ import {
   DraftDataAccessError,
   DraftErrors326,
   DraftErrors327,
+  DraftErrors328,
 } from '@/server/error_definitions/DraftErrors';
 import { SharedErrors } from '@/server/error_definitions/SharedErrors';
 import { logger } from '@/server/logging/logger';
+import { ClaimStructuralMetadataVerifier } from '@/server/verifiers/ClaimStructuralMetadataVerifier';
+import { DraftAssemblyProcessor } from '@/server/processors/DraftAssemblyProcessor';
 
 export const DraftGenerationService = {
   /**
@@ -286,5 +290,67 @@ export const DraftGenerationService = {
     }
 
     return confirmedClaims;
+  },
+
+  // =========================================================================
+  // Path 328: exclude-incomplete-claim-during-draft-generation
+  // =========================================================================
+
+  /**
+   * Full orchestration (path 328): Generates a draft excluding incomplete claims.
+   *
+   * Orchestrates:
+   *   1. DAO retrieval of confirmed claims
+   *   2. Verifier partition by structural metadata completeness
+   *   3. Processor draft generation from complete claims only
+   *   4. Build omission report from incomplete claims
+   *
+   * @throws DraftErrors328.DataAccessError on retrieval failure
+   * @throws DraftErrors328.DraftAssemblyError on assembly failure
+   */
+  async generateDraftExcludingIncomplete(sessionId: string): Promise<DraftGenerationResult> {
+    // Step 2: Retrieve confirmed claims
+    let confirmedClaims;
+    try {
+      confirmedClaims = await ClaimDAO.getConfirmedClaims(sessionId);
+    } catch (error) {
+      logger.error(
+        'Failed to retrieve confirmed claims',
+        error,
+        { path: '328', resource: 'db-h2s4', sessionId },
+      );
+      throw DraftErrors328.DataAccessError(
+        `Failed to retrieve confirmed claims for session '${sessionId}': ${error instanceof Error ? error.message : 'unknown'}`,
+      );
+    }
+
+    // Step 3: Partition by structural metadata completeness
+    const { complete, incomplete } = ClaimStructuralMetadataVerifier.partitionByCompleteness(confirmedClaims);
+
+    // Step 4: Assemble draft from complete claims only
+    let draftContent: string;
+    try {
+      draftContent = DraftAssemblyProcessor.generateDraft(complete);
+    } catch (error) {
+      logger.error(
+        'Draft assembly failed',
+        error,
+        { path: '328', resource: 'db-h2s4', sessionId },
+      );
+      throw DraftErrors328.DraftAssemblyError(
+        `Failed to assemble draft: ${error instanceof Error ? error.message : 'unknown'}`,
+      );
+    }
+
+    // Step 4 continued: Build omission report from incomplete set
+    const omissionReport = incomplete.map((report) => ({
+      claimId: report.claimId,
+      reason: `Claim omitted due to missing required structural metadata: ${report.missingFields.join(', ')}`,
+    }));
+
+    return {
+      draftContent,
+      omissionReport,
+    };
   },
 } as const;

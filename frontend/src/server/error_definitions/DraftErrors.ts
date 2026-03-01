@@ -9,6 +9,7 @@
  *   - 298-draft-state-filters-unconfirmed-hard-claims-and-records-claims-used
  *   - 325-generate-draft-from-confirmed-claims
  *   - 327-prevent-draft-generation-without-confirmed-claims
+ *   - 328-exclude-incomplete-claim-during-draft-generation
  */
 
 export type DraftErrorCode =
@@ -24,7 +25,10 @@ export type DraftErrorCode =
   | 'NO_CONFIRMED_CLAIMS'
   | 'INVALID_PARAMETERS'
   | 'VALIDATION_ERROR'
-  | 'DATA_ACCESS_ERROR';
+  | 'DATA_ACCESS_ERROR'
+  | 'INVALID_DRAFT_REQUEST'
+  | 'DRAFT_ASSEMBLY_ERROR'
+  | 'SERVER_ERROR';
 
 export class DraftError extends Error {
   code: DraftErrorCode;
@@ -156,4 +160,35 @@ export const DraftErrors327 = {
 
   GenericDraftError: (message = 'An error occurred during draft generation') =>
     new DraftError(message, 'GENERATION_FAILED', 500, false),
+} as const;
+
+// ---------------------------------------------------------------------------
+// Path 328: exclude-incomplete-claim-during-draft-generation
+// ---------------------------------------------------------------------------
+
+/**
+ * DraftErrors328 — errors specific to path 328
+ * (excluding incomplete claims during draft generation).
+ *
+ * InvalidDraftRequest: thrown when the draft generation request payload
+ *   is invalid or missing required parameters.
+ * DataAccessError: thrown when retrieval of confirmed claims from
+ *   persistence fails.
+ * DraftAssemblyError: thrown when the draft assembly processor fails
+ *   to generate a draft from the complete claims.
+ * ServerError: thrown when an unexpected serialization or server error
+ *   occurs while preparing the HTTP response.
+ */
+export const DraftErrors328 = {
+  InvalidDraftRequest: (message = 'Invalid or missing draft generation request parameters') =>
+    new DraftError(message, 'INVALID_DRAFT_REQUEST', 400, false),
+
+  DataAccessError: (message = 'Failed to retrieve confirmed claims') =>
+    new DraftError(message, 'DATA_ACCESS_ERROR', 500, true),
+
+  DraftAssemblyError: (message = 'Failed to assemble draft from complete claims') =>
+    new DraftError(message, 'DRAFT_ASSEMBLY_ERROR', 500, false),
+
+  ServerError: (message = 'An internal server error occurred') =>
+    new DraftError(message, 'SERVER_ERROR', 500, false),
 } as const;

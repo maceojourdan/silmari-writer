@@ -6,6 +6,7 @@
  *   - 325-generate-draft-from-confirmed-claims
  *   - 326-generate-draft-with-only-confirmed-claims
  *   - 327-prevent-draft-generation-without-confirmed-claims
+ *   - 328-exclude-incomplete-claim-during-draft-generation
  */
 
 import { z } from 'zod';
@@ -15,11 +16,13 @@ import { GenerateDraftResponseSchema } from '@/server/data_structures/StoryStruc
 import {
   GenerateCaseDraftResponseSchema,
   GenerateStoryDraftResponseSchema,
+  ExcludeIncompleteDraftResponseSchema,
   ErrorResponseSchema,
 } from '@/server/data_structures/Claim';
 import type {
   GenerateCaseDraftResponse,
   GenerateStoryDraftResponse,
+  ExcludeIncompleteDraftResponse,
   ErrorResponse,
 } from '@/server/data_structures/Claim';
 
@@ -230,6 +233,84 @@ export async function generateStoryDraft(
       'Generate story draft request failed',
       error instanceof Error ? error : new Error(String(error)),
       { action: 'generateStoryDraft', module: 'api_contracts' },
+    );
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Path 328: exclude-incomplete-claim-during-draft-generation
+// ---------------------------------------------------------------------------
+
+/**
+ * Request schema for the exclude-incomplete draft generation contract.
+ */
+export const ExcludeIncompleteDraftContractRequestSchema = z.object({
+  sessionId: z.string().min(1),
+});
+
+export type ExcludeIncompleteDraftContractRequest = z.infer<typeof ExcludeIncompleteDraftContractRequestSchema>;
+
+export { ExcludeIncompleteDraftResponseSchema };
+export type { ExcludeIncompleteDraftResponse };
+
+/**
+ * Typed function that sends the exclude-incomplete draft generation request.
+ * Validates input and response via Zod schemas.
+ * Parses error responses into structured ErrorResponse objects.
+ * Logs errors via frontendLogger on failure.
+ *
+ * The response includes both the draft content (built from structurally
+ * complete claims only) and an omission report listing claims that were
+ * excluded due to missing required structural metadata.
+ */
+export async function generateDraftExcludingIncomplete(
+  request: { sessionId: string },
+): Promise<ExcludeIncompleteDraftResponse> {
+  try {
+    // Validate request before sending
+    const parseResult = ExcludeIncompleteDraftContractRequestSchema.safeParse(request);
+    if (!parseResult.success) {
+      throw SharedErrors.MalformedRequest(
+        `MALFORMED_REQUEST: ${parseResult.error.issues.map((i) => i.message).join(', ')}`,
+      );
+    }
+
+    const response = await fetch('/api/draft/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(parseResult.data),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      // Parse as ErrorResponse if possible for structured error handling
+      const errorParsed = ErrorResponseSchema.safeParse(errorBody);
+      if (errorParsed.success) {
+        const err = new Error(errorParsed.data.message);
+        (err as any).code = errorParsed.data.code;
+        throw err;
+      }
+      throw new Error(
+        errorBody.message || `Generate draft (exclude incomplete) request failed with status ${response.status}`,
+      );
+    }
+
+    const data = await response.json();
+    const parsed = ExcludeIncompleteDraftResponseSchema.safeParse(data);
+
+    if (!parsed.success) {
+      throw new Error(
+        `Invalid response from draft/generate: ${parsed.error.issues.map((i) => i.message).join(', ')}`,
+      );
+    }
+
+    return parsed.data;
+  } catch (error) {
+    frontendLogger.error(
+      'Generate draft (exclude incomplete) request failed',
+      error instanceof Error ? error : new Error(String(error)),
+      { action: 'generateDraftExcludingIncomplete', module: 'api_contracts' },
     );
     throw error;
   }

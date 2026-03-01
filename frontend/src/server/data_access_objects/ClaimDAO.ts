@@ -5,12 +5,13 @@
  * Paths:
  *   - 305-followup-sms-for-uncertain-claim
  *   - 321-verify-key-claims-via-voice-or-sms
+ *   - 328-exclude-incomplete-claim-during-draft-generation
  *
  * In production, each method performs Supabase queries.
  * For TDD, methods are designed to be mockable.
  */
 
-import type { Claim, ClaimStatus, TruthCheckVerdict, CaseClaim, StoryRecordClaim } from '@/server/data_structures/Claim';
+import type { Claim, ClaimStatus, TruthCheckVerdict, CaseClaim, StoryRecordClaim, ConfirmedClaim } from '@/server/data_structures/Claim';
 import type { ClaimRecord } from '@/server/data_structures/ClaimRecord';
 
 export const ClaimDAO = {
@@ -141,5 +142,23 @@ export const ClaimDAO = {
     //   .select('id, storyRecordId, confirmed, content')
     //   .eq('storyRecordId', storyRecordId)
     throw new Error('ClaimDAO.getClaimsByStoryRecordId not yet wired to Supabase');
+  },
+
+  // -------------------------------------------------------------------------
+  // Path 328: exclude-incomplete-claim-during-draft-generation
+  // -------------------------------------------------------------------------
+
+  /**
+   * Get all confirmed claims for a session, including structural metadata
+   * fields (metric, scope, context) for completeness evaluation.
+   *
+   * @returns Array of ConfirmedClaim entities with status === 'CONFIRMED'.
+   */
+  async getConfirmedClaims(_sessionId: string): Promise<ConfirmedClaim[]> {
+    // Supabase: supabase.from('claims')
+    //   .select('id, sessionId, content, status, metric, scope, context, created_at, updated_at')
+    //   .eq('sessionId', sessionId)
+    //   .eq('status', 'CONFIRMED')
+    throw new Error('ClaimDAO.getConfirmedClaims not yet wired to Supabase');
   },
 } as const;

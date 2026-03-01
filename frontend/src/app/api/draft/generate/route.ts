@@ -5,10 +5,12 @@
  * Paths:
  *   - 326-generate-draft-with-only-confirmed-claims
  *   - 327-prevent-draft-generation-without-confirmed-claims
+ *   - 328-exclude-incomplete-claim-during-draft-generation
  *
- * Accepts either:
- *   - { caseId } → delegates to handleCaseDraft (path 326)
- *   - { storyRecordId } → delegates to handleStoryDraft (path 327)
+ * Accepts one of:
+ *   - { sessionId }      → delegates to handleExcludeIncompleteDraft (path 328)
+ *   - { storyRecordId }  → delegates to handleStoryDraft (path 327)
+ *   - { caseId }         → delegates to handleCaseDraft (path 326)
  *
  * Returns the draft response or a structured error.
  */
@@ -17,6 +19,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   GenerateCaseDraftRequestSchema,
   GenerateStoryDraftRequestSchema,
+  ExcludeIncompleteDraftRequestSchema,
 } from '@/server/data_structures/Claim';
 import { generateDraftHandler } from '@/server/request_handlers/generateDraftHandler';
 import { DraftError } from '@/server/error_definitions/DraftErrors';
@@ -36,6 +39,24 @@ export async function POST(request: NextRequest) {
 
     // 2. Determine request type and validate
     const body = rawBody as Record<string, unknown>;
+
+    // Path 328: sessionId-based request (exclude incomplete claims)
+    if (body && typeof body === 'object' && 'sessionId' in body) {
+      const validation = ExcludeIncompleteDraftRequestSchema.safeParse(rawBody);
+
+      if (!validation.success) {
+        const details = validation.error.issues
+          .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+          .join('; ');
+        return NextResponse.json(
+          { code: 'VALIDATION_ERROR', message: `Invalid request payload: ${details}` },
+          { status: 400 },
+        );
+      }
+
+      const result = await generateDraftHandler.handleExcludeIncompleteDraft(validation.data.sessionId);
+      return NextResponse.json(result, { status: 200 });
+    }
 
     // Path 327: storyRecordId-based request
     if (body && typeof body === 'object' && 'storyRecordId' in body) {

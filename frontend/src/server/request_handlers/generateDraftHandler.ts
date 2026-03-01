@@ -10,14 +10,19 @@
  *   - 325-generate-draft-from-confirmed-claims
  *   - 326-generate-draft-with-only-confirmed-claims
  *   - 327-prevent-draft-generation-without-confirmed-claims
+ *   - 328-exclude-incomplete-claim-during-draft-generation
  */
 
 import { DraftGenerationService } from '@/server/services/DraftGenerationService';
 import type { GenerateDraftResponse } from '@/server/data_structures/StoryStructures';
 import { GenerateDraftResponseSchema } from '@/server/data_structures/StoryStructures';
-import type { CaseDraft, GenerateStoryDraftResponse } from '@/server/data_structures/Claim';
-import { GenerateCaseDraftResponseSchema, GenerateStoryDraftResponseSchema } from '@/server/data_structures/Claim';
-import { DraftError, DraftApiError, DraftErrors326, DraftErrors327 } from '@/server/error_definitions/DraftErrors';
+import type { CaseDraft, GenerateStoryDraftResponse, ExcludeIncompleteDraftResponse } from '@/server/data_structures/Claim';
+import {
+  GenerateCaseDraftResponseSchema,
+  GenerateStoryDraftResponseSchema,
+  ExcludeIncompleteDraftResponseSchema,
+} from '@/server/data_structures/Claim';
+import { DraftError, DraftApiError, DraftErrors326, DraftErrors327, DraftErrors328 } from '@/server/error_definitions/DraftErrors';
 import { SharedError } from '@/server/error_definitions/SharedErrors';
 import { logger } from '@/server/logging/logger';
 
@@ -147,6 +152,60 @@ export const generateDraftHandler = {
         { path: '327', resource: 'api-n8k2', storyRecordId },
       );
       throw DraftErrors327.GenericDraftError(
+        `Unexpected error: ${error instanceof Error ? error.message : 'unknown'}`,
+      );
+    }
+  },
+
+  // -------------------------------------------------------------------------
+  // Path 328: exclude-incomplete-claim-during-draft-generation
+  // -------------------------------------------------------------------------
+
+  /**
+   * Handle a draft generation request that excludes incomplete claims.
+   *
+   * Normalizes the request into a DraftGenerationCommand, then calls
+   * DraftGenerationService.generateDraftExcludingIncomplete() to orchestrate:
+   *   1. Retrieve confirmed claims
+   *   2. Partition by structural metadata completeness
+   *   3. Assemble draft from complete claims only
+   *   4. Build omission report for incomplete claims
+   *
+   * @throws DraftErrors328.InvalidDraftRequest on invalid input
+   * @throws DraftErrors328.DataAccessError on DAO failure
+   * @throws DraftErrors328.DraftAssemblyError on assembly failure
+   * @throws DraftErrors328.ServerError on unexpected errors
+   */
+  async handleExcludeIncompleteDraft(sessionId: string): Promise<ExcludeIncompleteDraftResponse> {
+    try {
+      const result = await DraftGenerationService.generateDraftExcludingIncomplete(sessionId);
+
+      const response: ExcludeIncompleteDraftResponse = {
+        draft: result.draftContent,
+        omissions: result.omissionReport,
+      };
+
+      const parsed = ExcludeIncompleteDraftResponseSchema.safeParse(response);
+      if (!parsed.success) {
+        throw DraftErrors328.ServerError(
+          `Response validation failed: ${parsed.error.message}`,
+        );
+      }
+
+      return parsed.data;
+    } catch (error) {
+      // Re-throw DraftErrors as-is (they carry status codes)
+      if (error instanceof DraftError) {
+        throw error;
+      }
+
+      // Log and wrap unexpected errors
+      logger.error(
+        'Exclude-incomplete draft generation failed',
+        error,
+        { path: '328', resource: 'api-n8k2', sessionId },
+      );
+      throw DraftErrors328.ServerError(
         `Unexpected error: ${error instanceof Error ? error.message : 'unknown'}`,
       );
     }

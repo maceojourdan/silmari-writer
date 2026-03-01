@@ -191,3 +191,100 @@ export const ErrorResponseSchema = z.object({
 });
 
 export type ErrorResponse = z.infer<typeof ErrorResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// Path 328: exclude-incomplete-claim-during-draft-generation
+// ---------------------------------------------------------------------------
+
+/**
+ * ConfirmedClaim — A claim with status CONFIRMED that includes
+ * structural metadata fields (metric, scope, context) used for
+ * completeness evaluation.
+ *
+ * Resource: db-f8n5 (data_structure)
+ * Path: 328-exclude-incomplete-claim-during-draft-generation
+ */
+export const ConfirmedClaimSchema = z.object({
+  id: z.string().min(1),
+  sessionId: z.string().min(1),
+  content: z.string().min(1),
+  status: z.literal('CONFIRMED'),
+  metric: z.string().optional(),
+  scope: z.string().optional(),
+  context: z.string().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
+export type ConfirmedClaim = z.infer<typeof ConfirmedClaimSchema>;
+
+/**
+ * Required structural metadata fields that must be present
+ * for a claim to be considered "complete" for drafting.
+ */
+export const REQUIRED_STRUCTURAL_METADATA_FIELDS = ['metric', 'scope', 'context'] as const;
+
+export type StructuralMetadataField = (typeof REQUIRED_STRUCTURAL_METADATA_FIELDS)[number];
+
+/**
+ * IncompleteClaimReport — describes a claim that was excluded from
+ * the draft because it is missing required structural metadata.
+ */
+export const IncompleteClaimReportSchema = z.object({
+  claimId: z.string().min(1),
+  missingFields: z.array(z.enum(REQUIRED_STRUCTURAL_METADATA_FIELDS)),
+});
+
+export type IncompleteClaimReport = z.infer<typeof IncompleteClaimReportSchema>;
+
+/**
+ * OmissionEntry — describes a claim omitted from the draft with
+ * a human-readable reason.
+ */
+export const OmissionEntrySchema = z.object({
+  claimId: z.string().min(1),
+  reason: z.string().min(1),
+});
+
+export type OmissionEntry = z.infer<typeof OmissionEntrySchema>;
+
+/**
+ * DraftGenerationCommandSchema — structured command produced by
+ * normalizing the incoming draft generation HTTP request.
+ */
+export const DraftGenerationCommandSchema = z.object({
+  sessionId: z.string().min(1),
+});
+
+export type DraftGenerationCommand = z.infer<typeof DraftGenerationCommandSchema>;
+
+/**
+ * DraftGenerationResultSchema — the result of a successful draft
+ * generation, containing the draft content and an omission report
+ * for excluded incomplete claims.
+ */
+export const DraftGenerationResultSchema = z.object({
+  draftContent: z.string(),
+  omissionReport: z.array(OmissionEntrySchema),
+});
+
+export type DraftGenerationResult = z.infer<typeof DraftGenerationResultSchema>;
+
+/**
+ * Request schema for path 328 draft generation.
+ */
+export const ExcludeIncompleteDraftRequestSchema = z.object({
+  sessionId: z.string().min(1),
+});
+
+export type ExcludeIncompleteDraftRequest = z.infer<typeof ExcludeIncompleteDraftRequestSchema>;
+
+/**
+ * Response schema for path 328 draft generation — includes draft + omissions.
+ */
+export const ExcludeIncompleteDraftResponseSchema = z.object({
+  draft: z.string(),
+  omissions: z.array(OmissionEntrySchema),
+});
+
+export type ExcludeIncompleteDraftResponse = z.infer<typeof ExcludeIncompleteDraftResponseSchema>;
