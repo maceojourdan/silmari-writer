@@ -8,6 +8,7 @@
  *   - 308-finalize-voice-session-and-persist-storyrecord
  *   - 325-generate-draft-from-confirmed-claims
  *   - 327-prevent-draft-generation-without-confirmed-claims
+ *   - 330-edit-content-by-voice-from-review-screen
  */
 
 export type SharedErrorCode =
@@ -18,7 +19,8 @@ export type SharedErrorCode =
   | 'UNAUTHORIZED'
   | 'NO_ACTIVE_SESSION'
   | 'DOMAIN_ERROR'
-  | 'TRANSFORMATION_ERROR';
+  | 'TRANSFORMATION_ERROR'
+  | 'VOICE_CAPTURE_FAILED';
 
 export class SharedError extends Error {
   code: SharedErrorCode;
@@ -66,4 +68,8 @@ export const SharedErrors = {
   // Path 325: generate-draft-from-confirmed-claims
   TransformationError: (message = 'Structural transformation failed') =>
     new SharedError(message, 'TRANSFORMATION_ERROR', 422, false),
+
+  // Path 330: edit-content-by-voice-from-review-screen
+  VoiceCaptureFailed: (message = 'Voice capture or transcription failed') =>
+    new SharedError(message, 'VOICE_CAPTURE_FAILED', 422, true),
 } as const;
