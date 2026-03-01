@@ -12,6 +12,11 @@ export const MAX_ROUTE_PAYLOAD_BYTES = 25 * 1024 * 1024;
 const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY_MS = 2000;
 const RATE_LIMIT_BASE_DELAY_MS = 10000;
+const OPENAI_REQUEST_TIMEOUT_MS = 45_000;
+const MAX_DOCUMENT_EXTRACTION_BYTES = 128 * 1024;
+const MAX_DOCUMENT_TEXT_CHARS = 12_000;
+const MIN_DOCUMENT_TEXT_CHARS = 40;
+const MODEL_NAME = 'gpt-4o-mini';
 
 const SYSTEM_PROMPT = `You are a writing partner who writes for real-world outcomes, not academic exercises.
 
@@ -59,6 +64,10 @@ type ResponseInputMessage = {
   role: 'system' | 'user' | 'assistant';
   content: string | ResponseInputPart[];
 };
+
+function shouldEnableWebSearchTool(message: string): boolean {
+  return /\b(search|look up|lookup|latest|news|current events|on the web|online)\b/i.test(message);
+}
 
 
 function parseHistory(value: unknown): ConversationMessage[] {
@@ -132,9 +141,23 @@ function calculatePayloadSize(attachments: FileAttachment[]): number {
 
 async function extractDocumentText(attachment: FileAttachment): Promise<string | null> {
   if (!attachment.rawBlob) return null;
+
   try {
     const buffer = Buffer.from(attachment.rawBlob, 'base64');
-    return buffer.toString('utf-8');
+    const sampledBuffer = buffer.subarray(0, MAX_DOCUMENT_EXTRACTION_BYTES);
+    const decoded = sampledBuffer.toString('utf-8');
+
+    // Keep only broadly printable characters to avoid injecting binary noise.
+    const cleaned = decoded
+      .replace(/[^\x09\x0A\x0D\x20-\x7E\u00A0-\uFFFF]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (cleaned.length < MIN_DOCUMENT_TEXT_CHARS) {
+      return null;
+    }
+
+    return cleaned.slice(0, MAX_DOCUMENT_TEXT_CHARS);
   } catch {
     console.error(`Failed to extract text from ${attachment.filename}`);
     return null;
@@ -216,14 +239,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Extract text from document attachments
+    // Extract text from document attachments. Never forward raw binary bytes into the prompt.
     for (const attachment of attachments) {
       if (SUPPORTED_DOCUMENT_TYPES.has(attachment.contentType) && attachment.rawBlob) {
         const extracted = await extractDocumentText(attachment);
         if (extracted) {
           attachment.textContent = extracted;
-          delete attachment.rawBlob;
+        } else {
+          attachment.textContent = `[Attached document: ${attachment.filename} (${attachment.contentType}). No extractable plaintext was found in this runtime.]`;
         }
+        delete attachment.rawBlob;
       }
     }
 
@@ -239,7 +264,7 @@ export async function POST(request: NextRequest) {
       { role: 'user', content: userContent },
     ];
 
-    const response = await generateWithRetry(apiKey, input, 0);
+    const response = await generateWithRetry(apiKey, input, 0, shouldEnableWebSearchTool(message));
 
     return NextResponse.json({ content: response });
   } catch (error) {
@@ -249,6 +274,7 @@ export async function POST(request: NextRequest) {
       const statusCodes: Record<string, number> = {
         INVALID_API_KEY: 401,
         RATE_LIMIT: 429,
+        API_TIMEOUT: 504,
         NETWORK: 502,
         API_ERROR: 500,
       };
@@ -285,35 +311,49 @@ async function generateWithRetry(
   apiKey: string,
   input: ResponseInputMessage[],
   retries: number,
+  enableWebSearch: boolean,
 ): Promise<string> {
   try {
-    return await makeOpenAIRequest(apiKey, input);
+    return await makeOpenAIRequest(apiKey, input, enableWebSearch);
   } catch (error) {
     if (error instanceof ChatGenerationError && error.retryable && retries < MAX_RETRIES) {
       const baseDelay = error.code === 'RATE_LIMIT' ? RATE_LIMIT_BASE_DELAY_MS : BASE_RETRY_DELAY_MS;
       const delay = baseDelay * Math.pow(2, retries);
       console.warn(`Retry ${retries + 1}/${MAX_RETRIES} after ${delay}ms (${error.code})`);
       await new Promise((resolve) => setTimeout(resolve, delay));
-      return generateWithRetry(apiKey, input, retries + 1);
+      return generateWithRetry(apiKey, input, retries + 1, enableWebSearch);
     }
 
     throw error;
   }
 }
 
-async function makeOpenAIRequest(apiKey: string, input: ResponseInputMessage[]): Promise<string> {
+async function makeOpenAIRequest(
+  apiKey: string,
+  input: ResponseInputMessage[],
+  enableWebSearch: boolean,
+): Promise<string> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), OPENAI_REQUEST_TIMEOUT_MS);
+
   try {
+    const requestBody: Record<string, unknown> = {
+      model: MODEL_NAME,
+      input,
+    };
+
+    if (enableWebSearch) {
+      requestBody.tools = [{ type: 'web_search_preview' }];
+    }
+
     const res = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
+      signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model: 'gpt-5.2-pro',
-        input,
-        tools: [{ type: 'web_search_preview' }],
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!res.ok) {
@@ -360,6 +400,14 @@ async function makeOpenAIRequest(apiKey: string, input: ResponseInputMessage[]):
 
     return textContent;
   } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new ChatGenerationError(
+        `Request timed out after ${OPENAI_REQUEST_TIMEOUT_MS}ms`,
+        'API_TIMEOUT',
+        false,
+      );
+    }
+
     if (error instanceof ChatGenerationError) {
       throw error;
     }
@@ -369,5 +417,7 @@ async function makeOpenAIRequest(apiKey: string, input: ResponseInputMessage[]):
       'NETWORK',
       true,
     );
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
