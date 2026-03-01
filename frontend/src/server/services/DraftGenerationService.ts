@@ -10,8 +10,11 @@
  */
 
 import { StoryDAO } from '@/server/data_access_objects/StoryDAO';
+import { ClaimDAO } from '@/server/data_access_objects/ClaimDAO';
 import type { StoryClaim, StructuredDraft } from '@/server/data_structures/StoryStructures';
 import { StructuredDraftSchema } from '@/server/data_structures/StoryStructures';
+import type { CaseClaim, CaseDraft } from '@/server/data_structures/Claim';
+import { CaseDraftSchema } from '@/server/data_structures/Claim';
 import {
   DraftDocumentStructure,
   type DraftSection,
@@ -19,8 +22,10 @@ import {
 import {
   DraftGenerationError,
   DraftDataAccessError,
+  DraftErrors326,
 } from '@/server/error_definitions/DraftErrors';
 import { SharedErrors } from '@/server/error_definitions/SharedErrors';
+import { logger } from '@/server/logging/logger';
 
 export const DraftGenerationService = {
   /**
@@ -152,5 +157,90 @@ export const DraftGenerationService = {
 
     // Step 5: Persist and return
     return await this.persistDraft(draft);
+  },
+
+  // =========================================================================
+  // Path 326: generate-draft-with-only-confirmed-claims
+  // =========================================================================
+
+  /**
+   * Step 4 (path 326): Retrieve and filter confirmed claims for a case.
+   *
+   * Fetches all claims for the given caseId via ClaimDAO,
+   * then filters to only those with status === 'confirmed'.
+   * Empty confirmed set is allowed (returns empty array).
+   *
+   * @throws DraftErrors326.DataAccessError on DAO failure
+   */
+  async getConfirmedClaimsForCase(caseId: string): Promise<CaseClaim[]> {
+    try {
+      const claims = await ClaimDAO.getClaimsByCaseId(caseId);
+      return claims.filter((c) => c.status === 'confirmed');
+    } catch (error) {
+      logger.error(
+        'Failed to retrieve claims for case',
+        error,
+        { path: '326', resource: 'db-h2s4', caseId },
+      );
+      throw DraftErrors326.DataAccessError(
+        `Failed to retrieve claims for case '${caseId}': ${error instanceof Error ? error.message : 'unknown'}`,
+      );
+    }
+  },
+
+  /**
+   * Step 5 (path 326): Compose a simple draft from confirmed claims.
+   *
+   * Joins claim texts with double newlines, collects IDs.
+   *
+   * @throws DraftErrors326.GenerationError if claims array is empty or contains invalid claims
+   */
+  composeCaseDraft(caseId: string, confirmedClaims: CaseClaim[]): CaseDraft {
+    if (confirmedClaims.length === 0) {
+      throw DraftErrors326.GenerationError(
+        'Cannot compose draft from empty claims array',
+      );
+    }
+
+    // Validate each claim has non-empty text
+    for (const claim of confirmedClaims) {
+      if (!claim.text || claim.text.trim().length === 0) {
+        throw DraftErrors326.GenerationError(
+          `Claim '${claim.id}' has missing or empty text`,
+        );
+      }
+    }
+
+    const draft: CaseDraft = {
+      caseId,
+      content: confirmedClaims.map((c) => c.text).join('\n\n'),
+      claimsUsed: confirmedClaims.map((c) => c.id),
+    };
+
+    // Validate against schema
+    const parsed = CaseDraftSchema.safeParse(draft);
+    if (!parsed.success) {
+      throw DraftErrors326.GenerationError(
+        `Draft validation failed: ${parsed.error.message}`,
+      );
+    }
+
+    return parsed.data;
+  },
+
+  /**
+   * Full orchestration (path 326): retrieve confirmed → compose draft.
+   *
+   * Called by the handler to generate a case-based draft.
+   *
+   * @throws DraftErrors326.DataAccessError on retrieval failure
+   * @throws DraftErrors326.GenerationError on composition failure
+   */
+  async generateCaseDraft(caseId: string): Promise<CaseDraft> {
+    // Step 4: Retrieve confirmed claims
+    const confirmedClaims = await this.getConfirmedClaimsForCase(caseId);
+
+    // Step 5: Compose draft
+    return this.composeCaseDraft(caseId, confirmedClaims);
   },
 } as const;

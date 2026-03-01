@@ -21,7 +21,9 @@ export type DraftErrorCode =
   | 'RESPONSE_TRANSFORM_FAILED'
   | 'CLAIM_SET_NOT_FOUND'
   | 'NO_CONFIRMED_CLAIMS'
-  | 'INVALID_PARAMETERS';
+  | 'INVALID_PARAMETERS'
+  | 'VALIDATION_ERROR'
+  | 'DATA_ACCESS_ERROR';
 
 export class DraftError extends Error {
   code: DraftErrorCode;
@@ -112,4 +114,22 @@ export const DraftGenerationError = {
 
   INVALID_PARAMETERS: (message = 'Invalid parameters for draft generation') =>
     new DraftError(message, 'INVALID_PARAMETERS', 400, false),
+} as const;
+
+// ---------------------------------------------------------------------------
+// Path 326: generate-draft-with-only-confirmed-claims
+// ---------------------------------------------------------------------------
+
+/**
+ * DraftErrors326 — errors specific to path 326 (case-based draft generation).
+ */
+export const DraftErrors326 = {
+  ValidationError: (message = 'Invalid request for case draft generation') =>
+    new DraftError(message, 'VALIDATION_ERROR', 400, false),
+
+  DataAccessError: (message = 'Failed to retrieve claims for case') =>
+    new DraftError(message, 'DATA_ACCESS_ERROR', 500, true),
+
+  GenerationError: (message = 'Failed to generate case draft') =>
+    new DraftError(message, 'GENERATION_FAILED', 500, true),
 } as const;

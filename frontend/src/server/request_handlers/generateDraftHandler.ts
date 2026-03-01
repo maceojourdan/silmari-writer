@@ -6,14 +6,19 @@
  * to HTTP-appropriate responses.
  *
  * Resource: api-n8k2 (request_handler)
- * Path: 325-generate-draft-from-confirmed-claims
+ * Paths:
+ *   - 325-generate-draft-from-confirmed-claims
+ *   - 326-generate-draft-with-only-confirmed-claims
  */
 
 import { DraftGenerationService } from '@/server/services/DraftGenerationService';
 import type { GenerateDraftResponse } from '@/server/data_structures/StoryStructures';
 import { GenerateDraftResponseSchema } from '@/server/data_structures/StoryStructures';
-import { DraftError, DraftApiError } from '@/server/error_definitions/DraftErrors';
+import type { CaseDraft } from '@/server/data_structures/Claim';
+import { GenerateCaseDraftResponseSchema } from '@/server/data_structures/Claim';
+import { DraftError, DraftApiError, DraftErrors326 } from '@/server/error_definitions/DraftErrors';
 import { SharedError } from '@/server/error_definitions/SharedErrors';
+import { logger } from '@/server/logging/logger';
 
 export const generateDraftHandler = {
   /**
@@ -49,6 +54,49 @@ export const generateDraftHandler = {
 
       // Wrap unexpected errors
       throw DraftApiError.RESPONSE_TRANSFORM_FAILED(
+        `Unexpected error: ${error instanceof Error ? error.message : 'unknown'}`,
+      );
+    }
+  },
+
+  // -------------------------------------------------------------------------
+  // Path 326: generate-draft-with-only-confirmed-claims
+  // -------------------------------------------------------------------------
+
+  /**
+   * Handle a case-based draft generation request.
+   *
+   * Calls DraftGenerationService.generateCaseDraft() and validates
+   * the response against GenerateCaseDraftResponseSchema.
+   *
+   * @throws DraftError on service failure (re-thrown)
+   * @throws DraftErrors326.GenerationError on unexpected errors
+   */
+  async handleCaseDraft(caseId: string): Promise<CaseDraft> {
+    try {
+      const draft = await DraftGenerationService.generateCaseDraft(caseId);
+
+      const parsed = GenerateCaseDraftResponseSchema.safeParse(draft);
+      if (!parsed.success) {
+        throw DraftErrors326.GenerationError(
+          `Response validation failed: ${parsed.error.message}`,
+        );
+      }
+
+      return parsed.data;
+    } catch (error) {
+      // Re-throw DraftErrors as-is
+      if (error instanceof DraftError) {
+        throw error;
+      }
+
+      // Log and wrap unexpected errors
+      logger.error(
+        'Case draft generation failed',
+        error,
+        { path: '326', resource: 'api-n8k2', caseId },
+      );
+      throw DraftErrors326.GenerationError(
         `Unexpected error: ${error instanceof Error ? error.message : 'unknown'}`,
       );
     }
