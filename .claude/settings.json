@@ -70,5 +70,42 @@
   },
   "env": {
     "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "128000"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/maceo/.claude/hooks/ensure_window_id.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/maceo/.claude/hooks/check_mail_on_close.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/maceo/.claude/hooks/check_critical_on_stop.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
   }
 }

@@ -145,6 +145,12 @@ Based on the investigation, present a focused debug report:
 ### Root Cause
 [Most likely explanation based on evidence]
 
+### Recommended Fix
+[Proposed code change]
+
+### Fix Verification (TLA+ — when applicable)
+[See Step 3.5 below for when and how to verify fixes]
+
 ### Next Steps
 
 1. **Try This First**:
@@ -169,6 +175,60 @@ Some issues might be outside my reach:
 
 Would you like me to investigate something specific further?
 ```
+
+### Step 3.5: Verify the Fix with TLA+ (When Applicable)
+
+After identifying root cause and proposing a fix, check whether the fix should be verified
+with a TLA+ behavioral model. **This is not always needed** — use it when the root cause
+matches one of these patterns:
+
+| Root Cause Pattern | Why TLA+ Helps | Example |
+|---|---|---|
+| **Broad catch/error swallowing** | ErrorConsistency checks that each step has independent error paths | `catch` spanning 120 lines reports all failures as "JSON parse error" |
+| **State machine bug** | Reachability verifies all terminal states are reachable | Retry loop exits early on one path, never reaches exhaustion state |
+| **Missing transition** | Model enumeration reveals unreachable states or dead code | Function handles success and timeout but not cancellation |
+| **Implicit ordering dependency** | TypeInvariant catches data flowing to a step before its dependency runs | Step 5 reads a value that Step 3 was supposed to write, but Step 3 was skipped on error |
+| **Two retry/recovery layers interacting** | Full state exploration finds paths where layers conflict | HTTP retry and schema retry both fire, causing 9x total retries instead of 3 |
+
+**Skip TLA+ verification for:**
+- Configuration errors (wrong env var, missing file)
+- Simple typos or off-by-one errors
+- Issues where the fix is a one-line change with obvious correctness
+- Problems outside the codebase (browser, OS, network)
+
+**When applicable, generate a path spec for the fixed code:**
+
+1. Extract the behavioral model of the **fixed** code (not the broken code):
+   - Identify states, transitions, and error paths in the proposed fix
+   - Write a path spec to `specs/orchestration/<bug-name>-fix-model.md`
+   - Include the invariant that was violated as an explicit property
+
+2. Run verification:
+   ```bash
+   silmari verify-path specs/orchestration/<bug-name>-fix-model.md
+   ```
+
+3. Interpret results and update the debug report:
+   - **All pass** → Fix verified. The invariant that was broken now holds.
+   - **ErrorConsistency fails** → The fix didn't fully separate error paths. Revise.
+   - **Reachability fails** → The fix introduced a dead state. Revise.
+
+4. Include in the debug report:
+   ```markdown
+   ### Fix Verification
+
+   **Model:** `specs/orchestration/<bug-name>-fix-model.md`
+   **TLC result:** ALL PROPERTIES PASSED (N states, M distinct)
+   **Key invariant verified:** [the specific property that was broken and is now fixed]
+   ```
+
+   Or if TLA+ wasn't applicable:
+   ```markdown
+   ### Fix Verification
+
+   TLA+ not applicable — [reason: config error / one-line fix / etc.]
+   Fix verified by: [alternative: code review / test run / manual check]
+   ```
 
 ### Step 4: Track in Beads
 

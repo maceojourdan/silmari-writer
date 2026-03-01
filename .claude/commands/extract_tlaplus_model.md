@@ -1,12 +1,12 @@
 # Extract TLA+ Model from Existing Code
 
-You are tasked with analyzing existing code in a brownfield codebase, extracting a formal behavioral model of the affected functions, and producing a TLA+ path spec that captures the current behavior. This model then constrains subsequent implementation work — ensuring new changes don't violate existing invariants.
+Analyze existing code, extract a formal behavioral model, and produce a TLA+ path spec that captures current behavior. The verified model then flows directly into TDD planning — the TLA+ properties become test oracles, and each path step becomes a testable behavior.
 
-This command bridges `/research_codebase` and `/create_tdd_plan` by formalizing the research output into a checkable artifact instead of prose.
+**Pipeline:** `/extract_tlaplus_model` → `silmari verify-path` → `CreateImplementationPlan` (BAML) → TDD execution
 
-Use Haiku subagents for file searches, grep, and file discovery tasks.
-Use up to 10 Sonnet subagents for analyzing code behavior, tracing state transitions, and identifying invariants.
-Keep the main context window for synthesis and model writing — delegate all deep reading to subagents.
+Use Haiku subagents for file searches, grep, and file discovery.
+Use up to 10 Sonnet subagents for analyzing code behavior and tracing state transitions.
+Keep the main context for synthesis and model writing.
 
 ## Initial Response
 
@@ -16,15 +16,14 @@ Keep the main context window for synthesis and model writing — delegate all de
 
 **If no parameters:**
 ```
-I'll help you extract a TLA+ behavioral model from existing code. This model captures what the code does today so we can verify that proposed changes don't break existing invariants.
+I'll extract a TLA+ behavioral model from existing code. The model captures what the code does today, gets formally verified, and then drives TDD planning — each verified property becomes a test oracle.
 
 Please provide:
-1. **What you want to change** — a brief description of the new functionality or modification
-2. **Entry points** — file paths, function names, or module names that are affected
-3. **Scope boundary** (optional) — how deep to trace (e.g., "just this module" or "follow calls into the database layer")
+1. **What you want to change** — brief description of the modification
+2. **Entry points** — file paths, function names, or module names affected
+3. **Scope boundary** (optional) — how deep to trace
 
 Example: `/extract_tlaplus_model "Add retry logic to http_post" src/api/client.rs`
-Example: `/extract_tlaplus_model src/pipeline.rs "I want to add a caching step between verify and refine"`
 ```
 
 Then wait for the user's input.
@@ -33,15 +32,14 @@ Then wait for the user's input.
 
 ### Step 1: Scope the Extraction
 
-1. **Read all mentioned files FULLY** using the Read tool (no limit/offset)
+1. **Read all mentioned files FULLY** using the Read tool
    - DO NOT spawn sub-tasks before reading these files yourself
-   - This gives you the primary context before decomposing
 
 2. **Identify the change boundary:**
-   - What functions will be modified or extended?
-   - What functions call those functions (callers)?
-   - What functions do those functions call (callees)?
-   - Where is the boundary — what do we model vs. treat as opaque?
+   - Functions to modify/extend
+   - Callers (what depends on these functions)
+   - Callees (what these functions depend on)
+   - Boundary — what to model vs. treat as opaque
 
 3. **Present the scope for confirmation:**
 ```
@@ -49,112 +47,84 @@ Then wait for the user's input.
 
 Change: [what the user wants to do]
 
-Functions to model (will be TLA+ states):
+Functions to model (will be TLA+ steps):
 - `function_a()` in file.rs:45 — [brief role]
 - `function_b()` in file.rs:112 — [brief role]
 
-Callers (modeled as triggers/observers):
+Callers (triggers/terminal condition observers):
 - `caller_x()` in other.rs:30 — expects [contract]
 
-Callees (modeled as opaque steps):
+Callees (opaque steps):
 - `db.query()` — returns [type], can fail with [errors]
 
 Boundary: [what's inside vs outside the model]
 
-Does this scope capture the right slice? Too broad? Too narrow?
+Does this scope capture the right slice?
 ```
 
 ### Step 2: Extract State Machine
 
-Spawn parallel subagents to analyze each function in the scope:
+Spawn parallel subagents to analyze each function in the scope.
 
 **For each function, extract:**
 
-1. **States** — What distinct phases does this function pass through?
-   - Entry state (what must be true when called)
-   - Processing states (intermediate conditions)
-   - Terminal states (success, error variants)
-   - Example: `idle → validating → processing → {success, validation_error, timeout}`
-
-2. **Transitions** — What causes state changes?
-   - What input/condition moves from state A to state B?
-   - Are transitions deterministic or conditional?
-   - What data flows between states?
-
-3. **Invariants** — What must ALWAYS be true?
-   - Type contracts (what goes in, what comes out)
-   - Ordering constraints (A must happen before B)
-   - Resource contracts (if acquired, must be released)
-   - Error propagation rules (errors propagate vs. are swallowed)
-   - Idempotency properties (safe to retry?)
-
-4. **Caller expectations** — What do callers depend on?
-   - Return type contract
-   - Error types they handle
-   - Side effects they expect (or expect NOT to happen)
-   - Ordering assumptions (call A before B)
-
-**Subagent prompts should be specific:**
-- "Read `src/api/client.rs` lines 45-120. Identify all states that `http_post` can be in (from entry to return). List each conditional branch, each error return, and each successful return. Format as: state_name → condition → next_state."
-- "Read `src/api/client.rs` and all files that call `http_post`. For each caller, document: what return values they handle, what errors they catch, and what assumptions they make about http_post's behavior."
+1. **States** — Entry, processing, terminal (success + error variants)
+2. **Transitions** — What input/condition causes each state change
+3. **Invariants** — What must ALWAYS be true:
+   - Type contracts (in/out types at each boundary)
+   - Ordering constraints (A before B)
+   - Resource contracts (acquired → must release)
+   - Error propagation (propagated vs. swallowed)
+4. **Caller expectations** — Return types, error handling, side effects
 
 ### Step 3: Synthesize the Behavioral Model
 
-Combine subagent findings into a unified state machine:
-
-1. **Merge overlapping states** — if two subagents describe the same function differently, reconcile
-2. **Resolve conflicts** — if caller A expects error propagation but caller B expects silent retry, flag this as a model conflict (this IS the kind of bug TLA+ helps find)
-3. **Identify implicit invariants** — patterns that aren't explicitly documented but are relied upon
-
-Present the behavioral model in plain language first:
+Combine subagent findings. Reconcile conflicts. Present in plain language:
 
 ```
 **Behavioral Model: [scope name]**
 
 States:
-1. idle — function not yet called
-2. validating_input — checking arguments against [contract]
-3. executing — main operation in progress
-4. [etc.]
+1. idle → 2. validating → 3. executing → {success, error}
 
 Transitions:
-- idle → validating_input: function called with (arg1, arg2)
-- validating_input → executing: all validation passes
-- validating_input → error: validation fails → returns ValidationError
-- executing → success: operation completes → returns Result<T>
-- executing → error: operation fails → returns OperationError
-- [etc.]
+- idle → validating: called with (args)
+- validating → executing: validation passes
+- validating → error: validation fails → ValidationError
+- executing → success: → Result<T>
+- executing → error: → OperationError
 
 Invariants:
-1. [INV-1] Every call terminates (no infinite loops or hangs)
-2. [INV-2] Errors are always propagated to caller (never swallowed)
-3. [INV-3] If resource X is acquired, it is released on all paths
-4. [etc.]
-
-Caller contracts:
-- caller_x expects: [what it relies on]
-- caller_y expects: [what it relies on]
+1. [INV-1] Every call terminates — file.rs:45
+2. [INV-2] Errors propagate to caller — file.rs:67
+3. [INV-3] Resource X released on all paths — file.rs:89
 
 **Proposed change impact:**
-The change "[description]" would affect transitions [X → Y] and may interact with invariant [INV-N].
+Change "[description]" affects transitions [X → Y], may interact with [INV-N].
 
 Does this model accurately capture the current behavior?
 ```
 
 ### Step 4: Generate the TLA+ Path Spec
 
-Convert the behavioral model into a path spec that `silmari verify-path` can consume. Use the standard path format from `specs/orchestration/`.
+**Mapping rules — these are precise, not guidelines:**
 
-**Mapping rules:**
-- Each **state** becomes a step in the path
-- Each **transition** becomes the Input/Process/Output of a step
-- Each **invariant** maps to a TLA+ property:
-  - Ordering invariants → Reachability properties
-  - Type contracts → TypeInvariant
-  - Error propagation → ErrorConsistency
-  - Termination → Liveness (with weak fairness)
-- **Caller contracts** become terminal condition constraints
-- **Error paths** become the Error field of each step
+| Code construct | Path spec element | TLA+ property |
+|---|---|---|
+| Each function state | Step (Input/Process/Output/Error) | — |
+| Type contract at boundary | TypeInvariant assertion | TypeInvariant |
+| Ordering constraint | Step sequence | Reachability |
+| Error propagation rule | Error field on step | ErrorConsistency |
+| Resource acquire/release | Two steps with invariant | TypeInvariant |
+| Caller expectation | Terminal condition | Reachability |
+
+**These same TLA+ properties become test oracles downstream:**
+
+| TLA+ Property    | What It Proves (model level)              | Test Oracle (code level)                         |
+|------------------|-------------------------------------------|--------------------------------------------------|
+| Reachability     | Every step reachable from trigger          | Code path exercisable from trigger to terminal   |
+| TypeInvariant    | Types consistent at every step boundary    | Input/output types match at every function call   |
+| ErrorConsistency | Error branches produce valid error states  | Error conditions produce correct error returns    |
 
 **Write the path spec** to `specs/orchestration/<scope-name>-model.md`:
 
@@ -168,171 +138,150 @@ Convert the behavioral model into a path spec that `silmari verify-path` can con
 
 ## Purpose
 
-Behavioral model of [functions] extracted from the existing codebase.
-This model captures current behavior as a verifiable baseline. Proposed
-changes must preserve the invariants documented here unless explicitly
-relaxing them.
+Behavioral model of [functions] extracted from existing codebase.
+Current behavior captured as a verifiable baseline. Proposed changes
+must preserve invariants unless explicitly relaxed.
 
 ## Trigger
 
-[What activates this code path — the caller's action or system event]
+[What activates this code path]
 
 ## Resource References
 
 | UUID | Name | Role in this path |
 |------|------|-------------------|
-| `cfg-a1b2` | config_store | Example: stores configuration state |
-| `api-x3y4` | endpoint | Example: HTTP endpoint being modeled |
+| `cfg-a1b2` | config_store | [role] |
 
-**UUID format (REQUIRED — parser rejects anything else):**
+**UUID format (parser rejects anything else):**
 - Backtick-wrapped: `` `xx-xxxx` `` or `` `xxx-xxxx` ``
-- Prefix: 2-3 lowercase letters (category: `cfg`, `api`, `db`, `fn`, `ui`, `fs`, `mq`)
+- Prefix: 2-3 lowercase letters (`cfg`, `api`, `db`, `fn`, `ui`, `fs`, `mq`)
 - Hyphen separator
-- Suffix: exactly 4 alphanumeric characters (e.g. `a1b2`, `x3Y4`)
-- Examples: `cfg-a1b2`, `api-q7v1`, `db-a3f7`, `ui-w8p2`
-
-Invent UUIDs for each component in scope. Each function, data type, config,
-or external service gets one entry. The Name column is a single word (no spaces).
+- Suffix: exactly 4 alphanumeric characters
+- Examples: `cfg-a1b2`, `api-q7v1`, `db-a3f7`
 
 ## Steps
 
-1. **[State name from behavioral model]**
+1. **[State name]**
    - Input: [what enters this state]
    - Process: [transformation — WHAT not HOW]
    - Output: [what this state produces]
-   - Error: [failure modes] -> [error handling behavior]
-
-[Continue for all states...]
+   - Error: [failure modes] -> [error handling]
 
 ## Terminal Condition
 
-[What callers observe on success. Derived from caller contract analysis.]
+[What callers observe on success]
 
 ## Feedback Loops
 
-[Any existing retry/loop behavior in the code, or "None — strictly linear."]
+[Existing retry/loop behavior, or "None — strictly linear."]
 
 ## Extracted Invariants
 
-[This section is unique to extracted models — not present in greenfield paths.]
-
-| ID | Invariant | Source | TLA+ Property |
-|----|-----------|--------|---------------|
-| INV-1 | [description] | [file:line] | Reachability / TypeInvariant / ErrorConsistency |
-| INV-2 | [description] | [file:line] | [property type] |
+| ID | Invariant | Source | TLA+ Property | Test Oracle |
+|----|-----------|--------|---------------|-------------|
+| INV-1 | [description] | [file:line] | Reachability | [test assertion] |
+| INV-2 | [description] | [file:line] | TypeInvariant | [test assertion] |
+| INV-3 | [description] | [file:line] | ErrorConsistency | [test assertion] |
 
 ## Change Impact Analysis
 
-**Proposed change:** [user's description]
-
-**Affected states:** [which steps change]
+**Proposed change:** [description]
+**Affected steps:** [which steps change]
 **Affected invariants:** [which INV-* might be impacted]
-**Risk:** [what could break if the change is naive]
-**Recommendation:** [how to extend the model to accommodate the change]
+**Risk:** [what could break]
+**Recommendation:** [how to extend the model safely]
 ```
 
 ### Step 5: Verify the Extracted Model
-
-Run the extracted model through TLA+ verification:
 
 ```bash
 silmari verify-path specs/orchestration/<scope-name>-model.md
 ```
 
 **Interpret results:**
-- **All properties pass** → The model is internally consistent. Proceed to planning.
-- **Reachability fails** → A state in the model is unreachable. This might mean dead code in the existing codebase, or a modeling error. Investigate before proceeding.
-- **TypeInvariant fails** → The model has an inconsistency in data flow. Flag to user.
-- **ErrorConsistency fails** → Error paths don't terminate properly. This might be a real bug in the existing code.
+- **All pass** → Model is internally consistent. Properties become test oracles.
+- **Reachability fails** → Unreachable state. Dead code or modeling error.
+- **TypeInvariant fails** → Data flow inconsistency. Possible real bug.
+- **ErrorConsistency fails** → Error paths don't terminate. Possible real bug.
 
-Present verification results:
-```
-**TLA+ Verification Results:**
+Present results and confirm with user before proceeding.
 
-States explored: [N]
-Distinct states: [N]
+### Step 6: Handoff to TDD Planning
 
-Properties:
-- Reachability: [PASS/FAIL] [details if fail]
-- TypeInvariant: [PASS/FAIL]
-- ErrorConsistency: [PASS/FAIL]
+The verified model flows directly into `CreateImplementationPlan` (BAML function in the CW7 pipeline). The connection is:
 
-[If any FAIL: explanation and whether it's a modeling error or a real code issue]
-
-The model is [verified / needs revision]. Ready to proceed to planning?
-```
-
-### Step 6: Handoff to Planning
-
-Once the model is verified, present the user's options:
+1. Each **path step** becomes a testable behavior in the TDD plan
+2. Each **TLA+ property** becomes a test assertion (see oracle table above)
+3. Each **invariant** becomes a specific test case with the source file:line as context
+4. **Single piece flow**: step 1 test → step 1 impl → step 2 test → step 2 impl
 
 ```
-**Verified behavioral model ready.** The TLA+ model at:
-  specs/orchestration/<scope-name>-model.md
+**Verified model ready:** specs/orchestration/<scope-name>-model.md
+- [N] steps, [N] invariants, all TLA+ properties pass
 
-captures the current behavior of [functions] with [N] invariants verified.
+The model flows into TDD planning:
+- Path steps → testable behaviors (1:1)
+- TLA+ properties → test oracles (Reachability, TypeInvariant, ErrorConsistency)
+- Invariants → specific test assertions with source traceability
 
-Next steps — choose one:
-1. `/create_tdd_plan` with this model as input — tests will verify invariants are preserved
-2. `/create_plan` to create a full implementation plan constrained by this model
-3. Extend the model first — add the proposed change as new states, re-verify, then plan
-4. Manual review — study the model and invariants before deciding
+Next steps:
+1. Run through CW7 pipeline (plan_path → verify → CreateImplementationPlan)
+2. Or: `/create_tdd_plan` with this model as the behavioral spec
+3. Or: Extend the model first — add proposed changes, re-verify, then plan
 
-Recommended: Option 3 (extend model, verify, then plan) — this catches invariant violations
-before you write any code.
+Recommended: Option 3 if changing existing behavior. Option 1 for new paths.
 ```
 
 ### Step 7: Beads Integration
 
-1. **Check for existing beads issues**: `bd list --status=open`
-2. **Create a tracking issue**:
+1. `bd list --status=open` — check for existing issues
+2. Create tracking issue:
    ```bash
-   bd create --title="TLA+ model: <scope-name>" --description="Extracted behavioral model from [files]. Invariants: [count]. Proposed change: [description]" --type=task --priority=2
+   bd create --title="TLA+ model: <scope-name>" --description="Extracted from [files]. [N] invariants. Change: [description]" --type=task --priority=2
    ```
-3. **Link dependencies** if the model relates to other tracked work
+3. Link dependencies if related to other tracked work
 
 ## Guidelines
 
 ### What Makes a Good Extraction
 
-- **Right granularity** — Model the functions being changed and one level of callers/callees. Going deeper adds noise without insight.
-- **Explicit invariants** — Every invariant should cite the source file:line where the behavior is relied upon. "The code does X" is weaker than "caller at file.rs:45 depends on X."
-- **Honest uncertainty** — If a behavior is ambiguous (e.g., is this error swallowed intentionally or accidentally?), flag it as `[AMBIGUOUS]` rather than guessing.
-- **Minimal states** — Prefer fewer states with clear transitions over many fine-grained states. The model should be readable by a human in under 2 minutes.
+- **Right granularity** — Functions being changed + one level of callers/callees
+- **Explicit invariants** — Every invariant cites source file:line AND specifies the test oracle
+- **Honest uncertainty** — Flag ambiguous behavior as `[AMBIGUOUS]` rather than guessing
+- **Minimal states** — Readable by a human in under 2 minutes
 
 ### Common Patterns
 
-| Code Pattern | TLA+ Model |
+| Code Pattern | Path Spec Model |
 |---|---|
-| Sequential function calls | Linear step chain: A → B → C |
-| If/else branch | Single step with two output paths (success/error) |
-| Try/catch with retry | Feedback loop (bounded, shrinking subset) |
-| Resource acquire/release | Two states with invariant: acquired → must release on all paths |
-| Callback/event handler | Trigger step with async terminal condition |
-| State machine (explicit) | Direct mapping — each state becomes a step |
+| Sequential calls | Linear step chain: A → B → C |
+| If/else branch | Single step with success/error outputs |
+| Try/catch with retry | Feedback loop (bounded) |
+| Resource acquire/release | Two steps + INV: acquired → must release |
+| Callback/event | Trigger step with async terminal condition |
+| Explicit state machine | Direct mapping — each state becomes a step |
 
 ### When NOT to Extract
 
-- **Pure functions with no side effects** — Just test them directly, no model needed
-- **Trivial CRUD** — The model adds no insight over the code itself
-- **Code you're replacing entirely** — Model the interface contract, not the internals
-- **Third-party library internals** — Treat as opaque; model only what you call and what it returns
+- **Pure functions** — Test directly, no model needed
+- **Trivial CRUD** — Model adds no insight
+- **Code being replaced entirely** — Model the interface contract only
+- **Third-party internals** — Opaque; model what you call and what returns
 
 ### Relationship to Other Commands
 
-| Command | When to Use |
+| Command | When |
 |---|---|
-| `/research_codebase` | When you need to understand code but don't plan to change it |
-| `/extract_tlaplus_model` | When you plan to change code and want to verify you don't break it |
-| `/plan_path` | When building something new (greenfield) from a user story |
-| `/create_tdd_plan` | After extraction — use the model as the behavioral spec for TDD |
-| `/create_plan` | After extraction — use the model as constraint for implementation |
+| `/research_codebase` | Understand code without planning changes |
+| `/extract_tlaplus_model` | Plan to change code, verify you don't break it |
+| `/plan_path` | Greenfield — new path from user story |
+| `/create_tdd_plan` | After extraction — model becomes behavioral spec for TDD |
 
 ### Important Rules
 
-- Read all files COMPLETELY before spawning sub-tasks (step 1)
-- Wait for ALL sub-agents to complete before synthesizing (step 3)
-- The model is a contract, not documentation — imprecision here becomes bugs later
-- Always verify with `silmari verify-path` before handing off to planning
-- Flag ambiguities explicitly — a wrong invariant is worse than a missing one
-- The user confirms scope (step 1), model (step 3), and verification (step 5) before proceeding
+- Read all files COMPLETELY before spawning sub-tasks
+- Wait for ALL sub-agents before synthesizing
+- The model is a contract, not documentation — imprecision becomes bugs
+- Always verify with `silmari verify-path` before handoff
+- Flag ambiguities explicitly — wrong invariant > missing invariant
+- User confirms: scope (step 1), model (step 3), verification (step 5)

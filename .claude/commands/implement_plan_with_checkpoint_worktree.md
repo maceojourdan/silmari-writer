@@ -2,6 +2,12 @@
 
 You are tasked with implementing an approved technical plan from `thoughts/searchable/shared/plans/` in a dedicated worktree. These plans contain phases with specific changes and success criteria.
 
+Use Haiku subagents for file searches, grep, ripgrep and other file tasks.
+Use up to 10 Sonnet subagents for researching files, codepaths, and getting line numbers.
+Strive to keep the main context for the actual plan, we don't want to run out of context window before it is time to write the file or be at the last 10% at the time of writing.
+Use beads and agent mail with subagents to track progress and store paths, filenames:line numbers
+Have subagents write to file to save the main context window.
+
 ## Getting Started
 
 When given a plan path:
