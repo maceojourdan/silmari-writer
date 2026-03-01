@@ -214,20 +214,20 @@ This TDD plan mirrors those properties at code level.
 
 ### Integration Test (`e2e/generate-draft.spec.ts` – Playwright)
 
-- Seed DB with:
-  - Confirmed and unconfirmed claims
-- Log in as authenticated user
-- Click “Generate Draft”
-- Assert:
-  - HTTP 200
-  - UI displays structured draft
-  - Draft contains ONLY confirmed claims
-  - Sections match `DraftDocumentStructure`
+- [x] Seed DB with:
+  - [x] Confirmed and unconfirmed claims
+- [x] Log in as authenticated user
+- [x] Click “Generate Draft”
+- [x] Assert:
+  - [x] HTTP 200
+  - [x] UI displays structured draft
+  - [x] Draft contains ONLY confirmed claims
+  - [x] Sections match `DraftDocumentStructure`
 
 This proves:
-- Reachability: Full trigger → terminal path exercised
-- TypeInvariant: Types enforced at every boundary
-- ErrorConsistency: Each failure path returns defined error state
+- [x] Reachability: Full trigger → terminal path exercised
+- [x] TypeInvariant: Types enforced at every boundary
+- [x] ErrorConsistency: Each failure path returns defined error state
 
 ---
 
