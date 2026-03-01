@@ -1,0 +1,343 @@
+{
+  "session_id": "7f8cf5eb",
+  "started_at": "2026-03-01T05:50:00.586842",
+  "plan_path": "thoughts/searchable/shared/plans/session-1772314225364",
+  "plans": [
+    {
+      "file_name": "2026-02-28-293-approve-voice-session-and-persist-story-record.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-293-approve-voice-session-and-persist-story-record.md",
+      "status": "completed",
+      "started_at": "2026-03-01T05:50:00.587410",
+      "completed_at": "2026-03-01T06:11:12.782936"
+    },
+    {
+      "file_name": "2026-02-28-294-parse-and-store-session-input-objects.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-294-parse-and-store-session-input-objects.md",
+      "status": "completed",
+      "started_at": "2026-03-01T06:11:42.834557",
+      "completed_at": "2026-03-01T06:29:41.830899"
+    },
+    {
+      "file_name": "2026-02-28-295-orient-state-creates-single-story-record.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-295-orient-state-creates-single-story-record.md",
+      "status": "completed",
+      "started_at": "2026-03-01T06:29:59.133303",
+      "completed_at": "2026-03-01T06:44:06.298929"
+    },
+    {
+      "file_name": "2026-02-28-296-transition-to-verify-when-minimum-slots-filled.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-296-transition-to-verify-when-minimum-slots-filled.md",
+      "status": "completed",
+      "started_at": "2026-03-01T06:44:36.342608",
+      "completed_at": "2026-03-01T07:07:55.486921"
+    },
+    {
+      "file_name": "2026-02-28-297-confirm-metric-claim-truth-check.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-297-confirm-metric-claim-truth-check.md",
+      "status": "completed",
+      "started_at": "2026-03-01T07:08:25.538559",
+      "completed_at": "2026-03-01T07:25:19.426916"
+    },
+    {
+      "file_name": "2026-02-28-298-draft-state-filters-unconfirmed-hard-claims-and-records-claims-used.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-298-draft-state-filters-unconfirmed-hard-claims-and-records-claims-used.md",
+      "status": "completed",
+      "started_at": "2026-03-01T07:25:49.474544",
+      "completed_at": "2026-03-01T07:45:23.050899"
+    },
+    {
+      "file_name": "2026-02-28-299-approve-draft-and-transition-to-finalize.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-299-approve-draft-and-transition-to-finalize.md",
+      "status": "completed",
+      "started_at": "2026-03-01T07:45:53.098543",
+      "completed_at": "2026-03-01T08:08:48.454957"
+    },
+    {
+      "file_name": "2026-02-28-300-finalize-approved-draft-and-log-metrics.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-300-finalize-approved-draft-and-log-metrics.md",
+      "status": "completed",
+      "started_at": "2026-03-01T08:09:18.480708",
+      "completed_at": "2026-03-01T08:25:27.358930"
+    },
+    {
+      "file_name": "2026-02-28-301-store-session-metrics-on-pipeline-run.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-301-store-session-metrics-on-pipeline-run.md",
+      "status": "completed",
+      "started_at": "2026-03-01T08:25:57.406535",
+      "completed_at": "2026-03-01T08:41:29.050875"
+    },
+    {
+      "file_name": "2026-02-28-302-enforce-affirmative-consent-before-voice-session.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-302-enforce-affirmative-consent-before-voice-session.md",
+      "status": "completed",
+      "started_at": "2026-03-01T08:41:59.100820",
+      "completed_at": "2026-03-01T08:58:19.950868"
+    },
+    {
+      "file_name": "2026-02-28-303-display-recall-state-with-record-button-and-progress-indicator.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-303-display-recall-state-with-record-button-and-progress-indicator.md",
+      "status": "completed",
+      "started_at": "2026-03-01T08:58:49.998556",
+      "completed_at": "2026-03-01T09:11:46.478882"
+    },
+    {
+      "file_name": "2026-02-28-304-backend-say-event-triggers-voice-and-transcript.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-304-backend-say-event-triggers-voice-and-transcript.md",
+      "status": "completed",
+      "started_at": "2026-03-01T09:12:16.523775",
+      "completed_at": "2026-03-01T09:31:08.142918"
+    },
+    {
+      "file_name": "2026-02-28-305-followup-sms-for-uncertain-claim.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-305-followup-sms-for-uncertain-claim.md",
+      "status": "completed",
+      "started_at": "2026-03-01T09:31:38.173597",
+      "completed_at": "2026-03-01T09:50:04.418888"
+    },
+    {
+      "file_name": "2026-02-28-306-initiate-voice-assisted-answer-session.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-306-initiate-voice-assisted-answer-session.md",
+      "status": "completed",
+      "started_at": "2026-03-01T09:50:34.466574",
+      "completed_at": "2026-03-01T10:07:07.522869"
+    },
+    {
+      "file_name": "2026-02-28-307-process-voice-input-and-progress-session.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-307-process-voice-input-and-progress-session.md",
+      "status": "completed",
+      "started_at": "2026-03-01T10:07:37.570582",
+      "completed_at": "2026-03-01T10:28:57.262904"
+    },
+    {
+      "file_name": "2026-02-28-308-finalize-voice-session-and-persist-storyrecord.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-308-finalize-voice-session-and-persist-storyrecord.md",
+      "status": "completed",
+      "started_at": "2026-03-01T10:29:27.310586",
+      "completed_at": "2026-03-01T10:47:41.794931"
+    },
+    {
+      "file_name": "2026-02-28-309-reject-modifications-to-finalized-session.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-309-reject-modifications-to-finalized-session.md",
+      "status": "completed",
+      "started_at": "2026-03-01T10:48:11.840603",
+      "completed_at": "2026-03-01T11:04:58.074934"
+    },
+    {
+      "file_name": "2026-02-28-310-initialize-new-session-with-provided-objects.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-310-initialize-new-session-with-provided-objects.md",
+      "status": "completed",
+      "started_at": "2026-03-01T11:05:28.122585",
+      "completed_at": "2026-03-01T11:23:22.442935"
+    },
+    {
+      "file_name": "2026-02-28-311-reject-duplicate-session-initialization.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-311-reject-duplicate-session-initialization.md",
+      "status": "completed",
+      "started_at": "2026-03-01T11:23:52.490588",
+      "completed_at": "2026-03-01T11:42:56.878943"
+    },
+    {
+      "file_name": "2026-02-28-312-reject-session-initialization-when-required-objects-missing-or-invalid.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-312-reject-session-initialization-when-required-objects-missing-or-invalid.md",
+      "status": "completed",
+      "started_at": "2026-03-01T11:43:26.930919",
+      "completed_at": "2026-03-01T12:09:02.250910"
+    },
+    {
+      "file_name": "2026-02-28-313-confirm-aligned-story-selection.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-313-confirm-aligned-story-selection.md",
+      "status": "completed",
+      "started_at": "2026-03-01T12:09:32.298564",
+      "completed_at": "2026-03-01T12:29:13.198892"
+    },
+    {
+      "file_name": "2026-02-28-314-prevent-confirmation-of-misaligned-story-selection.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-314-prevent-confirmation-of-misaligned-story-selection.md",
+      "status": "completed",
+      "started_at": "2026-03-01T12:29:43.251279",
+      "completed_at": "2026-03-01T12:46:20.622869"
+    },
+    {
+      "file_name": "2026-02-28-315-switch-selected-story-before-confirmation.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-315-switch-selected-story-before-confirmation.md",
+      "status": "completed",
+      "started_at": "2026-03-01T12:46:50.670595",
+      "completed_at": "2026-03-01T12:54:42.726877"
+    },
+    {
+      "file_name": "2026-02-28-316-prevent-confirmation-without-single-story-selection.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-316-prevent-confirmation-without-single-story-selection.md",
+      "status": "completed",
+      "started_at": "2026-03-01T13:09:44.362673",
+      "completed_at": "2026-03-01T13:18:05.934910"
+    },
+    {
+      "file_name": "2026-02-28-317-prompt-for-missing-slots-after-partial-voice-answer.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-317-prompt-for-missing-slots-after-partial-voice-answer.md",
+      "status": "completed",
+      "started_at": "2026-03-01T13:18:35.978554",
+      "completed_at": "2026-03-01T13:32:57.378901"
+    },
+    {
+      "file_name": "2026-02-28-318-complete-voice-answer-advances-workflow.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-318-complete-voice-answer-advances-workflow.md",
+      "status": "completed",
+      "started_at": "2026-03-01T13:36:08.188944",
+      "validation_started_at": "2026-03-01T13:52:11.114944",
+      "validation_completed_at": "2026-03-01T13:56:22.082888",
+      "completed_at": "2026-03-01T13:56:22.083748"
+    },
+    {
+      "file_name": "2026-02-28-319-complete-required-slots-and-end-recall-loop.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-319-complete-required-slots-and-end-recall-loop.md",
+      "status": "completed",
+      "started_at": "2026-03-01T13:56:52.129772",
+      "validation_started_at": "2026-03-01T14:07:50.819016",
+      "validation_completed_at": "2026-03-01T14:12:22.290839",
+      "completed_at": "2026-03-01T14:12:22.291343"
+    },
+    {
+      "file_name": "2026-02-28-320-re-prompt-unfilled-required-slots.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-320-re-prompt-unfilled-required-slots.md",
+      "status": "completed",
+      "started_at": "2026-03-01T14:12:52.336950",
+      "validation_started_at": "2026-03-01T14:27:44.818898",
+      "validation_completed_at": "2026-03-01T14:34:06.254801",
+      "completed_at": "2026-03-01T14:34:06.255330"
+    },
+    {
+      "file_name": "2026-02-28-321-verify-key-claims-via-voice-or-sms.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-321-verify-key-claims-via-voice-or-sms.md",
+      "status": "completed",
+      "started_at": "2026-03-01T14:34:36.306592",
+      "validation_started_at": "2026-03-01T14:47:33.002888",
+      "validation_completed_at": "2026-03-01T14:52:32.818846",
+      "completed_at": "2026-03-01T14:52:32.819438"
+    },
+    {
+      "file_name": "2026-02-28-322-handle-disputed-claims-and-block-drafting.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-322-handle-disputed-claims-and-block-drafting.md",
+      "status": "completed",
+      "started_at": "2026-03-01T14:53:02.866767",
+      "validation_started_at": "2026-03-01T15:09:59.534917",
+      "validation_completed_at": "2026-03-01T15:17:46.150832",
+      "completed_at": "2026-03-01T15:17:46.151452"
+    },
+    {
+      "file_name": "2026-02-28-323-fail-verification-when-no-contact-method.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-323-fail-verification-when-no-contact-method.md",
+      "status": "completed",
+      "started_at": "2026-03-01T15:18:16.206680",
+      "validation_started_at": "2026-03-01T15:31:16.950946",
+      "validation_completed_at": "2026-03-01T15:37:21.602798",
+      "completed_at": "2026-03-01T15:37:21.603405"
+    },
+    {
+      "file_name": "2026-02-28-324-verification-timeout-keeps-claims-unverified-and-drafting-on-hold.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-324-verification-timeout-keeps-claims-unverified-and-drafting-on-hold.md",
+      "status": "completed",
+      "started_at": "2026-03-01T15:37:51.650558",
+      "validation_started_at": "2026-03-01T15:52:17.074862",
+      "validation_completed_at": "2026-03-01T15:57:42.970820",
+      "completed_at": "2026-03-01T15:57:42.971435"
+    },
+    {
+      "file_name": "2026-02-28-325-generate-draft-from-confirmed-claims.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-325-generate-draft-from-confirmed-claims.md",
+      "status": "completed",
+      "started_at": "2026-03-01T15:58:13.022570",
+      "validation_started_at": "2026-03-01T16:19:29.286897",
+      "validation_completed_at": "2026-03-01T16:25:28.958838",
+      "post_correction_at": "2026-03-01T16:34:56.122760",
+      "completed_at": "2026-03-01T16:34:56.123416"
+    },
+    {
+      "file_name": "2026-02-28-326-generate-draft-with-only-confirmed-claims.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-326-generate-draft-with-only-confirmed-claims.md",
+      "status": "completed",
+      "started_at": "2026-03-01T16:35:26.169829",
+      "validation_started_at": "2026-03-01T16:52:22.262924",
+      "validation_completed_at": "2026-03-01T16:58:03.042795",
+      "completed_at": "2026-03-01T16:58:03.043454"
+    },
+    {
+      "file_name": "2026-02-28-327-prevent-draft-generation-without-confirmed-claims.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-327-prevent-draft-generation-without-confirmed-claims.md",
+      "status": "completed",
+      "started_at": "2026-03-01T16:58:33.090569",
+      "validation_started_at": "2026-03-01T17:21:05.027186",
+      "validation_completed_at": "2026-03-01T17:26:44.014793",
+      "completed_at": "2026-03-01T17:26:44.015341"
+    },
+    {
+      "file_name": "2026-02-28-328-exclude-incomplete-claim-during-draft-generation.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-328-exclude-incomplete-claim-during-draft-generation.md",
+      "status": "completed",
+      "started_at": "2026-03-01T17:27:14.056980",
+      "validation_started_at": "2026-03-01T17:43:54.542952",
+      "validation_completed_at": "2026-03-01T17:49:07.586793",
+      "completed_at": "2026-03-01T17:49:07.587450"
+    },
+    {
+      "file_name": "2026-02-28-329-approve-reviewed-content-and-advance-workflow.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-329-approve-reviewed-content-and-advance-workflow.md",
+      "status": "completed",
+      "started_at": "2026-03-01T17:49:37.634574",
+      "validation_started_at": "2026-03-01T18:01:41.438846",
+      "validation_completed_at": "2026-03-01T18:07:13.574814",
+      "completed_at": "2026-03-01T18:07:13.575442"
+    },
+    {
+      "file_name": "2026-02-28-330-edit-content-by-voice-from-review-screen.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-330-edit-content-by-voice-from-review-screen.md",
+      "status": "validating",
+      "started_at": "2026-03-01T18:07:43.622573",
+      "validation_started_at": "2026-03-01T18:22:09.446851"
+    },
+    {
+      "file_name": "2026-02-28-331-return-to-recall-from-review.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-331-return-to-recall-from-review.md",
+      "status": "not_started"
+    },
+    {
+      "file_name": "2026-02-28-332-voice-edit-no-input-error-on-review-screen.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-332-voice-edit-no-input-error-on-review-screen.md",
+      "status": "not_started"
+    },
+    {
+      "file_name": "2026-02-28-333-finalize-answer-locks-editing.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-333-finalize-answer-locks-editing.md",
+      "status": "not_started"
+    },
+    {
+      "file_name": "2026-02-28-334-export-or-copy-finalized-answer.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-334-export-or-copy-finalized-answer.md",
+      "status": "not_started"
+    },
+    {
+      "file_name": "2026-02-28-335-trigger-sms-follow-up-on-answer-finalization.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-335-trigger-sms-follow-up-on-answer-finalization.md",
+      "status": "not_started"
+    },
+    {
+      "file_name": "2026-02-28-336-finalize-answer-without-sms-follow-up.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-336-finalize-answer-without-sms-follow-up.md",
+      "status": "not_started"
+    },
+    {
+      "file_name": "2026-02-28-337-prevent-edit-of-locked-answer.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-337-prevent-edit-of-locked-answer.md",
+      "status": "not_started"
+    },
+    {
+      "file_name": "2026-02-28-338-record-leading-kpi-analytics-event-on-successful-user-action.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-338-record-leading-kpi-analytics-event-on-successful-user-action.md",
+      "status": "not_started"
+    },
+    {
+      "file_name": "2026-02-28-339-record-primary-kpi-analytics-event.md",
+      "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-339-record-primary-kpi-analytics-event.md",
+      "status": "not_started"
+    }
+  ]
+}
