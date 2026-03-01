@@ -6,14 +6,16 @@
  * structured draft sections, and persistence of the generated draft.
  *
  * Resource: db-h2s4 (service)
- * Path: 325-generate-draft-from-confirmed-claims
+ * Paths:
+ *   - 325-generate-draft-from-confirmed-claims
+ *   - 327-prevent-draft-generation-without-confirmed-claims
  */
 
 import { StoryDAO } from '@/server/data_access_objects/StoryDAO';
 import { ClaimDAO } from '@/server/data_access_objects/ClaimDAO';
 import type { StoryClaim, StructuredDraft } from '@/server/data_structures/StoryStructures';
 import { StructuredDraftSchema } from '@/server/data_structures/StoryStructures';
-import type { CaseClaim, CaseDraft } from '@/server/data_structures/Claim';
+import type { CaseClaim, CaseDraft, StoryRecordClaim } from '@/server/data_structures/Claim';
 import { CaseDraftSchema } from '@/server/data_structures/Claim';
 import {
   DraftDocumentStructure,
@@ -23,6 +25,7 @@ import {
   DraftGenerationError,
   DraftDataAccessError,
   DraftErrors326,
+  DraftErrors327,
 } from '@/server/error_definitions/DraftErrors';
 import { SharedErrors } from '@/server/error_definitions/SharedErrors';
 import { logger } from '@/server/logging/logger';
@@ -242,5 +245,46 @@ export const DraftGenerationService = {
 
     // Step 5: Compose draft
     return this.composeCaseDraft(caseId, confirmedClaims);
+  },
+
+  // =========================================================================
+  // Path 327: prevent-draft-generation-without-confirmed-claims
+  // =========================================================================
+
+  /**
+   * Step 3 (path 327): Check for confirmed claims for a story record.
+   *
+   * Fetches all claims for the given storyRecordId via ClaimDAO,
+   * then filters to only those with `confirmed === true`.
+   * If zero confirmed claims exist, throws NoConfirmedClaimsError.
+   *
+   * @throws DraftErrors327.DataAccessError on DAO failure
+   * @throws DraftErrors327.NoConfirmedClaimsError if no confirmed claims exist
+   */
+  async checkConfirmedClaimsForStoryRecord(storyRecordId: string): Promise<StoryRecordClaim[]> {
+    let claims: StoryRecordClaim[];
+
+    try {
+      claims = await ClaimDAO.getClaimsByStoryRecordId(storyRecordId);
+    } catch (error) {
+      logger.error(
+        'Failed to retrieve claims for story record',
+        error,
+        { path: '327', resource: 'db-h2s4', storyRecordId },
+      );
+      throw DraftErrors327.DataAccessError(
+        `Failed to retrieve claims for story record '${storyRecordId}': ${error instanceof Error ? error.message : 'unknown'}`,
+      );
+    }
+
+    const confirmedClaims = claims.filter((claim) => claim.confirmed === true);
+
+    if (confirmedClaims.length === 0) {
+      throw DraftErrors327.NoConfirmedClaimsError(
+        `No confirmed claims found for story record '${storyRecordId}'`,
+      );
+    }
+
+    return confirmedClaims;
   },
 } as const;

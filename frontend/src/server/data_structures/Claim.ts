@@ -138,3 +138,56 @@ export const GenerateCaseDraftResponseSchema = z.object({
 });
 
 export type GenerateCaseDraftResponse = z.infer<typeof GenerateCaseDraftResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// Path 327: prevent-draft-generation-without-confirmed-claims
+// ---------------------------------------------------------------------------
+
+/**
+ * StoryRecordClaim — A claim associated with a story record,
+ * with a boolean confirmed flag for path 327 evaluation.
+ *
+ * Resource: db-f8n5 (data_structure)
+ * Path: 327-prevent-draft-generation-without-confirmed-claims
+ */
+export const StoryRecordClaimSchema = z.object({
+  id: z.string().min(1),
+  storyRecordId: z.string().min(1),
+  confirmed: z.boolean(),
+  content: z.string().min(1),
+});
+
+export type StoryRecordClaim = z.infer<typeof StoryRecordClaimSchema>;
+
+/**
+ * GenerateStoryDraftRequestSchema — request to generate a draft
+ * from confirmed claims for a story record.
+ */
+export const GenerateStoryDraftRequestSchema = z.object({
+  storyRecordId: z.string().min(1),
+});
+
+export type GenerateStoryDraftRequest = z.infer<typeof GenerateStoryDraftRequestSchema>;
+
+/**
+ * GenerateStoryDraftResponseSchema — response containing
+ * generated draft content or empty on failure.
+ */
+export const GenerateStoryDraftResponseSchema = z.object({
+  storyRecordId: z.string().min(1),
+  content: z.string(),
+  claimsUsed: z.array(z.string().min(1)),
+});
+
+export type GenerateStoryDraftResponse = z.infer<typeof GenerateStoryDraftResponseSchema>;
+
+/**
+ * ErrorResponseSchema — shared error response shape
+ * used across error boundaries.
+ */
+export const ErrorResponseSchema = z.object({
+  code: z.string().min(1),
+  message: z.string().min(1),
+});
+
+export type ErrorResponse = z.infer<typeof ErrorResponseSchema>;

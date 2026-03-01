@@ -8,6 +8,7 @@
  * Paths:
  *   - 298-draft-state-filters-unconfirmed-hard-claims-and-records-claims-used
  *   - 325-generate-draft-from-confirmed-claims
+ *   - 327-prevent-draft-generation-without-confirmed-claims
  */
 
 export type DraftErrorCode =
@@ -132,4 +133,27 @@ export const DraftErrors326 = {
 
   GenerationError: (message = 'Failed to generate case draft') =>
     new DraftError(message, 'GENERATION_FAILED', 500, true),
+} as const;
+
+// ---------------------------------------------------------------------------
+// Path 327: prevent-draft-generation-without-confirmed-claims
+// ---------------------------------------------------------------------------
+
+/**
+ * DraftErrors327 — errors specific to path 327
+ * (preventing draft generation without confirmed claims).
+ *
+ * NoConfirmedClaimsError: thrown when zero confirmed claims exist for a story record.
+ * DataAccessError: thrown when claim retrieval from persistence fails.
+ * GenericDraftError: fallback for unexpected errors during the flow.
+ */
+export const DraftErrors327 = {
+  NoConfirmedClaimsError: (message = 'No confirmed claims are available.') =>
+    new DraftError(message, 'NO_CONFIRMED_CLAIMS', 400, false),
+
+  DataAccessError: (message = 'Failed to retrieve claims for story record') =>
+    new DraftError(message, 'DATA_ACCESS_ERROR', 500, true),
+
+  GenericDraftError: (message = 'An error occurred during draft generation') =>
+    new DraftError(message, 'GENERATION_FAILED', 500, false),
 } as const;

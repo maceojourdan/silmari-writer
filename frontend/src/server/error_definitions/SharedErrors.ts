@@ -7,6 +7,7 @@
  *   - 307-process-voice-input-and-progress-session
  *   - 308-finalize-voice-session-and-persist-storyrecord
  *   - 325-generate-draft-from-confirmed-claims
+ *   - 327-prevent-draft-generation-without-confirmed-claims
  */
 
 export type SharedErrorCode =

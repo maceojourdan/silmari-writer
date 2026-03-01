@@ -10,7 +10,7 @@
  * For TDD, methods are designed to be mockable.
  */
 
-import type { Claim, ClaimStatus, TruthCheckVerdict, CaseClaim } from '@/server/data_structures/Claim';
+import type { Claim, ClaimStatus, TruthCheckVerdict, CaseClaim, StoryRecordClaim } from '@/server/data_structures/Claim';
 import type { ClaimRecord } from '@/server/data_structures/ClaimRecord';
 
 export const ClaimDAO = {
@@ -125,5 +125,21 @@ export const ClaimDAO = {
     //   .select('id, caseId, text, status, metadata')
     //   .eq('caseId', caseId)
     throw new Error('ClaimDAO.getClaimsByCaseId not yet wired to Supabase');
+  },
+
+  // -------------------------------------------------------------------------
+  // Path 327: prevent-draft-generation-without-confirmed-claims
+  // -------------------------------------------------------------------------
+
+  /**
+   * Get all claims for a story record, returning them as StoryRecordClaim entities.
+   *
+   * @returns Array of StoryRecordClaim entities for the given story record.
+   */
+  async getClaimsByStoryRecordId(_storyRecordId: string): Promise<StoryRecordClaim[]> {
+    // Supabase: supabase.from('claims')
+    //   .select('id, storyRecordId, confirmed, content')
+    //   .eq('storyRecordId', storyRecordId)
+    throw new Error('ClaimDAO.getClaimsByStoryRecordId not yet wired to Supabase');
   },
 } as const;

@@ -2,16 +2,22 @@
  * POST /api/draft/generate
  *
  * Resource: api-m5g7 (endpoint)
- * Path: 326-generate-draft-with-only-confirmed-claims
+ * Paths:
+ *   - 326-generate-draft-with-only-confirmed-claims
+ *   - 327-prevent-draft-generation-without-confirmed-claims
  *
- * Accepts a caseId in the request body, validates with Zod,
- * then delegates to generateDraftHandler.handleCaseDraft.
+ * Accepts either:
+ *   - { caseId } → delegates to handleCaseDraft (path 326)
+ *   - { storyRecordId } → delegates to handleStoryDraft (path 327)
  *
- * Returns the case draft (caseId, content, claimsUsed) or a structured error.
+ * Returns the draft response or a structured error.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { GenerateCaseDraftRequestSchema } from '@/server/data_structures/Claim';
+import {
+  GenerateCaseDraftRequestSchema,
+  GenerateStoryDraftRequestSchema,
+} from '@/server/data_structures/Claim';
 import { generateDraftHandler } from '@/server/request_handlers/generateDraftHandler';
 import { DraftError } from '@/server/error_definitions/DraftErrors';
 
@@ -28,7 +34,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Validate body against GenerateCaseDraftRequestSchema
+    // 2. Determine request type and validate
+    const body = rawBody as Record<string, unknown>;
+
+    // Path 327: storyRecordId-based request
+    if (body && typeof body === 'object' && 'storyRecordId' in body) {
+      const validation = GenerateStoryDraftRequestSchema.safeParse(rawBody);
+
+      if (!validation.success) {
+        const details = validation.error.issues
+          .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+          .join('; ');
+        return NextResponse.json(
+          { code: 'VALIDATION_ERROR', message: `Invalid request payload: ${details}` },
+          { status: 400 },
+        );
+      }
+
+      const result = await generateDraftHandler.handleStoryDraft(validation.data.storyRecordId);
+      return NextResponse.json(result, { status: 200 });
+    }
+
+    // Path 326: caseId-based request (default)
     const validation = GenerateCaseDraftRequestSchema.safeParse(rawBody);
 
     if (!validation.success) {
@@ -57,7 +84,7 @@ export async function POST(request: NextRequest) {
     // Unexpected errors → generic 500
     console.error('[draft/generate] Unexpected error:', error);
     return NextResponse.json(
-      { code: 'INTERNAL_ERROR', message: 'An error occurred during case draft generation' },
+      { code: 'INTERNAL_ERROR', message: 'An error occurred during draft generation' },
       { status: 500 },
     );
   }
