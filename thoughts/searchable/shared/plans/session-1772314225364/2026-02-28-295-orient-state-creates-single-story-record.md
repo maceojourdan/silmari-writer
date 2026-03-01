@@ -7,7 +7,7 @@ Tech stack (Gate 2 – Option 1):
 - Next.js API Routes / Server Actions (Node.js runtime)
 - Zod for validation
 - Supabase (Postgres)
-- Vitest or Jest for testing
+- Vitest or Vitest for testing
 
 ---
 

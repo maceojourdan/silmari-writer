@@ -25,7 +25,7 @@ Result: ALL PROPERTIES PASSED
 States: 18 found, 9 distinct, depth 0
 ```
 
-This plan translates those verified properties into executable Jest + React Testing Library tests in a Next.js (TypeScript) codebase.
+This plan translates those verified properties into executable Vitest + React Testing Library tests in a Next.js (TypeScript) codebase.
 
 ---
 
@@ -42,7 +42,7 @@ This plan translates those verified properties into executable Jest + React Test
 Tech stack (Gate 2 – Option 1):
 - Next.js (App Router)
 - React + TypeScript
-- Jest + React Testing Library
+- Vitest + React Testing Library
 
 ---
 
@@ -110,7 +110,7 @@ Minimal logic only to satisfy tests.
     ```
 
 - ErrorConsistency:
-  - Simulate misconfiguration (e.g., exported rule undefined via jest mock)
+  - Simulate misconfiguration (e.g., exported rule undefined via Vitest mock)
   - Expect:
     - `{ valid: false }`
     - `logger.error` called
