@@ -290,54 +290,92 @@
     {
       "file_name": "2026-02-28-330-edit-content-by-voice-from-review-screen.md",
       "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-330-edit-content-by-voice-from-review-screen.md",
-      "status": "validating",
+      "status": "completed",
       "started_at": "2026-03-01T18:07:43.622573",
-      "validation_started_at": "2026-03-01T18:22:09.446851"
+      "validation_started_at": "2026-03-01T18:22:09.446851",
+      "validation_completed_at": "2026-03-01T18:29:07.122839",
+      "completed_at": "2026-03-01T18:29:07.123455"
     },
     {
       "file_name": "2026-02-28-331-return-to-recall-from-review.md",
       "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-331-return-to-recall-from-review.md",
-      "status": "not_started"
+      "status": "completed",
+      "started_at": "2026-03-01T18:29:37.168449",
+      "validation_started_at": "2026-03-01T18:39:50.574893",
+      "validation_completed_at": "2026-03-01T18:43:51.150849",
+      "completed_at": "2026-03-01T18:43:51.151504"
     },
     {
       "file_name": "2026-02-28-332-voice-edit-no-input-error-on-review-screen.md",
       "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-332-voice-edit-no-input-error-on-review-screen.md",
-      "status": "not_started"
+      "status": "completed",
+      "started_at": "2026-03-01T18:44:21.198547",
+      "validation_started_at": "2026-03-01T18:57:09.610896",
+      "validation_completed_at": "2026-03-01T19:02:10.138816",
+      "completed_at": "2026-03-01T19:02:10.139418"
     },
     {
       "file_name": "2026-02-28-333-finalize-answer-locks-editing.md",
       "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-333-finalize-answer-locks-editing.md",
-      "status": "not_started"
+      "status": "completed",
+      "started_at": "2026-03-01T19:02:40.182569",
+      "validation_started_at": "2026-03-01T19:16:42.910875",
+      "validation_completed_at": "2026-03-01T19:23:56.586845",
+      "completed_at": "2026-03-01T19:23:56.587487"
     },
     {
       "file_name": "2026-02-28-334-export-or-copy-finalized-answer.md",
       "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-334-export-or-copy-finalized-answer.md",
-      "status": "not_started"
+      "status": "completed",
+      "started_at": "2026-03-01T19:24:26.634549",
+      "validation_started_at": "2026-03-01T19:41:10.218947",
+      "validation_completed_at": "2026-03-01T19:47:48.954784",
+      "completed_at": "2026-03-01T19:47:48.955351"
     },
     {
       "file_name": "2026-02-28-335-trigger-sms-follow-up-on-answer-finalization.md",
       "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-335-trigger-sms-follow-up-on-answer-finalization.md",
-      "status": "not_started"
+      "status": "completed",
+      "started_at": "2026-03-01T19:50:44.283146",
+      "validation_started_at": "2026-03-01T20:04:44.222931",
+      "validation_completed_at": "2026-03-01T20:09:06.706803",
+      "completed_at": "2026-03-01T20:09:06.707558"
     },
     {
       "file_name": "2026-02-28-336-finalize-answer-without-sms-follow-up.md",
       "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-336-finalize-answer-without-sms-follow-up.md",
-      "status": "not_started"
+      "status": "completed",
+      "started_at": "2026-03-01T20:09:36.742582",
+      "validation_started_at": "2026-03-01T20:26:06.734869",
+      "validation_completed_at": "2026-03-01T20:32:28.334907",
+      "completed_at": "2026-03-01T20:32:28.335543"
     },
     {
       "file_name": "2026-02-28-337-prevent-edit-of-locked-answer.md",
       "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-337-prevent-edit-of-locked-answer.md",
-      "status": "not_started"
+      "status": "completed",
+      "started_at": "2026-03-01T20:32:58.389756",
+      "validation_started_at": "2026-03-01T20:46:52.402888",
+      "validation_completed_at": "2026-03-01T20:54:08.030814",
+      "completed_at": "2026-03-01T20:54:08.031411"
     },
     {
       "file_name": "2026-02-28-338-record-leading-kpi-analytics-event-on-successful-user-action.md",
       "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-338-record-leading-kpi-analytics-event-on-successful-user-action.md",
-      "status": "not_started"
+      "status": "completed",
+      "started_at": "2026-03-01T20:54:38.078559",
+      "validation_started_at": "2026-03-01T21:12:08.490875",
+      "validation_completed_at": "2026-03-01T21:16:58.250841",
+      "completed_at": "2026-03-01T21:16:58.251433"
     },
     {
       "file_name": "2026-02-28-339-record-primary-kpi-analytics-event.md",
       "path": "thoughts/searchable/shared/plans/session-1772314225364/2026-02-28-339-record-primary-kpi-analytics-event.md",
-      "status": "not_started"
+      "status": "completed",
+      "started_at": "2026-03-01T21:17:28.298557",
+      "validation_started_at": "2026-03-01T21:42:15.079078",
+      "validation_completed_at": "2026-03-01T21:51:29.130822",
+      "completed_at": "2026-03-01T21:51:29.131505"
     }
   ]
 }

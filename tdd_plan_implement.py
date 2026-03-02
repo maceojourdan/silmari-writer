@@ -517,6 +517,8 @@ Plan file to implement: {plan_file}
 
 You are tasked with implementing an approved technical plan from `thoughts/searchable/shared/plans/`. These plans contain phases with specific changes and success criteria. This enhanced version includes checkpoint management for better progress tracking and recovery.
 Use up to 5 Haiku subagentsfor file searches use up to 10 Sonnet subagents for analyzing code behavior, tracing state transitions, and identifying invariants.
+
+
 Use opus subagents for the actual implementation when you can parallelize the work and one opus agent if you need to do something sequentially.
 
 ## Getting Started
