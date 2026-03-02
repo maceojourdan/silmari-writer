@@ -101,7 +101,16 @@ describe('POST /api/sessions/[sessionId]/modify — Step 2: Route to handler', (
         success: true,
         record: {
           id: sessionId,
+          draftId: 'draft-001',
+          resumeId: 'resume-001',
+          jobId: 'job-001',
+          questionId: 'question-001',
+          voiceSessionId: 'voice-001',
+          userId: 'user-001',
           status: 'DRAFT',
+          content: 'Draft content',
+          createdAt: '2026-02-28T12:00:00.000Z',
+          updatedAt: '2026-02-28T12:01:00.000Z',
         },
       });
 

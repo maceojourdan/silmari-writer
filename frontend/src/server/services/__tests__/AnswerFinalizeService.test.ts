@@ -45,6 +45,7 @@ const completedEditableAnswer = {
   status: 'COMPLETED' as const,
   finalized: false,
   editable: true,
+  locked: false,
   content: 'My completed answer content',
   userId: 'user-abc12345',
   createdAt: '2026-02-28T12:00:00.000Z',
@@ -56,6 +57,7 @@ const finalizedAnswer = {
   status: 'FINALIZED' as const,
   finalized: true,
   editable: false,
+  locked: true,
   updatedAt: '2026-02-28T12:01:00.000Z',
 };
 
@@ -69,6 +71,7 @@ const alreadyFinalizedAnswer = {
   status: 'COMPLETED' as const,
   finalized: true,
   editable: false,
+  locked: true,
 };
 
 // ---------------------------------------------------------------------------

@@ -43,7 +43,6 @@ import { SessionModificationService } from '../services/SessionModificationServi
 import { StoryRecordStateVerifier } from '../verifiers/StoryRecordStateVerifier';
 import { validateModifySessionPayload } from '@/verifiers/SessionModificationVerifier';
 import { SessionError } from '../error_definitions/SessionErrors';
-import type { StoryRecord } from '../data_structures/StoryRecord';
 
 const mockDAO = vi.mocked(StoryRecordDAO);
 
@@ -53,7 +52,7 @@ const mockDAO = vi.mocked(StoryRecordDAO);
 
 const sessionId = '550e8400-e29b-41d4-a716-446655440000';
 
-const finalizedStoryRecord: StoryRecord = {
+const finalizedStoryRecord: any = {
   id: sessionId,
   draftId: 'draft-001',
   resumeId: 'resume-001',
@@ -67,7 +66,7 @@ const finalizedStoryRecord: StoryRecord = {
   updatedAt: '2026-02-28T12:01:00.000Z',
 };
 
-const draftStoryRecord: StoryRecord = {
+const draftStoryRecord: any = {
   ...finalizedStoryRecord,
   status: 'DRAFT',
 };

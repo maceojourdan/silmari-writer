@@ -11,65 +11,118 @@
 
 import type { ClaimRecord } from '@/server/data_structures/ClaimRecord';
 import type { Case } from '@/server/data_structures/Case';
+import { supabase } from '@/lib/supabase';
+import { VerificationErrors, VerificationError } from '@/server/error_definitions/VerificationErrors';
+
+function mapClaimRecord(data: Record<string, unknown>): ClaimRecord {
+  return {
+    id: data.id as string,
+    sessionId: (data.session_id ?? data.sessionId) as string,
+    category: data.category as ClaimRecord['category'],
+    status: data.status as ClaimRecord['status'],
+    contactPhone: (data.contact_phone ?? data.contactPhone) as string | undefined,
+    contactMethod: (data.contact_method ?? data.contactMethod) as ClaimRecord['contactMethod'],
+    content: data.content as string,
+    verifiedAt: (data.verified_at ?? data.verifiedAt) as string | null | undefined,
+    disputedAt: (data.disputed_at ?? data.disputedAt) as string | null | undefined,
+    createdAt: (data.created_at ?? data.createdAt) as string,
+    updatedAt: (data.updated_at ?? data.updatedAt) as string,
+  };
+}
+
+function mapCase(data: Record<string, unknown>): Case {
+  return {
+    id: data.id as string,
+    claimantId: (data.claimant_id ?? data.claimantId) as string,
+    sessionId: (data.session_id ?? data.sessionId) as string,
+    drafting_status: data.drafting_status as Case['drafting_status'],
+    createdAt: (data.created_at ?? data.createdAt) as string,
+    updatedAt: (data.updated_at ?? data.updatedAt) as string,
+  };
+}
 
 export const ClaimCaseDAO = {
-  /**
-   * Find a claim record by its ID.
-   */
   async getClaimById(claimId: string): Promise<ClaimRecord | null> {
-    // Supabase: supabase.from('claims')
-    //   .select('*')
-    //   .eq('id', claimId)
-    //   .single()
-    throw new Error('ClaimCaseDAO.getClaimById not yet wired to Supabase');
+    try {
+      const { data, error } = await supabase
+        .from('claims')
+        .select('*')
+        .eq('id', claimId)
+        .maybeSingle();
+
+      if (error) throw VerificationErrors.DATA_ACCESS_ERROR(`Failed to get claim: ${error.message}`);
+      if (!data) return null;
+      return mapClaimRecord(data);
+    } catch (err) {
+      if (err instanceof VerificationError) throw err;
+      throw VerificationErrors.DATA_ACCESS_ERROR(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
-  /**
-   * Update a claim's verification status to 'not_verified' with dispute metadata.
-   */
   async updateClaimVerificationStatus(
     claimId: string,
     status: 'not_verified',
     disputedAt: string,
   ): Promise<ClaimRecord> {
-    // Supabase: supabase.from('claims')
-    //   .update({
-    //     status,
-    //     disputedAt,
-    //     updatedAt: new Date().toISOString(),
-    //   })
-    //   .eq('id', claimId)
-    //   .select()
-    //   .single()
-    throw new Error('ClaimCaseDAO.updateClaimVerificationStatus not yet wired to Supabase');
+    try {
+      const { data, error } = await supabase
+        .from('claims')
+        .update({
+          status,
+          disputed_at: disputedAt,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', claimId)
+        .select()
+        .single();
+
+      if (error) throw VerificationErrors.DATA_ACCESS_ERROR(`Failed to update claim verification status: ${error.message}`);
+      if (!data) throw VerificationErrors.DATA_ACCESS_ERROR('No data returned from claim verification status update');
+      return mapClaimRecord(data);
+    } catch (err) {
+      if (err instanceof VerificationError) throw err;
+      throw VerificationErrors.DATA_ACCESS_ERROR(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
-  /**
-   * Find a case by its claimant ID.
-   */
   async getCaseByClaimantId(claimantId: string): Promise<Case | null> {
-    // Supabase: supabase.from('cases')
-    //   .select('*')
-    //   .eq('claimantId', claimantId)
-    //   .single()
-    throw new Error('ClaimCaseDAO.getCaseByClaimantId not yet wired to Supabase');
+    try {
+      const { data, error } = await supabase
+        .from('cases')
+        .select('*')
+        .eq('claimant_id', claimantId)
+        .maybeSingle();
+
+      if (error) throw VerificationErrors.DATA_ACCESS_ERROR(`Failed to get case: ${error.message}`);
+      if (!data) return null;
+      return mapCase(data);
+    } catch (err) {
+      if (err instanceof VerificationError) throw err;
+      throw VerificationErrors.DATA_ACCESS_ERROR(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
-  /**
-   * Update the drafting status of a case.
-   */
   async updateCaseDraftingStatus(
     caseId: string,
     drafting_status: string,
   ): Promise<Case> {
-    // Supabase: supabase.from('cases')
-    //   .update({
-    //     drafting_status,
-    //     updatedAt: new Date().toISOString(),
-    //   })
-    //   .eq('id', caseId)
-    //   .select()
-    //   .single()
-    throw new Error('ClaimCaseDAO.updateCaseDraftingStatus not yet wired to Supabase');
+    try {
+      const { data, error } = await supabase
+        .from('cases')
+        .update({
+          drafting_status,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', caseId)
+        .select()
+        .single();
+
+      if (error) throw VerificationErrors.DATA_ACCESS_ERROR(`Failed to update case drafting status: ${error.message}`);
+      if (!data) throw VerificationErrors.DATA_ACCESS_ERROR('No data returned from case drafting status update');
+      return mapCase(data);
+    } catch (err) {
+      if (err instanceof VerificationError) throw err;
+      throw VerificationErrors.DATA_ACCESS_ERROR(`Unexpected: ${(err as Error).message}`);
+    }
   },
 } as const;

@@ -124,6 +124,7 @@ describe('PrimaryKpiService.record — Step 3: Process and persist primary KPI a
       const requestWithoutMetadata: RecordPrimaryKpiRequest = {
         userId: 'user-002',
         actionType: 'signup',
+        metadata: {},
       };
 
       const recordWithoutMetadata: PrimaryKpiRecord = {
@@ -236,6 +237,7 @@ describe('PrimaryKpiService.record — Step 3: Process and persist primary KPI a
       const invalidRequest: RecordPrimaryKpiRequest = {
         userId: '',
         actionType: 'purchase',
+        metadata: {},
       };
 
       try {
@@ -252,6 +254,7 @@ describe('PrimaryKpiService.record — Step 3: Process and persist primary KPI a
       const invalidRequest: RecordPrimaryKpiRequest = {
         userId: '',
         actionType: 'purchase',
+        metadata: {},
       };
 
       try {
@@ -318,6 +321,7 @@ describe('PrimaryKpiService.record — Step 3: Process and persist primary KPI a
       const invalidRequest: RecordPrimaryKpiRequest = {
         userId: '',
         actionType: 'purchase',
+        metadata: {},
       };
 
       try {
@@ -347,6 +351,7 @@ describe('PrimaryKpiService.record — Step 3: Process and persist primary KPI a
       const invalidRequest: RecordPrimaryKpiRequest = {
         userId: '',
         actionType: 'purchase',
+        metadata: {},
       };
 
       try {

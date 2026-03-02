@@ -1,0 +1,2 @@
+export const MAX_ROUTE_ATTACHMENTS = 10;
+export const MAX_ROUTE_PAYLOAD_BYTES = 25 * 1024 * 1024;

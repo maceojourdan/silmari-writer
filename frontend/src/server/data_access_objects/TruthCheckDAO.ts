@@ -10,17 +10,35 @@
  */
 
 import type { TruthCheck, ConfirmCommand } from '@/server/data_structures/TruthCheck';
+import { supabase } from '@/lib/supabase';
+import { TruthCheckErrors, TruthCheckError } from '@/server/error_definitions/TruthCheckErrors';
 
 export const TruthCheckDAO = {
   async create(data: ConfirmCommand): Promise<TruthCheck> {
-    // Supabase: supabase.from('truth_checks')
-    //   .insert({
-    //     claim_id: data.claim_id,
-    //     status: data.status,
-    //     source: data.source,
-    //   })
-    //   .select()
-    //   .single()
-    throw new Error('TruthCheckDAO.create not yet wired to Supabase');
+    try {
+      const { data: row, error } = await supabase
+        .from('truth_checks')
+        .insert({
+          claim_id: data.claim_id,
+          status: data.status,
+          source: data.source,
+        })
+        .select()
+        .single();
+
+      if (error) throw TruthCheckErrors.PERSISTENCE_ERROR(`Failed to create truth check: ${error.message}`);
+      if (!row) throw TruthCheckErrors.PERSISTENCE_ERROR('No data returned');
+
+      return {
+        id: row.id,
+        claim_id: row.claim_id,
+        status: row.status,
+        source: row.source,
+        created_at: row.created_at,
+      };
+    } catch (err) {
+      if (err instanceof TruthCheckError) throw err;
+      throw TruthCheckErrors.PERSISTENCE_ERROR(`Unexpected: ${(err as Error).message}`);
+    }
   },
 } as const;

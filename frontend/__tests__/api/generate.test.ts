@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-import { MAX_ROUTE_ATTACHMENTS, MAX_ROUTE_PAYLOAD_BYTES, POST } from '@/app/api/generate/route'
+import { POST } from '@/app/api/generate/route'
+import { MAX_ROUTE_ATTACHMENTS, MAX_ROUTE_PAYLOAD_BYTES } from '@/app/api/generate/constants'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)

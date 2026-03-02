@@ -17,6 +17,8 @@ type MockConversationStore = {
   activeProjectId: string
   getActiveMessages: ReturnType<typeof vi.fn>
   replaceMessage: ReturnType<typeof vi.fn>
+  voiceSessionState: 'idle' | 'connecting' | 'connected' | 'error'
+  setVoiceSessionState: ReturnType<typeof vi.fn>
 }
 
 // Create a mock store that will be updated in beforeEach
@@ -103,6 +105,8 @@ describe('E2E Button Interactions', () => {
       activeProjectId: 'project-1',
       getActiveMessages: vi.fn(() => mockMessages),
       replaceMessage: vi.fn(),
+      voiceSessionState: 'idle',
+      setVoiceSessionState: vi.fn(),
     }
 
     // Update global mock store

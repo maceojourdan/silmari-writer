@@ -1,16 +1,27 @@
-/**
- * Supabase client stub.
- *
- * In production, this will be initialized with the Supabase project URL
- * and anon key. Currently a stub for TDD - all DAOs are mockable.
- */
+import { createClient } from '@supabase/supabase-js';
 
-// Placeholder: will be replaced with real Supabase client initialization
-// e.g., import { createClient } from '@supabase/supabase-js';
-// export const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-export const supabase = {
-  from(_table: string) {
-    throw new Error('Supabase client not yet initialized. Wire up environment variables.');
-  },
-} as any;
+// Preferred: publishable key (new API key scheme).
+// Backward compatibility: fallback to legacy anon key naming.
+const supabaseKey =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+const missingConfigError =
+  'Supabase client not initialized. Set NEXT_PUBLIC_SUPABASE_URL and a key: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (preferred), NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY, or NEXT_PUBLIC_SUPABASE_ANON_KEY.';
+
+export const supabase =
+  supabaseUrl && supabaseKey
+    ? createClient(supabaseUrl, supabaseKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      })
+    : ({
+        from(_table: string) {
+          throw new Error(missingConfigError);
+        },
+      } as any);

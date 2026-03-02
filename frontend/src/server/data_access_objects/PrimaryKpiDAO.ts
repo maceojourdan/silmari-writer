@@ -8,32 +8,92 @@
  */
 
 import type { PrimaryKpiRecord, PrimaryKpiInsert } from '@/server/data_structures/PrimaryKpiRecord';
+import { supabase } from '@/lib/supabase';
+import { KpiErrors, KpiError } from '@/server/error_definitions/KpiErrors';
 
 export const PrimaryKpiDAO = {
-  /**
-   * Insert a new primary KPI record.
-   * Returns the persisted record with generated id and createdAt.
-   */
   async insert(data: PrimaryKpiInsert): Promise<PrimaryKpiRecord> {
-    // Supabase: supabase.from('primary_kpi_events').insert(data).select().single()
-    throw new Error('PrimaryKpiDAO.insert not yet wired to Supabase');
+    try {
+      const { data: row, error } = await supabase
+        .from('primary_kpi_events')
+        .insert({
+          user_id: data.userId,
+          action_type: data.actionType,
+          metadata: data.metadata,
+          status: data.status,
+          timestamp: data.timestamp,
+        })
+        .select()
+        .single();
+
+      if (error) throw KpiErrors.PersistenceError(`Failed to insert KPI record: ${error.message}`);
+      if (!row) throw KpiErrors.PersistenceError('No data returned');
+
+      return {
+        id: row.id,
+        userId: row.user_id,
+        actionType: row.action_type,
+        metadata: row.metadata,
+        status: row.status,
+        timestamp: row.timestamp,
+        createdAt: row.created_at,
+      } as PrimaryKpiRecord;
+    } catch (err) {
+      if (err instanceof KpiError) throw err;
+      throw KpiErrors.PersistenceError(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
-  /**
-   * Find a primary KPI record by its ID.
-   * Returns null if not found.
-   */
   async findById(id: string): Promise<PrimaryKpiRecord | null> {
-    // Supabase: supabase.from('primary_kpi_events').select('*').eq('id', id).single()
-    throw new Error('PrimaryKpiDAO.findById not yet wired to Supabase');
+    try {
+      const { data, error } = await supabase
+        .from('primary_kpi_events')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) throw KpiErrors.PersistenceError(`Failed to find KPI record: ${error.message}`);
+      if (!data) return null;
+
+      return {
+        id: data.id,
+        userId: data.user_id,
+        actionType: data.action_type,
+        metadata: data.metadata,
+        status: data.status,
+        timestamp: data.timestamp,
+        createdAt: data.created_at,
+      } as PrimaryKpiRecord;
+    } catch (err) {
+      if (err instanceof KpiError) throw err;
+      throw KpiErrors.PersistenceError(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
-  /**
-   * Update the status of a primary KPI record.
-   * Returns the updated record.
-   */
   async updateStatus(id: string, status: PrimaryKpiRecord['status']): Promise<PrimaryKpiRecord> {
-    // Supabase: supabase.from('primary_kpi_events').update({ status }).eq('id', id).select().single()
-    throw new Error('PrimaryKpiDAO.updateStatus not yet wired to Supabase');
+    try {
+      const { data, error } = await supabase
+        .from('primary_kpi_events')
+        .update({ status })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw KpiErrors.PersistenceError(`Failed to update KPI status: ${error.message}`);
+      if (!data) throw KpiErrors.PersistenceError('No data returned');
+
+      return {
+        id: data.id,
+        userId: data.user_id,
+        actionType: data.action_type,
+        metadata: data.metadata,
+        status: data.status,
+        timestamp: data.timestamp,
+        createdAt: data.created_at,
+      } as PrimaryKpiRecord;
+    } catch (err) {
+      if (err instanceof KpiError) throw err;
+      throw KpiErrors.PersistenceError(`Unexpected: ${(err as Error).message}`);
+    }
   },
 } as const;

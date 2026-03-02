@@ -11,39 +11,83 @@
  */
 
 import type { ContentEntity, ContentStatus, WorkflowStage } from '@/server/data_structures/ContentEntity';
+import { supabase } from '@/lib/supabase';
+import { ApprovalPersistenceError, ApprovalError } from '@/server/error_definitions/ApprovalErrors';
+import { EditByVoicePersistenceError, EditByVoiceError } from '@/server/error_definitions/EditByVoiceErrors';
+
+function mapContent(data: Record<string, unknown>): ContentEntity {
+  return {
+    id: data.id as string,
+    body: data.body as string | undefined,
+    status: data.status as ContentEntity['status'],
+    workflowStage: (data.workflow_stage ?? data.workflowStage) as ContentEntity['workflowStage'],
+    createdAt: (data.created_at ?? data.createdAt) as string,
+    updatedAt: (data.updated_at ?? data.updatedAt) as string,
+  };
+}
 
 export const ContentDAO = {
-  /**
-   * Find a content entity by its ID.
-   * Returns null if not found.
-   */
   async findById(id: string): Promise<ContentEntity | null> {
-    // Supabase: supabase.from('content').select('*').eq('id', id).single()
-    throw new Error('ContentDAO.findById not yet wired to Supabase');
+    try {
+      const { data, error } = await supabase
+        .from('content')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) throw ApprovalPersistenceError.PERSISTENCE_ERROR(`Failed to find content: ${error.message}`);
+      if (!data) return null;
+      return mapContent(data);
+    } catch (err) {
+      if (err instanceof ApprovalError) throw err;
+      throw ApprovalPersistenceError.PERSISTENCE_ERROR(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
-  /**
-   * Update content status and workflow stage, return the updated entity.
-   * Throws on database failure.
-   */
   async update(
     id: string,
     status: ContentStatus,
     workflowStage: WorkflowStage,
   ): Promise<ContentEntity> {
-    // Supabase: supabase.from('content').update({ status, workflowStage, updatedAt: new Date().toISOString() }).eq('id', id).select().single()
-    throw new Error('ContentDAO.update not yet wired to Supabase');
+    try {
+      const { data, error } = await supabase
+        .from('content')
+        .update({
+          status,
+          workflow_stage: workflowStage,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw ApprovalPersistenceError.PERSISTENCE_ERROR(`Failed to update content: ${error.message}`);
+      if (!data) throw ApprovalPersistenceError.PERSISTENCE_ERROR('No data returned from content update');
+      return mapContent(data);
+    } catch (err) {
+      if (err instanceof ApprovalError) throw err;
+      throw ApprovalPersistenceError.PERSISTENCE_ERROR(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
-  /**
-   * Update content entity with revised body text.
-   * Used by edit-by-voice to persist content modifications.
-   * Returns the updated entity. Throws on database failure.
-   *
-   * Path: 330-edit-content-by-voice-from-review-screen
-   */
   async updateContent(content: ContentEntity): Promise<ContentEntity> {
-    // Supabase: supabase.from('content').update({ body: content.body, updatedAt: new Date().toISOString() }).eq('id', content.id).select().single()
-    throw new Error('ContentDAO.updateContent not yet wired to Supabase');
+    try {
+      const { data, error } = await supabase
+        .from('content')
+        .update({
+          body: content.body,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', content.id)
+        .select()
+        .single();
+
+      if (error) throw EditByVoicePersistenceError.PERSISTENCE_FAILURE(`Failed to update content body: ${error.message}`);
+      if (!data) throw EditByVoicePersistenceError.PERSISTENCE_FAILURE('No data returned from content body update');
+      return mapContent(data);
+    } catch (err) {
+      if (err instanceof EditByVoiceError) throw err;
+      throw EditByVoicePersistenceError.PERSISTENCE_FAILURE(`Unexpected: ${(err as Error).message}`);
+    }
   },
 } as const;

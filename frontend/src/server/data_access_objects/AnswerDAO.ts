@@ -10,36 +10,84 @@
  */
 
 import type { Answer } from '@/server/data_structures/Answer';
+import { supabase } from '@/lib/supabase';
+import { AnswerErrors, AnswerError } from '@/server/error_definitions/AnswerErrors';
+
+function mapAnswer(data: Record<string, unknown>): Answer {
+  return {
+    id: data.id as string,
+    status: data.status as Answer['status'],
+    finalized: data.finalized as boolean,
+    editable: data.editable as boolean,
+    locked: (data.locked ?? false) as boolean,
+    content: data.content as string,
+    userId: (data.user_id ?? data.userId) as string,
+    createdAt: (data.created_at ?? data.createdAt) as string,
+    updatedAt: (data.updated_at ?? data.updatedAt) as string,
+  };
+}
 
 export const AnswerDAO = {
-  /**
-   * Find an answer by its ID.
-   * Returns null if not found.
-   */
   async findById(id: string): Promise<Answer | null> {
-    // Supabase: supabase.from('answers').select('*').eq('id', id).single()
-    throw new Error('AnswerDAO.findById not yet wired to Supabase');
+    try {
+      const { data, error } = await supabase
+        .from('answers')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) throw AnswerErrors.PersistenceError(`Failed to find answer: ${error.message}`);
+      if (!data) return null;
+      return mapAnswer(data);
+    } catch (err) {
+      if (err instanceof AnswerError) throw err;
+      throw AnswerErrors.PersistenceError(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
-  /**
-   * Update an answer with partial fields.
-   * Returns the updated answer entity.
-   * Throws on database failure.
-   */
   async update(id: string, fields: Partial<Pick<Answer, 'finalized' | 'editable' | 'status' | 'updatedAt'>>): Promise<Answer> {
-    // Supabase: supabase.from('answers').update({ ...fields, updatedAt: new Date().toISOString() }).eq('id', id).select().single()
-    throw new Error('AnswerDAO.update not yet wired to Supabase');
+    try {
+      const updatePayload: Record<string, unknown> = {
+        updated_at: new Date().toISOString(),
+      };
+      if (fields.finalized !== undefined) updatePayload.finalized = fields.finalized;
+      if (fields.editable !== undefined) updatePayload.editable = fields.editable;
+      if (fields.status !== undefined) updatePayload.status = fields.status;
+
+      const { data, error } = await supabase
+        .from('answers')
+        .update(updatePayload)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw AnswerErrors.PersistenceError(`Failed to update answer: ${error.message}`);
+      if (!data) throw AnswerErrors.PersistenceError('No data returned from answer update');
+      return mapAnswer(data);
+    } catch (err) {
+      if (err instanceof AnswerError) throw err;
+      throw AnswerErrors.PersistenceError(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
-  /**
-   * Update the content of an answer.
-   * Returns the updated answer entity.
-   * Throws on database failure.
-   *
-   * Path: 337-prevent-edit-of-locked-answer
-   */
   async updateContent(id: string, content: string): Promise<Answer> {
-    // Supabase: supabase.from('answers').update({ content, updatedAt: new Date().toISOString() }).eq('id', id).select().single()
-    throw new Error('AnswerDAO.updateContent not yet wired to Supabase');
+    try {
+      const { data, error } = await supabase
+        .from('answers')
+        .update({
+          content,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw AnswerErrors.PersistenceError(`Failed to update answer content: ${error.message}`);
+      if (!data) throw AnswerErrors.PersistenceError('No data returned from answer content update');
+      return mapAnswer(data);
+    } catch (err) {
+      if (err instanceof AnswerError) throw err;
+      throw AnswerErrors.PersistenceError(`Unexpected: ${(err as Error).message}`);
+    }
   },
 } as const;

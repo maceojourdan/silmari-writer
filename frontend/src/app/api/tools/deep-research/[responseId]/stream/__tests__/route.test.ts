@@ -6,8 +6,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
+import { GET } from '../route';
 import {
-  GET,
   KEEP_ALIVE_INTERVAL_MS,
   POLL_INTERVAL_MS,
   MAX_POLL_DURATION_MS,
@@ -17,7 +17,7 @@ import {
   estimateProgress,
   inferStepType,
   type SSEEventData,
-} from '../route';
+} from '../sse-helpers';
 
 // Mock fetch
 const mockFetch = vi.fn();

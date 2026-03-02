@@ -9,14 +9,31 @@
  */
 
 import type { User } from '@/server/data_structures/User';
+import { supabase } from '@/lib/supabase';
+import { SharedErrors, SharedError } from '@/server/error_definitions/SharedErrors';
 
 export const UserDAO = {
-  /**
-   * Find a user by their ID.
-   * Returns null if not found.
-   */
   async findById(id: string): Promise<User | null> {
-    // Supabase: supabase.from('users').select('*').eq('id', id).single()
-    throw new Error('UserDAO.findById not yet wired to Supabase');
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) throw SharedErrors.NetworkError(`Failed to find user: ${error.message}`);
+      if (!data) return null;
+
+      return {
+        id: data.id,
+        smsOptIn: data.sms_opt_in,
+        phoneNumber: data.phone_number,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      } as User;
+    } catch (err) {
+      if (err instanceof SharedError) throw err;
+      throw SharedErrors.NetworkError(`Unexpected: ${(err as Error).message}`);
+    }
   },
 } as const;

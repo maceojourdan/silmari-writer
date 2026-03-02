@@ -16,6 +16,38 @@
 import type { Session, SessionState } from '@/server/data_structures/Session';
 import type { AnswerSession, AnswerSessionState, AnswerStoryRecord } from '@/server/data_structures/AnswerSession';
 import type { SlotState } from '@/server/data_structures/VoiceInteractionContext';
+import { supabase } from '@/lib/supabase';
+import { SessionErrors, SessionError } from '@/server/error_definitions/SessionErrors';
+
+function mapSession(data: Record<string, unknown>): Session {
+  return {
+    id: data.id as string,
+    state: data.state as Session['state'],
+    createdAt: data.created_at as string,
+    updatedAt: data.updated_at as string,
+  };
+}
+
+function mapAnswerSession(data: Record<string, unknown>): AnswerSession {
+  return {
+    id: data.id as string,
+    userId: data.user_id as string,
+    state: data.state as AnswerSession['state'],
+    createdAt: data.created_at as string,
+    updatedAt: data.updated_at as string,
+  };
+}
+
+function mapStoryRecord(data: Record<string, unknown>): AnswerStoryRecord {
+  return {
+    id: data.id as string,
+    sessionId: data.session_id as string,
+    status: data.status as AnswerStoryRecord['status'],
+    content: data.content as string | undefined,
+    createdAt: data.created_at as string,
+    updatedAt: data.updated_at as string,
+  };
+}
 
 export const SessionDAO = {
   /**
@@ -23,8 +55,23 @@ export const SessionDAO = {
    * Returns null if not found.
    */
   async findById(id: string): Promise<Session | null> {
-    // Supabase: supabase.from('sessions').select('*').eq('id', id).single()
-    throw new Error('SessionDAO.findById not yet wired to Supabase');
+    try {
+      const { data, error } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) {
+        throw SessionErrors.PersistenceFailure(`Failed to find session: ${error.message}`);
+      }
+
+      if (!data) return null;
+      return mapSession(data);
+    } catch (err) {
+      if (err instanceof SessionError) throw err;
+      throw SessionErrors.PersistenceFailure(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
   /**
@@ -32,8 +79,25 @@ export const SessionDAO = {
    * Throws PersistenceError on database failure.
    */
   async updateState(id: string, newState: SessionState): Promise<Session> {
-    // Supabase: supabase.from('sessions').update({ state: newState, updatedAt: new Date().toISOString() }).eq('id', id).select().single()
-    throw new Error('SessionDAO.updateState not yet wired to Supabase');
+    try {
+      const { data, error } = await supabase
+        .from('sessions')
+        .update({ state: newState, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        throw SessionErrors.PersistenceFailure(`Failed to update session state: ${error.message}`);
+      }
+      if (!data) {
+        throw SessionErrors.PersistenceFailure('No data returned from session state update');
+      }
+      return mapSession(data);
+    } catch (err) {
+      if (err instanceof SessionError) throw err;
+      throw SessionErrors.PersistenceFailure(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
   // -------------------------------------------------------------------------
@@ -45,8 +109,24 @@ export const SessionDAO = {
    * Returns the persisted entity with generated ID and timestamps.
    */
   async createSession(userId: string): Promise<AnswerSession> {
-    // Supabase: supabase.from('answer_sessions').insert({ userId, state: 'INIT' }).select().single()
-    throw new Error('SessionDAO.createSession not yet wired to Supabase');
+    try {
+      const { data, error } = await supabase
+        .from('answer_sessions')
+        .insert({ user_id: userId, state: 'INIT' })
+        .select()
+        .single();
+
+      if (error) {
+        throw SessionErrors.SessionPersistenceError(`Failed to create answer session: ${error.message}`);
+      }
+      if (!data) {
+        throw SessionErrors.SessionPersistenceError('No data returned from answer session creation');
+      }
+      return mapAnswerSession(data);
+    } catch (err) {
+      if (err instanceof SessionError) throw err;
+      throw SessionErrors.SessionPersistenceError(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
   /**
@@ -54,16 +134,43 @@ export const SessionDAO = {
    * Returns the persisted entity with generated ID and timestamps.
    */
   async createStoryRecord(sessionId: string): Promise<AnswerStoryRecord> {
-    // Supabase: supabase.from('story_records').insert({ sessionId, status: 'INIT' }).select().single()
-    throw new Error('SessionDAO.createStoryRecord not yet wired to Supabase');
+    try {
+      const { data, error } = await supabase
+        .from('story_records')
+        .insert({ session_id: sessionId, status: 'INIT' })
+        .select()
+        .single();
+
+      if (error) {
+        throw SessionErrors.StoryPersistenceError(`Failed to create story record: ${error.message}`);
+      }
+      if (!data) {
+        throw SessionErrors.StoryPersistenceError('No data returned from story record creation');
+      }
+      return mapStoryRecord(data);
+    } catch (err) {
+      if (err instanceof SessionError) throw err;
+      throw SessionErrors.StoryPersistenceError(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
   /**
    * Delete an AnswerSession by ID (used for rollback on failure).
    */
   async deleteSession(sessionId: string): Promise<void> {
-    // Supabase: supabase.from('answer_sessions').delete().eq('id', sessionId)
-    throw new Error('SessionDAO.deleteSession not yet wired to Supabase');
+    try {
+      const { error } = await supabase
+        .from('answer_sessions')
+        .delete()
+        .eq('id', sessionId);
+
+      if (error) {
+        throw SessionErrors.PersistenceFailure(`Failed to delete answer session: ${error.message}`);
+      }
+    } catch (err) {
+      if (err instanceof SessionError) throw err;
+      throw SessionErrors.PersistenceFailure(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
   // -------------------------------------------------------------------------
@@ -75,8 +182,23 @@ export const SessionDAO = {
    * Returns null if not found.
    */
   async findAnswerSessionById(id: string): Promise<AnswerSession | null> {
-    // Supabase: supabase.from('answer_sessions').select('*').eq('id', id).single()
-    throw new Error('SessionDAO.findAnswerSessionById not yet wired to Supabase');
+    try {
+      const { data, error } = await supabase
+        .from('answer_sessions')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) {
+        throw SessionErrors.PersistenceFailure(`Failed to find answer session: ${error.message}`);
+      }
+
+      if (!data) return null;
+      return mapAnswerSession(data);
+    } catch (err) {
+      if (err instanceof SessionError) throw err;
+      throw SessionErrors.PersistenceFailure(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
   /**
@@ -84,12 +206,27 @@ export const SessionDAO = {
    * Returns null if not found.
    */
   async findStoryRecordBySessionId(sessionId: string): Promise<AnswerStoryRecord | null> {
-    // Supabase: supabase.from('story_records').select('*').eq('sessionId', sessionId).single()
-    throw new Error('SessionDAO.findStoryRecordBySessionId not yet wired to Supabase');
+    try {
+      const { data, error } = await supabase
+        .from('story_records')
+        .select('*')
+        .eq('session_id', sessionId)
+        .maybeSingle();
+
+      if (error) {
+        throw SessionErrors.PersistenceFailure(`Failed to find story record: ${error.message}`);
+      }
+
+      if (!data) return null;
+      return mapStoryRecord(data);
+    } catch (err) {
+      if (err instanceof SessionError) throw err;
+      throw SessionErrors.PersistenceFailure(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
   /**
-   * Transactionally update both the AnswerSession state and AnswerStoryRecord content.
+   * Sequentially update both the AnswerSession state and AnswerStoryRecord content.
    * Returns the updated entities.
    * Throws on database failure.
    */
@@ -99,10 +236,45 @@ export const SessionDAO = {
     storyRecordId: string,
     storyContent: string,
   ): Promise<{ session: AnswerSession; storyRecord: AnswerStoryRecord }> {
-    // Supabase: use rpc or sequential updates within a transaction
-    // 1. Update answer_sessions set state = newState, updatedAt = now() where id = sessionId
-    // 2. Update story_records set status = newState, content = storyContent, updatedAt = now() where id = storyRecordId
-    throw new Error('SessionDAO.updateSessionAndStoryRecord not yet wired to Supabase');
+    try {
+      // Step 1: Update the answer session
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('answer_sessions')
+        .update({ state: newState, updated_at: new Date().toISOString() })
+        .eq('id', sessionId)
+        .select()
+        .single();
+
+      if (sessionError) {
+        throw SessionErrors.PersistenceFailed(`Failed to update answer session: ${sessionError.message}`);
+      }
+      if (!sessionData) {
+        throw SessionErrors.PersistenceFailed('No data returned from answer session update');
+      }
+
+      // Step 2: Update the story record
+      const { data: storyData, error: storyError } = await supabase
+        .from('story_records')
+        .update({ status: newState, content: storyContent, updated_at: new Date().toISOString() })
+        .eq('id', storyRecordId)
+        .select()
+        .single();
+
+      if (storyError) {
+        throw SessionErrors.PersistenceFailed(`Failed to update story record (session already updated): ${storyError.message}`);
+      }
+      if (!storyData) {
+        throw SessionErrors.PersistenceFailed('No data returned from story record update');
+      }
+
+      return {
+        session: mapAnswerSession(sessionData),
+        storyRecord: mapStoryRecord(storyData),
+      };
+    } catch (err) {
+      if (err instanceof SessionError) throw err;
+      throw SessionErrors.PersistenceFailed(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
   // -------------------------------------------------------------------------
@@ -118,8 +290,23 @@ export const SessionDAO = {
     questionTypeId: string,
     slotState: SlotState,
   ): Promise<void> {
-    // Supabase: supabase.from('session_slots').upsert({ sessionId, questionTypeId, slots: slotState.slots, status: 'COMPLETE' })
-    throw new Error('SessionDAO.saveSlots not yet wired to Supabase');
+    try {
+      const { error } = await supabase
+        .from('session_slots')
+        .upsert({
+          session_id: sessionId,
+          question_type_id: questionTypeId,
+          slots: slotState.slots,
+          status: 'COMPLETE',
+        });
+
+      if (error) {
+        throw SessionErrors.PersistenceFailure(`Failed to save slots: ${error.message}`);
+      }
+    } catch (err) {
+      if (err instanceof SessionError) throw err;
+      throw SessionErrors.PersistenceFailure(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
   /**
@@ -129,7 +316,24 @@ export const SessionDAO = {
     sessionId: string,
     newState: AnswerSessionState,
   ): Promise<AnswerSession> {
-    // Supabase: supabase.from('answer_sessions').update({ state: newState, updatedAt: now() }).eq('id', sessionId).select().single()
-    throw new Error('SessionDAO.updateAnswerSessionState not yet wired to Supabase');
+    try {
+      const { data, error } = await supabase
+        .from('answer_sessions')
+        .update({ state: newState, updated_at: new Date().toISOString() })
+        .eq('id', sessionId)
+        .select()
+        .single();
+
+      if (error) {
+        throw SessionErrors.PersistenceFailure(`Failed to update answer session state: ${error.message}`);
+      }
+      if (!data) {
+        throw SessionErrors.PersistenceFailure('No data returned from answer session state update');
+      }
+      return mapAnswerSession(data);
+    } catch (err) {
+      if (err instanceof SessionError) throw err;
+      throw SessionErrors.PersistenceFailure(`Unexpected: ${(err as Error).message}`);
+    }
   },
 } as const;

@@ -11,6 +11,8 @@
 
 import type { Session, SessionState } from '@/server/data_structures/Session';
 import type { StoryRecord, StoryStatus } from '@/server/data_structures/StoryRecord';
+import { supabase } from '@/lib/supabase';
+import { FinalizeSessionErrors, FinalizeSessionError } from '@/server/error_definitions/FinalizeSessionErrors';
 
 export interface SessionForFinalization {
   id: string;
@@ -22,37 +24,79 @@ export interface SessionForFinalization {
 }
 
 export const SessionStoryRecordDAO = {
-  /**
-   * Find a session by its ID, including finalization metadata.
-   * Returns null if not found.
-   */
   async findSessionById(id: string): Promise<SessionForFinalization | null> {
-    // Supabase: supabase.from('sessions').select('*').eq('id', id).single()
-    throw new Error('SessionStoryRecordDAO.findSessionById not yet wired to Supabase');
+    try {
+      const { data, error } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) throw FinalizeSessionErrors.SessionPersistenceError(`Failed to find session: ${error.message}`);
+      if (!data) return null;
+
+      return {
+        id: data.id,
+        state: data.state,
+        requiredInputsComplete: data.required_inputs_complete,
+        responses: data.responses,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      };
+    } catch (err) {
+      if (err instanceof FinalizeSessionError) throw err;
+      throw FinalizeSessionErrors.SessionPersistenceError(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
-  /**
-   * Update session state to the given new state.
-   * Returns the updated session.
-   * Throws on database failure.
-   */
   async updateSessionState(id: string, newState: SessionState): Promise<Session> {
-    // Supabase: supabase.from('sessions').update({ state: newState, updatedAt: now() }).eq('id', id).select().single()
-    throw new Error('SessionStoryRecordDAO.updateSessionState not yet wired to Supabase');
+    try {
+      const { data, error } = await supabase
+        .from('sessions')
+        .update({ state: newState, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw FinalizeSessionErrors.SessionPersistenceError(`Failed to update session state: ${error.message}`);
+      if (!data) throw FinalizeSessionErrors.SessionPersistenceError('No data returned');
+
+      return {
+        id: data.id,
+        state: data.state,
+        requiredInputsComplete: data.required_inputs_complete,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      } as Session;
+    } catch (err) {
+      if (err instanceof FinalizeSessionError) throw err;
+      throw FinalizeSessionErrors.SessionPersistenceError(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
-  /**
-   * Create or update a StoryRecord for the given session.
-   * Sets status and stores responses.
-   * Returns the persisted StoryRecord.
-   * Throws on database failure.
-   */
   async upsertStoryRecord(
     sessionId: string,
     responses: string[],
     status: StoryStatus,
   ): Promise<StoryRecord> {
-    // Supabase: supabase.from('story_records').upsert({ sessionId, responses, status }).select().single()
-    throw new Error('SessionStoryRecordDAO.upsertStoryRecord not yet wired to Supabase');
+    try {
+      const { data, error } = await supabase
+        .from('story_records')
+        .upsert({
+          session_id: sessionId,
+          responses,
+          status,
+        })
+        .select()
+        .single();
+
+      if (error) throw FinalizeSessionErrors.StoryRecordPersistenceError(`Failed to upsert story record: ${error.message}`);
+      if (!data) throw FinalizeSessionErrors.StoryRecordPersistenceError('No data returned');
+
+      return data as StoryRecord;
+    } catch (err) {
+      if (err instanceof FinalizeSessionError) throw err;
+      throw FinalizeSessionErrors.StoryRecordPersistenceError(`Unexpected: ${(err as Error).message}`);
+    }
   },
 } as const;

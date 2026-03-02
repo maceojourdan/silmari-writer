@@ -6,11 +6,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
+import { POST } from '../route';
 import {
-  POST,
   classifyIntent,
   INTENT_CLASSIFIER_SYSTEM_PROMPT,
-} from '../route';
+} from '../classifier';
 
 import {
   type ToolIntent,

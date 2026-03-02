@@ -10,15 +10,47 @@
  */
 
 import type { DraftStoryRecord, DraftPayload } from '@/server/data_structures/DraftStoryRecord';
+import { supabase } from '@/lib/supabase';
+import { PersistenceError, PersistenceErrors } from '@/server/error_definitions/PersistenceErrors';
 
 export const StoryRecordDAO = {
-  async findById(_id: string): Promise<DraftStoryRecord | null> {
-    // Supabase: supabase.from('story_records').select('*').eq('id', id).single()
-    throw new Error('StoryRecordDAO.findById not yet wired to Supabase');
+  async findById(id: string): Promise<DraftStoryRecord | null> {
+    try {
+      const { data, error } = await supabase
+        .from('story_records')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) throw PersistenceErrors.UpdateFailed(`Failed to find story record: ${error.message}`);
+      if (!data) return null;
+
+      return data as DraftStoryRecord;
+    } catch (err) {
+      if (err instanceof PersistenceError) throw err;
+      throw PersistenceErrors.UpdateFailed(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
-  async updateDraft(_id: string, _payload: DraftPayload): Promise<DraftStoryRecord> {
-    // Supabase: supabase.from('story_records').update({ draft_text, claims_used }).eq('id', id)
-    throw new Error('StoryRecordDAO.updateDraft not yet wired to Supabase');
+  async updateDraft(id: string, payload: DraftPayload): Promise<DraftStoryRecord> {
+    try {
+      const { data, error } = await supabase
+        .from('story_records')
+        .update({
+          draft_text: payload.draft_text,
+          claims_used: payload.claims_used,
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw PersistenceErrors.UpdateFailed(`Failed to update draft: ${error.message}`);
+      if (!data) throw PersistenceErrors.UpdateFailed('No data returned from update');
+
+      return data as DraftStoryRecord;
+    } catch (err) {
+      if (err instanceof PersistenceError) throw err;
+      throw PersistenceErrors.UpdateFailed(`Unexpected: ${(err as Error).message}`);
+    }
   },
 } as const;

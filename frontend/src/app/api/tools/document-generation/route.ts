@@ -199,7 +199,7 @@ function getSchemaForType(documentType: DocumentType, format: DocumentFormat): o
 /**
  * REQ_003.2: Get available schema types
  */
-export function getAvailableSchemas(): { type: string; version: string }[] {
+function getAvailableSchemas(): { type: string; version: string }[] {
   return [
     { type: 'report', version: SCHEMA_VERSION },
     { type: 'spreadsheet', version: SCHEMA_VERSION },

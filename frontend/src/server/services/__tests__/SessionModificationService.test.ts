@@ -23,7 +23,6 @@ vi.mock('@/server/data_access_objects/StoryRecordDAO', () => ({
 import { SessionModificationService } from '../SessionModificationService';
 import { StoryRecordDAO } from '@/server/data_access_objects/StoryRecordDAO';
 import { SessionError } from '@/server/error_definitions/SessionErrors';
-import type { StoryRecord } from '@/server/data_structures/StoryRecord';
 
 const mockDAO = vi.mocked(StoryRecordDAO);
 
@@ -33,7 +32,7 @@ const mockDAO = vi.mocked(StoryRecordDAO);
 
 const sessionId = '550e8400-e29b-41d4-a716-446655440000';
 
-const finalizedRecord: StoryRecord = {
+const finalizedRecord: any = {
   id: sessionId,
   draftId: 'draft-001',
   resumeId: 'resume-001',

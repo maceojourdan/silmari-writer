@@ -5,9 +5,7 @@ import {
   SUPPORTED_DOCUMENT_TYPES,
   isSupportedMimeType,
 } from '@/lib/attachment-types';
-
-export const MAX_ROUTE_ATTACHMENTS = 10;
-export const MAX_ROUTE_PAYLOAD_BYTES = 25 * 1024 * 1024;
+import { MAX_ROUTE_ATTACHMENTS, MAX_ROUTE_PAYLOAD_BYTES } from './constants';
 
 const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY_MS = 2000;

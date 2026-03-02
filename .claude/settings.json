@@ -78,12 +78,36 @@
         "hooks": [
           {
             "type": "command",
+            "command": "cd '/home/maceo/Dev/mcp_agent_mail' && uv run python -m mcp_agent_mail.cli file_reservations active '/home/maceo/Dev/silmari-writer'"
+          },
+          {
+            "type": "command",
             "command": "/home/maceo/.claude/hooks/ensure_window_id.sh"
           }
         ]
       }
     ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd '/home/maceo/Dev/mcp_agent_mail' && uv run python -m mcp_agent_mail.cli file_reservations soon '/home/maceo/Dev/silmari-writer' --minutes 10"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
+      {
+        "matcher": "mcp__mcp-agent-mail__file_reservation_paths",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd '/home/maceo/Dev/mcp_agent_mail' && uv run python -m mcp_agent_mail.cli file_reservations list '/home/maceo/Dev/silmari-writer'"
+          }
+        ]
+      },
       {
         "matcher": "Bash",
         "hooks": [
