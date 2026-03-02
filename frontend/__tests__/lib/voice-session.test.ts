@@ -12,6 +12,7 @@ let mockOnTrack: ((event: { streams: MediaStream[] }) => void) | null = null;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const MockRTCPeerConnection = vi.fn().mockImplementation(function (this: any) {
+  const listeners: Record<string, ((...args: any[]) => void)[]> = {};
   this.addTrack = mockAddTrack;
   this.addTransceiver = mockAddTransceiver;
   // Create a mock data channel that auto-fires onopen when handler is set
@@ -33,10 +34,25 @@ const MockRTCPeerConnection = vi.fn().mockImplementation(function (this: any) {
     return dc;
   });
   this.createOffer = mockCreateOffer.mockResolvedValue({ sdp: 'mock-offer-sdp' });
-  this.setLocalDescription = mockSetLocalDescription.mockResolvedValue(undefined);
+  this.setLocalDescription = mockSetLocalDescription.mockImplementation(async () => {
+    // Simulate ICE gathering completing after setLocalDescription
+    this.iceGatheringState = 'complete';
+    const handlers = listeners['icegatheringstatechange'] || [];
+    handlers.forEach((h) => h());
+  });
   this.setRemoteDescription = mockSetRemoteDescription.mockResolvedValue(undefined);
   this.close = mockClose;
   this.localDescription = { sdp: 'mock-offer-sdp' };
+  this.iceGatheringState = 'new';
+  this.addEventListener = vi.fn((event: string, handler: (...args: any[]) => void) => {
+    if (!listeners[event]) listeners[event] = [];
+    listeners[event].push(handler);
+  });
+  this.removeEventListener = vi.fn((event: string, handler: (...args: any[]) => void) => {
+    if (listeners[event]) {
+      listeners[event] = listeners[event].filter((h) => h !== handler);
+    }
+  });
   Object.defineProperty(this, 'ontrack', {
     get() { return mockOnTrack; },
     set(handler: (event: { streams: MediaStream[] }) => void) { mockOnTrack = handler; },

@@ -108,16 +108,36 @@ export async function createVoiceSession(options: VoiceSessionOptions): Promise<
   // Data channel for API events
   const dc = pc.createDataChannel('oai-events');
 
-  // Create SDP offer
+  // Create SDP offer and wait for ICE gathering to complete
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
+
+  // Wait for ICE gathering to finish so localDescription.sdp is populated
+  if (pc.iceGatheringState !== 'complete') {
+    await new Promise<void>((resolve) => {
+      const checkState = () => {
+        if (pc.iceGatheringState === 'complete') {
+          pc.removeEventListener('icegatheringstatechange', checkState);
+          resolve();
+        }
+      };
+      pc.addEventListener('icegatheringstatechange', checkState);
+    });
+  }
+
+  const sdp = pc.localDescription?.sdp;
+  if (!sdp) {
+    pc.close();
+    stream?.getTracks().forEach((t) => t.stop());
+    throw new VoiceSessionError('Failed to generate SDP offer', 'SDP_GENERATION_FAILED', true);
+  }
 
   // Send SDP to our server, which proxies to OpenAI with the API key
   const response = await fetch('/api/voice/session', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      sdp: pc.localDescription!.sdp!,
+      sdp,
       mode,
       instructions,
       tools,
