@@ -11,6 +11,7 @@ vi.mock('@/api_contracts/getSession', () => ({
 const mockGetSession = vi.mocked(getSession);
 
 const sessionId = '550e8400-e29b-41d4-a716-446655440000';
+const routeParams = { sessionId } as unknown as Promise<{ sessionId: string }>;
 
 describe('/session/[sessionId] flow integration', () => {
   const mockFetch = vi.fn();
@@ -57,7 +58,7 @@ describe('/session/[sessionId] flow integration', () => {
         }),
       });
 
-    render(<SessionPage params={{ sessionId }} />);
+    render(<SessionPage params={routeParams} />);
 
     expect(await screen.findByTestId('session-page')).toBeInTheDocument();
 
@@ -94,7 +95,7 @@ describe('/session/[sessionId] flow integration', () => {
       }),
     });
 
-    render(<SessionPage params={{ sessionId }} />);
+    render(<SessionPage params={routeParams} />);
 
     expect(await screen.findByTestId('session-page')).toBeInTheDocument();
 
@@ -112,7 +113,7 @@ describe('/session/[sessionId] flow integration', () => {
   it('shows recoverable error UI when session hydration fails', async () => {
     mockGetSession.mockRejectedValue(new Error('Session not found'));
 
-    render(<SessionPage params={{ sessionId }} />);
+    render(<SessionPage params={routeParams} />);
 
     const errorView = await screen.findByTestId('session-page-error');
     expect(errorView).toBeInTheDocument();

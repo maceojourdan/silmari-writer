@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useEffect, useState } from 'react';
+import { use, useCallback, useEffect, useState } from 'react';
 import { getSession } from '@/api_contracts/getSession';
 import { SessionWorkflowShell } from '@/modules/session/SessionWorkflowShell';
 import type { SessionView } from '@/server/data_structures/SessionView';
@@ -10,19 +10,36 @@ interface SessionRouteParams {
 }
 
 export interface SessionPageProps {
-  params: SessionRouteParams | Promise<SessionRouteParams>;
+  params: Promise<SessionRouteParams>;
 }
 
 export default function SessionPage({ params }: SessionPageProps) {
+  const paramsInput = params as Promise<SessionRouteParams> | SessionRouteParams;
   const resolvedParams =
-    typeof (params as Promise<SessionRouteParams>)?.then === 'function'
-      ? use(params as Promise<SessionRouteParams>)
-      : (params as SessionRouteParams);
+    typeof (paramsInput as Promise<SessionRouteParams>)?.then === 'function'
+      ? use(paramsInput as Promise<SessionRouteParams>)
+      : (paramsInput as SessionRouteParams);
   const sessionId = resolvedParams?.sessionId;
 
   const [session, setSession] = useState<SessionView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const refreshSession = useCallback(async () => {
+    if (!sessionId || sessionId.trim() === '') {
+      return;
+    }
+
+    try {
+      const nextSession = await getSession(sessionId);
+      setSession(nextSession);
+      setError(null);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to refresh session.';
+      setError(message);
+    }
+  }, [sessionId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,7 +101,10 @@ export default function SessionPage({ params }: SessionPageProps) {
 
   return (
     <main data-testid="session-page" className="mx-auto w-full max-w-4xl p-6">
-      <SessionWorkflowShell session={session} />
+      <SessionWorkflowShell
+        session={session}
+        onVoiceResponseSaved={refreshSession}
+      />
     </main>
   );
 }

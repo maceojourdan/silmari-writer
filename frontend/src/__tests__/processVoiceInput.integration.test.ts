@@ -18,7 +18,12 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SessionWithStoryRecordSchema, SubmitVoiceResponseRequestSchema } from './integration-helpers';
-import type { AnswerSession, AnswerStoryRecord, SessionWithStoryRecord } from '@/server/data_structures/AnswerSession';
+import type {
+  AnswerSession,
+  AnswerSessionState,
+  AnswerStoryRecord,
+  SessionWithStoryRecord,
+} from '@/server/data_structures/AnswerSession';
 import { SessionError } from '@/server/error_definitions/SessionErrors';
 import { GenericError } from '@/server/error_definitions/GenericErrors';
 
@@ -50,14 +55,21 @@ const mockDAO = vi.mocked(SessionDAO);
 describe('Integration: process-voice-input-and-progress-session', () => {
   const sessionId = '550e8400-e29b-41d4-a716-446655440000';
   const transcript = 'I led a cross-functional team that reduced deployment time by 40 percent through implementing CI/CD pipelines.';
+  const secondTranscript = 'I then coached the team through an incident review and process hardening.';
 
-  const initSession: AnswerSession = {
+  const baseSession: Omit<AnswerSession, 'state'> = {
     id: sessionId,
     userId: 'user-123',
-    state: 'INIT',
     createdAt: '2026-02-28T00:00:00Z',
     updatedAt: '2026-02-28T00:00:00Z',
   };
+
+  function makeSession(state: AnswerSessionState): AnswerSession {
+    return {
+      ...baseSession,
+      state,
+    };
+  }
 
   const existingStoryRecord: AnswerStoryRecord = {
     id: '660e8400-e29b-41d4-a716-446655440001',
@@ -67,28 +79,33 @@ describe('Integration: process-voice-input-and-progress-session', () => {
     updatedAt: '2026-02-28T00:00:00Z',
   };
 
-  const updatedSession: AnswerSession = {
-    ...initSession,
-    state: 'IN_PROGRESS',
-    updatedAt: '2026-02-28T00:00:01Z',
-  };
-
-  const updatedStoryRecord: AnswerStoryRecord = {
-    id: existingStoryRecord.id,
-    sessionId,
-    status: 'IN_PROGRESS',
-    content: transcript,
-    createdAt: '2026-02-28T00:00:00Z',
-    updatedAt: '2026-02-28T00:00:01Z',
-  };
+  function makeResult(
+    state: AnswerSessionState,
+    content: string,
+    updatedAt = '2026-02-28T00:00:01Z',
+  ): SessionWithStoryRecord {
+    return {
+      session: {
+        ...makeSession(state),
+        updatedAt,
+      },
+      storyRecord: {
+        id: existingStoryRecord.id,
+        sessionId,
+        status: state,
+        content,
+        createdAt: '2026-02-28T00:00:00Z',
+        updatedAt,
+      },
+    };
+  }
 
   function setupSuccessfulDAO() {
-    mockDAO.findAnswerSessionById.mockResolvedValue(initSession);
+    mockDAO.findAnswerSessionById.mockResolvedValue(makeSession('INIT'));
     mockDAO.findStoryRecordBySessionId.mockResolvedValue(existingStoryRecord);
-    mockDAO.updateSessionAndStoryRecord.mockResolvedValue({
-      session: updatedSession,
-      storyRecord: updatedStoryRecord,
-    });
+    mockDAO.updateSessionAndStoryRecord.mockResolvedValue(
+      makeResult('IN_PROGRESS', transcript),
+    );
   }
 
   beforeEach(() => {
@@ -146,6 +163,40 @@ describe('Integration: process-voice-input-and-progress-session', () => {
       });
 
       expect(result.storyRecord.content).toBe(transcript);
+    });
+
+    it('supports sequential submissions across INIT -> IN_PROGRESS -> RECALL', async () => {
+      mockDAO.findAnswerSessionById
+        .mockResolvedValueOnce(makeSession('INIT'))
+        .mockResolvedValueOnce(makeSession('IN_PROGRESS'));
+      mockDAO.findStoryRecordBySessionId
+        .mockResolvedValue(existingStoryRecord);
+      mockDAO.updateSessionAndStoryRecord
+        .mockResolvedValueOnce(makeResult('IN_PROGRESS', transcript))
+        .mockResolvedValueOnce(makeResult('RECALL', secondTranscript, '2026-02-28T00:00:02Z'));
+
+      const first = await ProcessVoiceResponseHandler.handle({ sessionId, transcript });
+      const second = await ProcessVoiceResponseHandler.handle({
+        sessionId,
+        transcript: secondTranscript,
+      });
+
+      expect(first.session.state).toBe('IN_PROGRESS');
+      expect(second.session.state).toBe('RECALL');
+      expect(mockDAO.updateSessionAndStoryRecord).toHaveBeenNthCalledWith(
+        1,
+        sessionId,
+        'IN_PROGRESS',
+        existingStoryRecord.id,
+        transcript,
+      );
+      expect(mockDAO.updateSessionAndStoryRecord).toHaveBeenNthCalledWith(
+        2,
+        sessionId,
+        'RECALL',
+        existingStoryRecord.id,
+        secondTranscript,
+      );
     });
   });
 
@@ -230,10 +281,9 @@ describe('Integration: process-voice-input-and-progress-session', () => {
       }
     });
 
-    it('should throw INVALID_STATE when session is not in INIT state', async () => {
+    it('should throw INVALID_STATE when session is in unsupported terminal state', async () => {
       mockDAO.findAnswerSessionById.mockResolvedValue({
-        ...initSession,
-        state: 'IN_PROGRESS',
+        ...makeSession('COMPLETE'),
       });
 
       try {
@@ -246,7 +296,7 @@ describe('Integration: process-voice-input-and-progress-session', () => {
     });
 
     it('should throw INVALID_STATE when story record not found', async () => {
-      mockDAO.findAnswerSessionById.mockResolvedValue(initSession);
+      mockDAO.findAnswerSessionById.mockResolvedValue(makeSession('INIT'));
       mockDAO.findStoryRecordBySessionId.mockResolvedValue(null);
 
       try {
@@ -259,7 +309,7 @@ describe('Integration: process-voice-input-and-progress-session', () => {
     });
 
     it('should throw PERSISTENCE_FAILED when DAO update fails', async () => {
-      mockDAO.findAnswerSessionById.mockResolvedValue(initSession);
+      mockDAO.findAnswerSessionById.mockResolvedValue(makeSession('INIT'));
       mockDAO.findStoryRecordBySessionId.mockResolvedValue(existingStoryRecord);
       mockDAO.updateSessionAndStoryRecord.mockRejectedValue(
         new Error('Database connection lost'),

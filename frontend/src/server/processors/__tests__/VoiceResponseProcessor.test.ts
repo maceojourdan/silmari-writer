@@ -1,81 +1,57 @@
-/**
- * Tests for VoiceResponseProcessor
- *
- * Resource: db-b7r2 (processor)
- * Path: 307-process-voice-input-and-progress-session
- *
- * TLA+ properties tested:
- * - Reachability: INIT session + transcript → returns { nextState: IN_PROGRESS, updatedContent }
- * - TypeInvariant: result matches VoiceResponseProcessorResult type
- * - ErrorConsistency: non-INIT session → returns current state (no-op transition)
- */
-
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { VoiceResponseProcessor } from '../VoiceResponseProcessor';
 import type { VoiceResponseProcessorResult } from '../VoiceResponseProcessor';
 import type { AnswerSession } from '../../data_structures/AnswerSession';
 
+const transcript = 'I led a cross-functional team that reduced deployment time by 40 percent.';
+
+const baseSession: Omit<AnswerSession, 'state'> = {
+  id: '550e8400-e29b-41d4-a716-446655440000',
+  userId: 'user-123',
+  createdAt: '2026-02-28T00:00:00Z',
+  updatedAt: '2026-02-28T00:00:00Z',
+};
+
+function makeSession(state: AnswerSession['state']): AnswerSession {
+  return { ...baseSession, state };
+}
+
 describe('VoiceResponseProcessor', () => {
-  const initSession: AnswerSession = {
-    id: '550e8400-e29b-41d4-a716-446655440000',
-    userId: 'user-123',
-    state: 'INIT',
-    createdAt: '2026-02-28T00:00:00Z',
-    updatedAt: '2026-02-28T00:00:00Z',
-  };
+  it('transitions INIT -> IN_PROGRESS', () => {
+    const result = VoiceResponseProcessor.process(transcript, makeSession('INIT'));
 
-  const transcript = 'I led a cross-functional team that reduced deployment time by 40 percent.';
-
-  // -------------------------------------------------------------------------
-  // Reachability
-  // -------------------------------------------------------------------------
-
-  describe('Reachability', () => {
-    it('should return IN_PROGRESS state for INIT session', () => {
-      const result = VoiceResponseProcessor.process(transcript, initSession);
-
-      expect(result.nextState).toBe('IN_PROGRESS');
-    });
-
-    it('should set updatedContent to the transcript', () => {
-      const result = VoiceResponseProcessor.process(transcript, initSession);
-
-      expect(result.updatedContent).toBe(transcript);
-    });
+    expect(result.nextState).toBe('IN_PROGRESS');
+    expect(result.updatedContent).toBe(transcript);
   });
 
-  // -------------------------------------------------------------------------
-  // TypeInvariant
-  // -------------------------------------------------------------------------
+  it('transitions IN_PROGRESS -> RECALL', () => {
+    const result = VoiceResponseProcessor.process(transcript, makeSession('IN_PROGRESS'));
 
-  describe('TypeInvariant', () => {
-    it('should return object matching VoiceResponseProcessorResult type', () => {
-      const result: VoiceResponseProcessorResult = VoiceResponseProcessor.process(
-        transcript,
-        initSession,
-      );
-
-      expect(typeof result.nextState).toBe('string');
-      expect(typeof result.updatedContent).toBe('string');
-      expect(['INIT', 'IN_PROGRESS']).toContain(result.nextState);
-    });
+    expect(result.nextState).toBe('RECALL');
+    expect(result.updatedContent).toBe(transcript);
   });
 
-  // -------------------------------------------------------------------------
-  // ErrorConsistency
-  // -------------------------------------------------------------------------
+  it('transitions RECALL -> COMPLETE', () => {
+    const result = VoiceResponseProcessor.process(transcript, makeSession('RECALL'));
 
-  describe('ErrorConsistency', () => {
-    it('should return current state for non-INIT session (no-op)', () => {
-      const inProgressSession: AnswerSession = {
-        ...initSession,
-        state: 'IN_PROGRESS',
-      };
+    expect(result.nextState).toBe('COMPLETE');
+    expect(result.updatedContent).toBe(transcript);
+  });
 
-      const result = VoiceResponseProcessor.process(transcript, inProgressSession);
+  it('returns no-op state for unsupported transitions', () => {
+    const result = VoiceResponseProcessor.process(transcript, makeSession('VERIFY'));
 
-      expect(result.nextState).toBe('IN_PROGRESS');
-      expect(result.updatedContent).toBe(transcript);
-    });
+    expect(result.nextState).toBe('VERIFY');
+    expect(result.updatedContent).toBe(transcript);
+  });
+
+  it('returns object matching VoiceResponseProcessorResult type', () => {
+    const result: VoiceResponseProcessorResult = VoiceResponseProcessor.process(
+      transcript,
+      makeSession('INIT'),
+    );
+
+    expect(typeof result.nextState).toBe('string');
+    expect(typeof result.updatedContent).toBe('string');
   });
 });

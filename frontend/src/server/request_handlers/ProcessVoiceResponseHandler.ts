@@ -8,12 +8,12 @@
  * Flow:
  * 1. Validate payload (sessionId + transcript)
  * 2. Fetch session via SessionDAO
- * 3. Validate session state (must be INIT)
+ * 3. Validate session state (must be one of the accepted voice loop states)
  * 4. Forward to SessionProgressionService
  *
  * Error handling:
  * - Invalid payload → SessionErrors.INVALID_PAYLOAD
- * - Session not found or not INIT → SessionErrors.INVALID_STATE
+ * - Session not found or in unsupported state → SessionErrors.INVALID_STATE
  * - Known SessionError → rethrown as-is
  * - Unknown errors → logged and wrapped in GenericErrors.InternalError
  */
@@ -25,6 +25,8 @@ import { SessionProgressionService } from '@/server/services/SessionProgressionS
 import { SessionErrors, SessionError } from '@/server/error_definitions/SessionErrors';
 import { GenericErrors } from '@/server/error_definitions/GenericErrors';
 import { logger } from '@/server/logging/logger';
+
+const ACCEPTED_VOICE_RESPONSE_STATES = new Set(['INIT', 'IN_PROGRESS', 'RECALL']);
 
 export interface ProcessVoiceResponseInput {
   sessionId: string;
@@ -60,10 +62,10 @@ export const ProcessVoiceResponseHandler = {
         throw SessionErrors.InvalidState(`Session ${sessionId} not found`);
       }
 
-      // Step 3: Validate session state (must be INIT)
-      if (session.state !== 'INIT') {
+      // Step 3: Validate session state against accepted voice loop states
+      if (!ACCEPTED_VOICE_RESPONSE_STATES.has(session.state)) {
         throw SessionErrors.InvalidState(
-          `Session ${sessionId} is in ${session.state} state, expected INIT`,
+          `Session ${sessionId} is in ${session.state} state, expected one of INIT, IN_PROGRESS, RECALL`,
         );
       }
 

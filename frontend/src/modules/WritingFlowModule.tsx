@@ -19,6 +19,7 @@ import type { ErrorInfo, ReactNode } from 'react';
 import ReviewScreen from '@/components/review/ReviewScreen';
 import RecallScreen from '@/components/RecallScreen';
 import { frontendLogger } from '@/logging/index';
+import type { Story } from '@/server/data_structures/ConfirmStory';
 import type {
   WritingFlowStep,
   WritingFlowState,
@@ -32,6 +33,9 @@ import { isValidFlowState, createInitialFlowState } from './writingFlow';
 
 export interface WritingFlowModuleProps {
   initialStep?: WritingFlowStep | string;
+  selectedStory?: Story | null;
+  sessionId?: string;
+  onVoiceResponseSaved?: () => Promise<void> | void;
 }
 
 // ---------------------------------------------------------------------------
@@ -113,7 +117,12 @@ function resolveInitialStep(input: string | undefined): WritingFlowStep {
 // Module Component
 // ---------------------------------------------------------------------------
 
-export function WritingFlowModule({ initialStep }: WritingFlowModuleProps) {
+export function WritingFlowModule({
+  initialStep,
+  selectedStory = null,
+  sessionId,
+  onVoiceResponseSaved,
+}: WritingFlowModuleProps) {
   const [state, setState] = useState<WritingFlowState>(() => {
     const resolved = resolveInitialStep(initialStep);
 
@@ -151,7 +160,11 @@ export function WritingFlowModule({ initialStep }: WritingFlowModuleProps) {
 
       {state.activeStep === 'RECALL' && (
         <RecallRenderErrorBoundary>
-          <RecallScreen />
+          <RecallScreen
+            selectedStory={selectedStory}
+            sessionId={sessionId}
+            onVoiceResponseSaved={onVoiceResponseSaved}
+          />
         </RecallRenderErrorBoundary>
       )}
     </div>

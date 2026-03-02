@@ -8,11 +8,13 @@ import AnswerModule, { type AnswerState } from '@/modules/answer/AnswerModule';
 import FinalizedAnswerModule, {
   type FinalizedAnswerState,
 } from '@/modules/finalizedAnswer/FinalizedAnswerModule';
+import type { Story } from '@/server/data_structures/ConfirmStory';
 import type { SessionView } from '@/server/data_structures/SessionView';
 import { mapSessionStateToStage, type WorkflowStage } from './stageMapper';
 
 export interface SessionWorkflowShellProps {
   session: SessionView;
+  onVoiceResponseSaved?: () => Promise<void> | void;
 }
 
 function createDraftContentItems(sessionId: string) {
@@ -40,21 +42,43 @@ function createFinalizedAnswer(sessionId: string): FinalizedAnswerState {
   };
 }
 
-export function SessionWorkflowShell({ session }: SessionWorkflowShellProps) {
-  const initialStage = useMemo<WorkflowStage>(
+export function SessionWorkflowShell({
+  session,
+  onVoiceResponseSaved,
+}: SessionWorkflowShellProps) {
+  const mappedSessionStage = useMemo<WorkflowStage>(
     () => mapSessionStateToStage(session.state, {
       source: session.source,
       questionId: session.questionId ?? null,
     }),
     [session.state, session.source, session.questionId],
   );
+  const sessionStageSeed = useMemo(
+    () => `${session.state}|${session.source}|${session.questionId ?? ''}`,
+    [session.questionId, session.source, session.state],
+  );
 
-  const [stage, setStage] = useState<WorkflowStage>(initialStage);
+  const [stageOverride, setStageOverride] = useState<{
+    stage: WorkflowStage;
+    seed: string;
+  } | null>(null);
+  const [selectedStory, setSelectedStory] = useState<Story | null>(null);
   const [uiError, setUiError] = useState<string | null>(null);
+
+  const stage = useMemo<WorkflowStage>(() => {
+    if (stageOverride && stageOverride.seed === sessionStageSeed) {
+      return stageOverride.stage;
+    }
+
+    return mappedSessionStage;
+  }, [mappedSessionStage, sessionStageSeed, stageOverride]);
 
   const transitionTo = (nextStage: WorkflowStage) => {
     setUiError(null);
-    setStage(nextStage);
+    setStageOverride({
+      stage: nextStage,
+      seed: sessionStageSeed,
+    });
   };
 
   const handleReviewStageChange = (workflowStage: string) => {
@@ -64,6 +88,11 @@ export function SessionWorkflowShell({ session }: SessionWorkflowShellProps) {
     }
 
     setUiError(`Unsupported workflow stage transition: ${workflowStage}`);
+  };
+
+  const handleStoryConfirmed = (story: Story) => {
+    setSelectedStory(story);
+    transitionTo('RECALL_REVIEW');
   };
 
   if (stage === 'UNKNOWN') {
@@ -84,7 +113,7 @@ export function SessionWorkflowShell({ session }: SessionWorkflowShellProps) {
           ? (
               <OrientStoryModule
                 questionId={session.questionId}
-                onConfirmed={() => transitionTo('RECALL_REVIEW')}
+                onConfirmed={(story) => handleStoryConfirmed(story)}
               />
             )
           : (
@@ -94,7 +123,14 @@ export function SessionWorkflowShell({ session }: SessionWorkflowShellProps) {
             )
       )}
 
-      {stage === 'RECALL_REVIEW' && <WritingFlowModule initialStep="RECALL" />}
+      {stage === 'RECALL_REVIEW' && (
+        <WritingFlowModule
+          initialStep="RECALL"
+          selectedStory={selectedStory}
+          sessionId={session.id}
+          onVoiceResponseSaved={onVoiceResponseSaved}
+        />
+      )}
 
       {stage === 'DRAFT' && (
         <ReviewWorkflowModule

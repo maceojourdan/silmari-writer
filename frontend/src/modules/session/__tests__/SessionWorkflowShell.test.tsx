@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SessionWorkflowShell } from '../SessionWorkflowShell';
 import type { SessionView } from '@/server/data_structures/SessionView';
@@ -8,14 +8,39 @@ const mockOrientStoryModule = vi.fn();
 const mockWritingFlowModule = vi.fn();
 
 vi.mock('@/modules/orient-story/OrientStoryModule', () => ({
-  OrientStoryModule: (props: { questionId: string }) => {
+  OrientStoryModule: (
+    props: { questionId: string; onConfirmed?: (_story: unknown, _excludedCount: number) => void },
+  ) => {
     mockOrientStoryModule(props);
-    return <div data-testid="orient-story-module" />;
+    return (
+      <button
+        data-testid="orient-story-module"
+        onClick={() => {
+          props.onConfirmed?.(
+            {
+              id: 'story-001',
+              title: 'Led migration',
+              summary: 'Migrated a critical service with zero downtime.',
+              status: 'CONFIRMED',
+              questionId: props.questionId,
+            },
+            2,
+          );
+        }}
+      >
+        Confirm story
+      </button>
+    );
   },
 }));
 
 vi.mock('@/modules/WritingFlowModule', () => ({
-  WritingFlowModule: (props: { initialStep?: string }) => {
+  WritingFlowModule: (props: {
+    initialStep?: string;
+    selectedStory?: unknown;
+    sessionId?: string;
+    onVoiceResponseSaved?: () => Promise<void> | void;
+  }) => {
     mockWritingFlowModule(props);
     return <div data-testid="writing-flow-module" />;
   },
@@ -89,13 +114,44 @@ describe('SessionWorkflowShell', () => {
     expect(screen.getByTestId('writing-flow-module')).toBeInTheDocument();
     expect(mockWritingFlowModule).toHaveBeenCalled();
     expect(mockWritingFlowModule.mock.calls.at(-1)?.[0]).toEqual(
-      expect.objectContaining({ initialStep: 'RECALL' }),
+      expect.objectContaining({
+        initialStep: 'RECALL',
+        sessionId: '550e8400-e29b-41d4-a716-446655440000',
+      }),
     );
   });
 
   it('renders fallback UI for unknown stage', () => {
     render(<SessionWorkflowShell session={makeSession('NOT_A_REAL_STATE')} />);
     expect(screen.getByTestId('session-workflow-fallback')).toBeInTheDocument();
+  });
+
+  it('persists confirmed story into WritingFlowModule after ORIENT confirmation', async () => {
+    const user = userEvent.setup();
+    render(
+      <SessionWorkflowShell
+        session={{
+          ...makeSession('INIT'),
+          questionId: '550e8400-e29b-41d4-a716-446655440001',
+        }}
+      />,
+    );
+
+    await user.click(screen.getByTestId('orient-story-module'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('writing-flow-module')).toBeInTheDocument();
+    });
+
+    expect(mockWritingFlowModule.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        initialStep: 'RECALL',
+        selectedStory: expect.objectContaining({
+          id: 'story-001',
+          title: 'Led migration',
+        }),
+      }),
+    );
   });
 
   it('advances DRAFT -> FINALIZE -> FINALIZED when callbacks succeed', async () => {
@@ -108,5 +164,32 @@ describe('SessionWorkflowShell', () => {
 
     await user.click(screen.getByTestId('answer-module'));
     expect(screen.getByTestId('finalized-answer-module')).toBeInTheDocument();
+  });
+
+  it('updates rendered stage when session prop changes after mount', async () => {
+    const { rerender } = render(<SessionWorkflowShell session={makeSession('DRAFT')} />);
+    expect(screen.getByTestId('review-workflow-module')).toBeInTheDocument();
+
+    rerender(<SessionWorkflowShell session={makeSession('FINALIZE')} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('answer-module')).toBeInTheDocument();
+    });
+  });
+
+  it('forwards voice save callback into WritingFlowModule', () => {
+    const onVoiceResponseSaved = vi.fn();
+    render(
+      <SessionWorkflowShell
+        session={makeSession('REVIEW')}
+        onVoiceResponseSaved={onVoiceResponseSaved}
+      />,
+    );
+
+    expect(mockWritingFlowModule.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        onVoiceResponseSaved,
+      }),
+    );
   });
 });

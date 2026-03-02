@@ -30,7 +30,11 @@ export const VoiceResponseProcessor = {
   /**
    * Process a voice transcript and determine the next session state.
    *
-   * For INIT sessions, transitions to IN_PROGRESS.
+   * Voice loop transitions:
+   * - INIT -> IN_PROGRESS
+   * - IN_PROGRESS -> RECALL
+   * - RECALL -> COMPLETE
+   *
    * The transcript becomes the story record content.
    *
    * @param transcript - The user's voice transcript
@@ -43,6 +47,16 @@ export const VoiceResponseProcessor = {
       case States.INIT:
         return {
           nextState: States.IN_PROGRESS,
+          updatedContent: transcript,
+        };
+      case States.IN_PROGRESS:
+        return {
+          nextState: States.RECALL,
+          updatedContent: transcript,
+        };
+      case States.RECALL:
+        return {
+          nextState: States.COMPLETE,
           updatedContent: transcript,
         };
       default:
