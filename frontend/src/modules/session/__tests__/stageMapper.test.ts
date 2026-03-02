@@ -20,5 +20,19 @@ describe('stageMapper', () => {
     expect(mapSessionStateToStage('FINALIZED')).toBe('FINALIZED');
     expect(mapSessionStateToStage('UNSUPPORTED_STATE')).toBe('UNKNOWN');
   });
-});
 
+  it('skips ORIENT for answer_session INIT without question context', () => {
+    expect(
+      mapSessionStateToStage('INIT', { source: 'answer_session', questionId: null }),
+    ).toBe('RECALL_REVIEW');
+  });
+
+  it('keeps ORIENT when question context exists', () => {
+    expect(
+      mapSessionStateToStage('INIT', {
+        source: 'answer_session',
+        questionId: '550e8400-e29b-41d4-a716-446655440001',
+      }),
+    ).toBe('ORIENT');
+  });
+});

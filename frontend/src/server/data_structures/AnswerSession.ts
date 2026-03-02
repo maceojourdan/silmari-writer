@@ -61,6 +61,7 @@ export type AnswerSession = z.infer<typeof AnswerSessionSchema>;
 export const AnswerStoryRecordSchema = z.object({
   id: z.string().uuid(),
   sessionId: z.string().uuid(),
+  questionId: z.string().uuid().nullable().optional(),
   status: z.enum(['INIT', 'IN_PROGRESS', 'RECALL', 'COMPLETE', 'VERIFY']),
   content: z.string().optional(),
   createdAt: z.string(),

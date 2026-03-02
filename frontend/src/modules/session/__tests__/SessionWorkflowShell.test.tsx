@@ -1,11 +1,16 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SessionWorkflowShell } from '../SessionWorkflowShell';
 import type { SessionView } from '@/server/data_structures/SessionView';
 
+const mockOrientStoryModule = vi.fn();
+
 vi.mock('@/modules/orient-story/OrientStoryModule', () => ({
-  OrientStoryModule: () => <div data-testid="orient-story-module" />,
+  OrientStoryModule: (props: { questionId: string }) => {
+    mockOrientStoryModule(props);
+    return <div data-testid="orient-story-module" />;
+  },
 }));
 
 vi.mock('@/modules/WritingFlowModule', () => ({
@@ -40,12 +45,41 @@ function makeSession(state: string): SessionView {
     id: '550e8400-e29b-41d4-a716-446655440000',
     state,
     source: 'answer_session',
+    questionId: null,
     createdAt: '2026-03-02T10:00:00.000Z',
     updatedAt: '2026-03-02T10:00:00.000Z',
   };
 }
 
 describe('SessionWorkflowShell', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('skips ORIENT for INIT answer_session without questionId', () => {
+    render(<SessionWorkflowShell session={makeSession('INIT')} />);
+    expect(screen.getByTestId('writing-flow-module')).toBeInTheDocument();
+    expect(screen.queryByTestId('orient-story-module')).not.toBeInTheDocument();
+    expect(mockOrientStoryModule).not.toHaveBeenCalled();
+  });
+
+  it('renders ORIENT with questionId when available', () => {
+    render(
+      <SessionWorkflowShell
+        session={{
+          ...makeSession('INIT'),
+          questionId: '550e8400-e29b-41d4-a716-446655440001',
+        }}
+      />,
+    );
+    expect(screen.getByTestId('orient-story-module')).toBeInTheDocument();
+    expect(mockOrientStoryModule).toHaveBeenCalledWith(
+      expect.objectContaining({
+        questionId: '550e8400-e29b-41d4-a716-446655440001',
+      }),
+    );
+  });
+
   it('renders WritingFlowModule when stage resolves to recall/review', () => {
     render(<SessionWorkflowShell session={makeSession('REVIEW')} />);
     expect(screen.getByTestId('writing-flow-module')).toBeInTheDocument();

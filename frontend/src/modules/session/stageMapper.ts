@@ -6,6 +6,11 @@ export type WorkflowStage =
   | 'FINALIZED'
   | 'UNKNOWN';
 
+export interface StageMappingOptions {
+  source?: 'answer_session' | 'session';
+  questionId?: string | null;
+}
+
 const STAGE_BY_STATE: Record<string, WorkflowStage> = {
   INIT: 'ORIENT',
   ORIENT: 'ORIENT',
@@ -24,11 +29,25 @@ const STAGE_BY_STATE: Record<string, WorkflowStage> = {
   FINALIZED: 'FINALIZED',
 };
 
-export function mapSessionStateToStage(state: string): WorkflowStage {
-  return STAGE_BY_STATE[state] ?? 'UNKNOWN';
+export function mapSessionStateToStage(
+  state: string,
+  options?: StageMappingOptions,
+): WorkflowStage {
+  const mapped = STAGE_BY_STATE[state] ?? 'UNKNOWN';
+
+  // /api/sessions bootstrap currently has no question context. Avoid invoking
+  // ORIENT with an invalid questionId derived from session.id.
+  if (
+    mapped === 'ORIENT'
+    && options?.source === 'answer_session'
+    && (!options.questionId || options.questionId.trim() === '')
+  ) {
+    return 'RECALL_REVIEW';
+  }
+
+  return mapped;
 }
 
 export function isTerminalStage(stage: WorkflowStage): boolean {
   return stage === 'FINALIZED';
 }
-

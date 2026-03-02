@@ -44,6 +44,7 @@ function mapStoryRecord(data: Record<string, unknown>): AnswerStoryRecord {
     // Voice workflow records are linked via voice_session_id.
     // Keep session_id as legacy fallback for older rows.
     sessionId: (data.voice_session_id ?? data.session_id) as string,
+    questionId: (data.question_id as string | null | undefined) ?? null,
     status: data.status as AnswerStoryRecord['status'],
     content: data.content as string | undefined,
     createdAt: data.created_at as string,

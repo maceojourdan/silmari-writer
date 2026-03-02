@@ -8,10 +8,12 @@ export const GetSessionHandler = {
     try {
       const answerSession = await SessionDAO.findAnswerSessionById(id);
       if (answerSession) {
+        const storyRecord = await SessionDAO.findStoryRecordBySessionId(answerSession.id);
         return {
           id: answerSession.id,
           state: answerSession.state,
           source: 'answer_session',
+          questionId: storyRecord?.questionId ?? null,
           createdAt: answerSession.createdAt,
           updatedAt: answerSession.updatedAt,
         };
@@ -46,4 +48,3 @@ export const GetSessionHandler = {
     }
   },
 } as const;
-

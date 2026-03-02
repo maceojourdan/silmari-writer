@@ -42,8 +42,11 @@ function createFinalizedAnswer(sessionId: string): FinalizedAnswerState {
 
 export function SessionWorkflowShell({ session }: SessionWorkflowShellProps) {
   const initialStage = useMemo<WorkflowStage>(
-    () => mapSessionStateToStage(session.state),
-    [session.state],
+    () => mapSessionStateToStage(session.state, {
+      source: session.source,
+      questionId: session.questionId ?? null,
+    }),
+    [session.state, session.source, session.questionId],
   );
 
   const [stage, setStage] = useState<WorkflowStage>(initialStage);
@@ -77,10 +80,18 @@ export function SessionWorkflowShell({ session }: SessionWorkflowShellProps) {
   return (
     <div data-testid="session-workflow-shell" className="flex flex-col gap-4">
       {stage === 'ORIENT' && (
-        <OrientStoryModule
-          questionId={session.id}
-          onConfirmed={() => transitionTo('RECALL_REVIEW')}
-        />
+        session.questionId
+          ? (
+              <OrientStoryModule
+                questionId={session.questionId}
+                onConfirmed={() => transitionTo('RECALL_REVIEW')}
+              />
+            )
+          : (
+              <div data-testid="session-workflow-error" role="alert" className="text-sm text-red-600">
+                Missing question context for ORIENT stage.
+              </div>
+            )
       )}
 
       {stage === 'RECALL_REVIEW' && <WritingFlowModule initialStep="REVIEW" />}
@@ -115,4 +126,3 @@ export function SessionWorkflowShell({ session }: SessionWorkflowShellProps) {
     </div>
   );
 }
-

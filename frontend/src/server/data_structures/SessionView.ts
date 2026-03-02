@@ -6,9 +6,9 @@ export const SessionViewSchema = z.object({
   id: z.string().uuid(),
   state: z.string().min(1),
   source: SessionViewSourceSchema,
+  questionId: z.string().uuid().nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
 
 export type SessionView = z.infer<typeof SessionViewSchema>;
-
