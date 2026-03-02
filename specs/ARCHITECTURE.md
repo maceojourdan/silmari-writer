@@ -14,7 +14,7 @@ CosmicHR Writer is an AI-powered voice interview system that helps job seekers p
 | Styling | Tailwind CSS 4 |
 | State Management | Zustand 5 (localStorage persistence) |
 | Validation | Zod 4 |
-| Database | Supabase (PostgreSQL) — stubs, not yet wired |
+| Database | Supabase (PostgreSQL) — DAO layer wired, stub fallback when env unconfigured |
 | LLM Framework | BAML (Boundary ML) |
 | LLM Providers | OpenAI (GPT-5, GPT-5-mini), Anthropic (Claude Opus 4.1, Sonnet 4) |
 | Voice | ElevenLabs (TTS), OpenAI Realtime API (WebRTC), Web Speech API |
@@ -207,7 +207,7 @@ frontend/src/
 ### Voice & Audio (5 endpoints)
 | Method | Path | Purpose |
 |--------|------|---------|
-| POST | `/api/voice/session` | WebRTC SDP exchange |
+| POST | `/api/voice/session` | WebRTC SDP exchange (ICE-complete offer → OpenAI Realtime) |
 | POST | `/api/voice/edit` | Voice-driven message edit |
 | POST | `/api/voice-session/start` | Consent-gated voice start |
 | POST | `/api/transcribe` | Whisper audio transcription |
@@ -350,10 +350,44 @@ Layer 3: API Contract      → Zod.safeParse(response) → throws on malformed
 
 All 47 path specs have TLA+ formal verification (Reachability, TypeInvariant, ErrorConsistency).
 
+## Deployment Configuration
+
+### Vercel Settings (`vercel.json`)
+
+| Route | maxDuration | Notes |
+|-------|-------------|-------|
+| `/api/upload` | 60s | Vercel Blob `put()` with access fallback |
+| `/api/transcribe` | 60s | Whisper API + retry (up to 3x exponential backoff) |
+| `/api/generate` | 60s | Chat completion + web search tool |
+
+Region: `sfo1`
+
+### Vercel Blob Storage
+
+- Package: `@vercel/blob@^2.0.0`
+- Default access mode: `public` (v2.0.0 only supports public; fallback logic retries with opposite mode on `access must be "..."` errors)
+- Upload flow: client → FormData POST `/api/upload` → `put()` → blob URL returned
+- Transcription flow: blob URL → `getDownloadUrl()` → fetch → Whisper → `del()` cleanup
+- Token: `BLOB_READ_WRITE_TOKEN` env var (required)
+
+### Production Build
+
+- Build command: `baml-cli generate && next build --webpack`
+- Console stripping: `removeConsole` preserves `error` and `warn` levels in production for Vercel log visibility
+- TypeScript: uses `tsconfig.build.json` (excludes test-only types)
+
+### Voice Session (WebRTC)
+
+- SDP exchange: client creates `RTCPeerConnection` → ICE gathering → SDP offer via `/api/voice/session` proxy → OpenAI Realtime API
+- ICE gathering: awaits `iceGatheringState === 'complete'` before extracting `localDescription.sdp`
+- STUN servers: Google public STUN (`stun:stun.l.google.com:19302`)
+- Session timeout: configurable (default 60 minutes)
+- Modes: `read_aloud` (receive-only transceiver), `voice_edit` (microphone required)
+
 ## Current Status
 
 - All DAOs are stubs (not wired to Supabase)
 - Auth is stub (presence-only, no JWT verification)
 - 700+ source files, 330+ test files
 - 47 TDD plans implemented with TLA+ verification
-- Production deployment pending Supabase wiring
+- Production deployed to Vercel (sfo1 region)
