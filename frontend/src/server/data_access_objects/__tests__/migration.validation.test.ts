@@ -3,6 +3,10 @@ import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 
 const MIGRATION_PATH = resolve(__dirname, '../../../../../supabase/migrations/20260302000000_initial_schema.sql');
+const CONFIRM_STORY_PATCH_PATH = resolve(
+  __dirname,
+  '../../../../../supabase/migrations/20260302223000_confirm_story_rpc_alignment.sql',
+);
 
 describe('SQL Migration Validation', () => {
   it('migration file exists', () => {
@@ -40,6 +44,17 @@ describe('SQL Migration Validation', () => {
   it('contains confirm_story RPC function', () => {
     const sql = readFileSync(MIGRATION_PATH, 'utf-8').toLowerCase();
     expect(sql).toContain('create or replace function confirm_story');
+  });
+
+  it('contains confirm_story RPC alignment patch with expected args and return keys', () => {
+    expect(existsSync(CONFIRM_STORY_PATCH_PATH)).toBe(true);
+
+    const sql = readFileSync(CONFIRM_STORY_PATCH_PATH, 'utf-8').toLowerCase();
+    expect(sql).toContain('create or replace function public.confirm_story');
+    expect(sql).toContain('p_question_id uuid');
+    expect(sql).toContain('p_story_id text');
+    expect(sql).toContain("'confirmed_story_id'");
+    expect(sql).toContain("'excluded_count'");
   });
 
   it('uses UUID defaults via gen_random_uuid()', () => {
