@@ -9,6 +9,9 @@
  *   - 325-generate-draft-from-confirmed-claims
  *   - 327-prevent-draft-generation-without-confirmed-claims
  *   - 330-edit-content-by-voice-from-review-screen
+ *   - 333-finalize-answer-locks-editing
+ *   - 334-export-or-copy-finalized-answer
+ *   - 335-trigger-sms-follow-up-on-answer-finalization
  */
 
 export type SharedErrorCode =
@@ -20,7 +23,13 @@ export type SharedErrorCode =
   | 'NO_ACTIVE_SESSION'
   | 'DOMAIN_ERROR'
   | 'TRANSFORMATION_ERROR'
-  | 'VOICE_CAPTURE_FAILED';
+  | 'VOICE_CAPTURE_FAILED'
+  | 'ANSWER_ALREADY_FINALIZED'
+  | 'ANSWER_NOT_FINALIZED'
+  | 'UNSUPPORTED_EXPORT_FORMAT'
+  | 'EXPORT_FAILED'
+  | 'MISSING_PHONE_NUMBER'
+  | 'SMS_TOO_LONG';
 
 export class SharedError extends Error {
   code: SharedErrorCode;
@@ -72,4 +81,25 @@ export const SharedErrors = {
   // Path 330: edit-content-by-voice-from-review-screen
   VoiceCaptureFailed: (message = 'Voice capture or transcription failed') =>
     new SharedError(message, 'VOICE_CAPTURE_FAILED', 422, true),
+
+  // Path 333: finalize-answer-locks-editing
+  AnswerAlreadyFinalized: (message = 'This answer has already been finalized and cannot be edited') =>
+    new SharedError(message, 'ANSWER_ALREADY_FINALIZED', 409, false),
+
+  // Path 334: export-or-copy-finalized-answer
+  AnswerNotFinalized: (message = 'Answer must be finalized and locked before export or copy') =>
+    new SharedError(message, 'ANSWER_NOT_FINALIZED', 422, false),
+
+  UnsupportedExportFormat: (message = 'The requested export format is not supported') =>
+    new SharedError(message, 'UNSUPPORTED_EXPORT_FORMAT', 422, false),
+
+  ExportFailed: (message = 'Export or clipboard copy operation failed') =>
+    new SharedError(message, 'EXPORT_FAILED', 500, true),
+
+  // Path 335: trigger-sms-follow-up-on-answer-finalization
+  MissingPhoneNumber: (message = 'Phone number is missing or invalid for SMS follow-up') =>
+    new SharedError(message, 'MISSING_PHONE_NUMBER', 422, false),
+
+  SmsTooLong: (message = 'SMS message exceeds maximum allowed length of 160 characters') =>
+    new SharedError(message, 'SMS_TOO_LONG', 422, false),
 } as const;

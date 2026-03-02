@@ -7,9 +7,9 @@ Path spec: /home/maceo/Dev/silmari-writer/specs/orchestration/session-1772314225
 ## Verification (Phase 0)
 
 The TLA+ model for this path passed:
-- Reachability
-- TypeInvariant
-- ErrorConsistency
+- [x] Reachability
+- [x] TypeInvariant
+- [x] ErrorConsistency
 
 Command:
 `silmari verify-path /home/maceo/Dev/silmari-writer/specs/orchestration/session-1772314225364/335-trigger-sms-follow-up-on-answer-finalization.md`
@@ -53,213 +53,213 @@ Primary orchestrator service:
 
 ---
 
-# Step 1: Detect Finalize Completion Event
+# Step 1: Detect Finalize Completion Event ✅
 
 **From path spec:**
-- Input: Finalize completion event from mq-r4z8 including answer ID and user preferences from db-f8n5.
-- Process: Evaluate context to determine if SMS follow-up is enabled.
-- Output: Decision + validated answer ID + target phone number.
-- Error: If preference or phone invalid/missing → validation error via cfg-j9w2.
+- [x] Input: Finalize completion event from mq-r4z8 including answer ID and user preferences from db-f8n5.
+- [x] Process: Evaluate context to determine if SMS follow-up is enabled.
+- [x] Output: Decision + validated answer ID + target phone number.
+- [x] Error: If preference or phone invalid/missing → validation error via cfg-j9w2.
 
 ---
 
-## Test (`backend/services/__tests__/step1-detect-finalize.test.ts`)
+## Test (`backend/services/__tests__/step1-detect-finalize.test.ts`) ✅
 
 **Reachability**
-- Given finalize event `{ answerId, userId, smsOptIn: true, phoneNumber: '+15551234567' }`
-- When `detectFinalizeCompletion(event)` is called
-- Assert `{ shouldSend: true, answerId, phoneNumber }`
+- [x] Given finalize event `{ answerId, userId, smsOptIn: true, phoneNumber: '+15551234567' }`
+- [x] When `detectFinalizeCompletion(event)` is called
+- [x] Assert `{ shouldSend: true, answerId, phoneNumber }`
 
 **TypeInvariant**
-- Assert returned object conforms to `DetectFinalizeResult` Zod schema.
+- [x] Assert returned object conforms to `DetectFinalizeResult` Zod schema.
 
 **ErrorConsistency**
-- Case 1: `smsOptIn: false` → returns `{ shouldSend: false }`
-- Case 2: `smsOptIn: true` but missing/invalid phone → throws `ValidationError` from `ValidationErrors.ts`.
+- [x] Case 1: `smsOptIn: false` → returns `{ shouldSend: false }`
+- [x] Case 2: `smsOptIn: true` but missing/invalid phone → throws `ValidationError` from `ValidationErrors.ts`.
 
 ---
 
-## Implementation (`TriggerSmsFollowUpService.ts`)
+## Implementation (`TriggerSmsFollowUpService.ts`) ✅
 
-- Define Zod schema for FinalizeEvent.
-- Validate phone format.
-- Return decision object.
-- Throw `ValidationError.MISSING_PHONE_NUMBER` where applicable.
+- [x] Define Zod schema for FinalizeEvent.
+- [x] Validate phone format.
+- [x] Return decision object.
+- [x] Throw `ValidationError.MISSING_PHONE_NUMBER` where applicable.
 
 ---
 
-# Step 2: Load Answer and Contact Data
+# Step 2: Load Answer and Contact Data ✅
 
 **From path spec:**
-- Input: Answer ID and user ID.
-- Process: Retrieve finalized answer and phone.
-- Output: Structured payload `{ answerSummary, phoneNumber }`.
-- Error: Not found or DB failure → domain error from db-l1c3.
+- [x] Input: Answer ID and user ID.
+- [x] Process: Retrieve finalized answer and phone.
+- [x] Output: Structured payload `{ answerSummary, phoneNumber }`.
+- [x] Error: Not found or DB failure → domain error from db-l1c3.
 
 ---
 
-## Test (`backend/services/__tests__/step2-load-data.test.ts`)
+## Test (`backend/services/__tests__/step2-load-data.test.ts`) ✅
 
 Mock `AnswerDAO` and `UserDAO`.
 
 **Reachability**
-- Given valid IDs
-- When `loadAnswerAndContact(answerId, userId)`
-- Assert structured payload returned.
+- [x] Given valid IDs
+- [x] When `loadAnswerAndContact(answerId, userId)`
+- [x] Assert structured payload returned.
 
 **TypeInvariant**
-- Assert payload matches `SmsPayloadSchema`.
+- [x] Assert payload matches `SmsPayloadSchema`.
 
 **ErrorConsistency**
-- If AnswerDAO returns null → throw `SmsErrors.ANSWER_NOT_FOUND`.
-- If DB throws → map to `SmsErrors.DATABASE_FAILURE`.
+- [x] If AnswerDAO returns null → throw `SmsErrors.ANSWER_NOT_FOUND`.
+- [x] If DB throws → map to `SmsErrors.DATABASE_FAILURE`.
 
 ---
 
-## Implementation
+## Implementation ✅
 
-- Implement DAO methods using Supabase client.
-- Map null → domain error.
-- Extract answer summary.
+- [x] Implement DAO methods using Supabase client.
+- [x] Map null → domain error.
+- [x] Extract answer summary.
 
 ---
 
-# Step 3: Compose SMS Follow-up Message
+# Step 3: Compose SMS Follow-up Message ✅
 
 **From path spec:**
-- Input: Answer summary + context.
-- Process: Transform into SMS string within length constraints.
-- Output: Validated SMS payload.
-- Error: Length/validation failure → cfg-j9w2 validation error.
+- [x] Input: Answer summary + context.
+- [x] Process: Transform into SMS string within length constraints.
+- [x] Output: Validated SMS payload.
+- [x] Error: Length/validation failure → cfg-j9w2 validation error.
 
 ---
 
-## Test (`backend/services/__tests__/step3-compose-sms.test.ts`)
+## Test (`backend/services/__tests__/step3-compose-sms.test.ts`) ✅
 
 **Reachability**
-- Given valid summary
-- When `composeSmsMessage(payload)`
-- Assert returned `{ message: string }`.
+- [x] Given valid summary
+- [x] When `composeSmsMessage(payload)`
+- [x] Assert returned `{ message: string }`.
 
 **TypeInvariant**
-- Assert message is string and ≤ 160 chars.
+- [x] Assert message is string and ≤ 160 chars.
 
 **ErrorConsistency**
-- If summary produces >160 chars → throw `ValidationError.SMS_TOO_LONG`.
+- [x] If summary produces >160 chars → throw `ValidationError.SMS_TOO_LONG`.
 
 ---
 
-## Implementation
+## Implementation ✅
 
-- Implement deterministic template function.
-- Enforce max length constant.
-- Throw shared validation error if exceeded.
+- [x] Implement deterministic template function.
+- [x] Enforce max length constant.
+- [x] Throw shared validation error if exceeded.
 
 ---
 
-# Step 4: Send SMS via External Provider
+# Step 4: Send SMS via External Provider ✅
 
 **From path spec:**
-- Input: SMS payload + phone + provider config.
-- Process: Call external API.
-- Output: Delivery response.
-- Error: Retry up to 3 times on transient; log persistent failure.
+- [x] Input: SMS payload + phone + provider config.
+- [x] Process: Call external API.
+- [x] Output: Delivery response.
+- [x] Error: Retry up to 3 times on transient; log persistent failure.
 
 ---
 
-## Test (`backend/services/__tests__/step4-send-sms.test.ts`)
+## Test (`backend/services/__tests__/step4-send-sms.test.ts`) ✅
 
 Mock Twilio SDK.
 
 **Reachability**
-- Provider returns success → assert `{ status: 'sent' }`.
+- [x] Provider returns success → assert `{ status: 'sent' }`.
 
 **TypeInvariant**
-- Assert response matches `SmsDeliveryResponse` schema.
+- [x] Assert response matches `SmsDeliveryResponse` schema.
 
 **ErrorConsistency**
-- Transient error twice then success → assert 3 calls made.
-- Always failing → assert:
-  - 3 attempts
-  - `SmsErrors.PROVIDER_FAILURE` thrown
-  - `SmsLogger.error` called.
+- [x] Transient error twice then success → assert 3 calls made.
+- [x] Always failing → assert:
+  - [x] 3 attempts
+  - [x] `SmsErrors.PROVIDER_FAILURE` thrown
+  - [x] `SmsLogger.error` called.
 
 ---
 
-## Implementation
+## Implementation ✅
 
-- Load config from `SmsProviderSettings`.
-- Implement retry loop (max 3) with exponential backoff.
-- Log each attempt.
+- [x] Load config from `SmsProviderSettings`.
+- [x] Implement retry loop (max 3) with exponential backoff.
+- [x] Log each attempt.
 
 ---
 
-# Step 5: Record SMS Dispatch Result
+# Step 5: Record SMS Dispatch Result ✅
 
 **From path spec:**
-- Input: Delivery response + answer ID.
-- Process: Persist SMS record + audit log.
-- Output: Stored record + log entry.
-- Error: Persistence failure → critical log + operational alert.
+- [x] Input: Delivery response + answer ID.
+- [x] Process: Persist SMS record + audit log.
+- [x] Output: Stored record + log entry.
+- [x] Error: Persistence failure → critical log + operational alert.
 
 ---
 
-## Test (`backend/services/__tests__/step5-record-result.test.ts`)
+## Test (`backend/services/__tests__/step5-record-result.test.ts`) ✅
 
 Mock `SmsFollowUpDAO`.
 
 **Reachability**
-- On success response
-- Assert record stored and logger.info called.
+- [x] On success response
+- [x] Assert record stored and logger.info called.
 
 **TypeInvariant**
-- Assert stored entity matches `SmsFollowUpRecord` schema.
+- [x] Assert stored entity matches `SmsFollowUpRecord` schema.
 
 **ErrorConsistency**
-- DAO throws → assert:
-  - `SmsLogger.critical` called
-  - Error re-thrown as `SmsErrors.PERSISTENCE_FAILURE`.
+- [x] DAO throws → assert:
+  - [x] `SmsLogger.critical` called
+  - [x] Error re-thrown as `SmsErrors.PERSISTENCE_FAILURE`.
 
 ---
 
-## Implementation
+## Implementation ✅
 
-- Insert row into `sms_follow_ups` table.
-- Log status.
-- Wrap DB failure.
+- [x] Insert row into `sms_follow_ups` table.
+- [x] Log status.
+- [x] Wrap DB failure.
 
 ---
 
-# Terminal Condition
+# Terminal Condition ✅
 
-## Integration Test
+## Integration Test ✅
 `backend/services/__tests__/trigger-sms-follow-up.integration.test.ts`
 
 Scenario:
-- Finalize event with smsOptIn true and valid phone.
-- Mock DB + provider success.
-- Call `handleFinalizeEvent(event)`.
+- [x] Finalize event with smsOptIn true and valid phone.
+- [x] Mock DB + provider success.
+- [x] Call `handleFinalizeEvent(event)`.
 
 Assertions:
-- SMS sent once.
-- SMS follow-up record persisted.
-- Success log emitted.
-- Final returned state: `{ status: 'completed' }`.
+- [x] SMS sent once.
+- [x] SMS follow-up record persisted.
+- [x] Success log emitted.
+- [x] Final returned state: `{ status: 'completed' }`.
 
 This proves Reachability from trigger → terminal success.
 
 ---
 
-# Feedback Loop Test (Retry Behavior)
+# Feedback Loop Test (Retry Behavior) ✅
 
 Integration test where:
-- First 2 provider attempts throw transient error.
-- 3rd succeeds.
+- [x] First 2 provider attempts throw transient error.
+- [x] 3rd succeeds.
 
 Assert:
-- Exactly 3 attempts.
-- Final persisted status = success.
-- Backoff timing function invoked.
+- [x] Exactly 3 attempts.
+- [x] Final persisted status = success.
+- [x] Backoff timing function invoked.
 
 ---
 

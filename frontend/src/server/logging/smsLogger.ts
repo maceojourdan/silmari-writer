@@ -33,4 +33,17 @@ export const smsLogger = {
       ...context,
     });
   },
+
+  /**
+   * Log a critical error that requires operational attention.
+   * Path 335: trigger-sms-follow-up-on-answer-finalization
+   */
+  critical(message: string, error?: unknown, context?: Record<string, unknown>): void {
+    logger.error(message, error, {
+      path: '335-trigger-sms-follow-up-on-answer-finalization',
+      resource: 'cfg-q9c5',
+      severity: 'CRITICAL',
+      ...context,
+    });
+  },
 } as const;

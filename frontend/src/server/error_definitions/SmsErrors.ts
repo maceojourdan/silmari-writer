@@ -10,7 +10,11 @@
 export type SmsErrorCode =
   | 'CLAIM_LOAD_FAILED'
   | 'SMS_SEND_FAILED'
-  | 'TRUTH_CHECK_PERSIST_FAILED';
+  | 'TRUTH_CHECK_PERSIST_FAILED'
+  | 'ANSWER_NOT_FOUND'
+  | 'DATABASE_FAILURE'
+  | 'PROVIDER_FAILURE'
+  | 'PERSISTENCE_FAILURE';
 
 export class SmsError extends Error {
   code: SmsErrorCode;
@@ -59,6 +63,24 @@ export const SmsPersistError = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// Path 335: trigger-sms-follow-up-on-answer-finalization
+// ---------------------------------------------------------------------------
+
+export const SmsFollowUpErrors = {
+  ANSWER_NOT_FOUND: (message = 'Answer not found for SMS follow-up') =>
+    new SmsError(message, 'ANSWER_NOT_FOUND', 404, false),
+
+  DATABASE_FAILURE: (message = 'Database failure during SMS follow-up') =>
+    new SmsError(message, 'DATABASE_FAILURE', 500, true),
+
+  PROVIDER_FAILURE: (message = 'SMS provider failure after all retry attempts') =>
+    new SmsError(message, 'PROVIDER_FAILURE', 502, true),
+
+  PERSISTENCE_FAILURE: (message = 'Failed to persist SMS follow-up record') =>
+    new SmsError(message, 'PERSISTENCE_FAILURE', 500, true),
+} as const;
+
+// ---------------------------------------------------------------------------
 // Convenience aggregate — all error factories
 // ---------------------------------------------------------------------------
 
@@ -66,4 +88,5 @@ export const BackendErrors = {
   ...SmsClaimError,
   ...SmsSendError,
   ...SmsPersistError,
+  ...SmsFollowUpErrors,
 } as const;
