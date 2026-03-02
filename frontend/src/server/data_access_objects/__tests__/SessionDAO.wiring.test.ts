@@ -125,24 +125,76 @@ describe('SessionDAO — Supabase Wiring', () => {
   describe('createStoryRecord', () => {
     describe('Reachability', () => {
       it('inserts into story_records and returns entity', async () => {
-        const row = { id: 'sr-1', voice_session_id: 'as-1', user_id: 'u-1', status: 'INIT', created_at: '2026-01-01', updated_at: '2026-01-01' };
+        const row = {
+          id: 'sr-1',
+          voice_session_id: 'as-1',
+          question_id: UUID3,
+          user_id: 'u-1',
+          status: 'INIT',
+          created_at: '2026-01-01',
+          updated_at: '2026-01-01',
+        };
         mockSingle.mockResolvedValue({ data: row, error: null });
-        const result = await SessionDAO.createStoryRecord('as-1', 'u-1');
+        const result = await SessionDAO.createStoryRecord('as-1', 'u-1', UUID3);
         expect(result.id).toBe('sr-1');
       });
     });
     describe('TypeInvariant', () => {
       it('conforms to AnswerStoryRecordSchema', async () => {
-        const row = { id: UUID1, voice_session_id: UUID2, user_id: 'u-1', status: 'INIT', created_at: '2026-01-01', updated_at: '2026-01-01' };
+        const row = {
+          id: UUID1,
+          voice_session_id: UUID2,
+          question_id: UUID3,
+          user_id: 'u-1',
+          status: 'INIT',
+          created_at: '2026-01-01',
+          updated_at: '2026-01-01',
+        };
         mockSingle.mockResolvedValue({ data: row, error: null });
-        const result = await SessionDAO.createStoryRecord(UUID2, 'u-1');
+        const result = await SessionDAO.createStoryRecord(UUID2, 'u-1', UUID3);
         expect(AnswerStoryRecordSchema.safeParse(result).success).toBe(true);
       });
     });
     describe('ErrorConsistency', () => {
       it('throws SessionError on failure', async () => {
         mockSingle.mockResolvedValue({ data: null, error: { message: 'fail' } });
-        await expect(SessionDAO.createStoryRecord('as-1', 'u-1')).rejects.toThrow(SessionError);
+        await expect(SessionDAO.createStoryRecord('as-1', 'u-1', UUID3)).rejects.toThrow(SessionError);
+      });
+    });
+  });
+
+  // --- createBootstrapQuestionContext ---
+  describe('createBootstrapQuestionContext', () => {
+    describe('Reachability', () => {
+      it('creates question context and returns questionId', async () => {
+        mockSingle.mockResolvedValue({ data: { id: UUID1 }, error: null });
+        mockInsert
+          .mockReturnValueOnce({ select: mockSelect })
+          .mockReturnValueOnce({}) // job_requirements insert
+          .mockReturnValueOnce({}); // stories insert
+
+        const result = await SessionDAO.createBootstrapQuestionContext();
+        expect(result.questionId).toBe(UUID1);
+      });
+    });
+
+    describe('ErrorConsistency', () => {
+      it('throws SessionError if question insert fails', async () => {
+        mockSingle.mockResolvedValue({ data: null, error: { message: 'question fail' } });
+
+        await expect(
+          SessionDAO.createBootstrapQuestionContext(),
+        ).rejects.toThrow(SessionError);
+      });
+    });
+  });
+
+  // --- deleteBootstrapQuestionContext ---
+  describe('deleteBootstrapQuestionContext', () => {
+    describe('Reachability', () => {
+      it('deletes stories, requirements, and question by question id', async () => {
+        const result = await SessionDAO.deleteBootstrapQuestionContext(UUID1);
+        expect(result).toBeUndefined();
       });
     });
   });

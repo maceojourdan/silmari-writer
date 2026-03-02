@@ -16,7 +16,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('@/server/data_access_objects/SessionDAO', () => ({
   SessionDAO: {
     createSession: vi.fn(),
+    createBootstrapQuestionContext: vi.fn(),
     createStoryRecord: vi.fn(),
+    deleteBootstrapQuestionContext: vi.fn(),
     deleteSession: vi.fn(),
   },
 }));
@@ -43,9 +45,14 @@ const mockAnswerSession = {
 const mockStoryRecord = {
   id: '550e8400-e29b-41d4-a716-446655440001',
   sessionId: '550e8400-e29b-41d4-a716-446655440000',
+  questionId: '550e8400-e29b-41d4-a716-446655440002',
   status: 'INIT' as const,
   createdAt: '2026-03-01T00:00:00.000Z',
   updatedAt: '2026-03-01T00:00:00.000Z',
+};
+
+const mockBootstrapContext = {
+  questionId: '550e8400-e29b-41d4-a716-446655440002',
 };
 
 // ---------------------------------------------------------------------------
@@ -64,6 +71,7 @@ describe('SessionInitializationService — Step 4: Service creates Answer Sessio
   describe('Reachability', () => {
     it('should return session with state === INIT when DAO succeeds', async () => {
       mockDAO.createSession.mockResolvedValue(mockAnswerSession);
+      mockDAO.createBootstrapQuestionContext.mockResolvedValue(mockBootstrapContext);
       mockDAO.createStoryRecord.mockResolvedValue(mockStoryRecord);
 
       const result = await SessionInitializationService.initializeSession('user-abc12345');
@@ -73,6 +81,7 @@ describe('SessionInitializationService — Step 4: Service creates Answer Sessio
 
     it('should call DAO.createSession with the userId', async () => {
       mockDAO.createSession.mockResolvedValue(mockAnswerSession);
+      mockDAO.createBootstrapQuestionContext.mockResolvedValue(mockBootstrapContext);
       mockDAO.createStoryRecord.mockResolvedValue(mockStoryRecord);
 
       await SessionInitializationService.initializeSession('user-abc12345');
@@ -82,6 +91,7 @@ describe('SessionInitializationService — Step 4: Service creates Answer Sessio
 
     it('should return a valid sessionId', async () => {
       mockDAO.createSession.mockResolvedValue(mockAnswerSession);
+      mockDAO.createBootstrapQuestionContext.mockResolvedValue(mockBootstrapContext);
       mockDAO.createStoryRecord.mockResolvedValue(mockStoryRecord);
 
       const result = await SessionInitializationService.initializeSession('user-abc12345');
@@ -97,6 +107,7 @@ describe('SessionInitializationService — Step 4: Service creates Answer Sessio
   describe('TypeInvariant', () => {
     it('should create an AnswerSession that conforms to the Zod schema', async () => {
       mockDAO.createSession.mockResolvedValue(mockAnswerSession);
+      mockDAO.createBootstrapQuestionContext.mockResolvedValue(mockBootstrapContext);
       mockDAO.createStoryRecord.mockResolvedValue(mockStoryRecord);
 
       await SessionInitializationService.initializeSession('user-abc12345');
@@ -125,6 +136,20 @@ describe('SessionInitializationService — Step 4: Service creates Answer Sessio
       ).rejects.toMatchObject({
         code: 'SESSION_PERSISTENCE_ERROR',
       });
+    });
+
+    it('should throw SESSION_PERSISTENCE_ERROR when bootstrap question context creation fails', async () => {
+      mockDAO.createSession.mockResolvedValue(mockAnswerSession);
+      mockDAO.createBootstrapQuestionContext.mockRejectedValue(new Error('Failed to seed question context'));
+      mockDAO.deleteSession.mockResolvedValue(undefined);
+
+      await expect(
+        SessionInitializationService.initializeSession('user-abc12345'),
+      ).rejects.toMatchObject({
+        code: 'SESSION_PERSISTENCE_ERROR',
+      });
+
+      expect(mockDAO.deleteSession).toHaveBeenCalledWith(mockAnswerSession.id);
     });
   });
 });

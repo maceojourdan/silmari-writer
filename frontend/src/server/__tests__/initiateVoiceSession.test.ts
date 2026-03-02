@@ -24,6 +24,7 @@ import { AnswerSessionSchema, AnswerStoryRecordSchema, CreateSessionResponseSche
 vi.mock('@/server/data_access_objects/SessionDAO', () => {
   const sessions: Map<string, any> = new Map();
   const stories: Map<string, any> = new Map();
+  const questionContexts: Map<string, any> = new Map();
 
   return {
     SessionDAO: {
@@ -38,10 +39,39 @@ vi.mock('@/server/data_access_objects/SessionDAO', () => {
         sessions.set(session.id, session);
         return session;
       }),
-      createStoryRecord: vi.fn(async (sessionId: string) => {
+      createBootstrapQuestionContext: vi.fn(async () => {
+        const questionId = '550e8400-e29b-41d4-a716-446655440002';
+        const context = {
+          questionId,
+          question: {
+            id: questionId,
+            text: 'Tell me about a time you led a cross-functional effort that delivered meaningful business impact.',
+            category: 'behavioral',
+          },
+          jobRequirements: [
+            {
+              id: 'jr-1',
+              description: 'Demonstrates clear ownership and leadership across teammates or functions',
+              priority: 'REQUIRED' as const,
+            },
+          ],
+          stories: [
+            {
+              id: 'story-1',
+              title: 'Led delivery of a high-impact cross-functional project',
+              summary: 'Coordinated engineering, product, and operations to deliver a critical initiative under a tight deadline, balancing tradeoffs and maintaining alignment.',
+              status: 'AVAILABLE' as const,
+            },
+          ],
+        };
+        questionContexts.set(questionId, context);
+        return { questionId };
+      }),
+      createStoryRecord: vi.fn(async (sessionId: string, _userId: string, questionId: string) => {
         const story = {
           id: '550e8400-e29b-41d4-a716-446655440001',
           sessionId,
+          questionId,
           status: 'INIT' as const,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -52,10 +82,14 @@ vi.mock('@/server/data_access_objects/SessionDAO', () => {
       deleteSession: vi.fn(async (sessionId: string) => {
         sessions.delete(sessionId);
       }),
+      deleteBootstrapQuestionContext: vi.fn(async (questionId: string) => {
+        questionContexts.delete(questionId);
+      }),
       // Expose internal stores for assertions
       _getSession: (id: string) => sessions.get(id),
       _getStory: (id: string) => stories.get(id),
-      _clear: () => { sessions.clear(); stories.clear(); },
+      _getQuestionContext: (questionId: string) => questionContexts.get(questionId),
+      _clear: () => { sessions.clear(); stories.clear(); questionContexts.clear(); },
     },
   };
 });
@@ -129,6 +163,17 @@ describe('Integration: Initiate Voice-Assisted Answer Session (full path)', () =
       // Validate against Zod schema
       const validation = AnswerStoryRecordSchema.safeParse(story);
       expect(validation.success).toBe(true);
+    });
+
+    it('should create bootstrap question context for ORIENT stage', async () => {
+      const request = createAuthenticatedRequest();
+      await POST(request);
+
+      const context = mockDAO._getQuestionContext('550e8400-e29b-41d4-a716-446655440002');
+      expect(context).toBeDefined();
+      expect(context.question.text).toContain('Tell me about a time you led');
+      expect(context.jobRequirements.length).toBeGreaterThan(0);
+      expect(context.stories.length).toBeGreaterThan(0);
     });
 
     it('should return response conforming to CreateSessionResponse schema', async () => {

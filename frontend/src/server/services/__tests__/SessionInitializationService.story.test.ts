@@ -16,7 +16,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('@/server/data_access_objects/SessionDAO', () => ({
   SessionDAO: {
     createSession: vi.fn(),
+    createBootstrapQuestionContext: vi.fn(),
     createStoryRecord: vi.fn(),
+    deleteBootstrapQuestionContext: vi.fn(),
     deleteSession: vi.fn(),
   },
 }));
@@ -43,9 +45,14 @@ const mockAnswerSession = {
 const mockStoryRecord = {
   id: '550e8400-e29b-41d4-a716-446655440001',
   sessionId: '550e8400-e29b-41d4-a716-446655440000',
+  questionId: '550e8400-e29b-41d4-a716-446655440002',
   status: 'INIT' as const,
   createdAt: '2026-03-01T00:00:00.000Z',
   updatedAt: '2026-03-01T00:00:00.000Z',
+};
+
+const mockBootstrapContext = {
+  questionId: '550e8400-e29b-41d4-a716-446655440002',
 };
 
 // ---------------------------------------------------------------------------
@@ -64,22 +71,32 @@ describe('SessionInitializationService — Step 5: Service creates StoryRecord i
   describe('Reachability', () => {
     it('should create StoryRecord with status INIT', async () => {
       mockDAO.createSession.mockResolvedValue(mockAnswerSession);
+      mockDAO.createBootstrapQuestionContext.mockResolvedValue(mockBootstrapContext);
       mockDAO.createStoryRecord.mockResolvedValue(mockStoryRecord);
 
       const result = await SessionInitializationService.initializeSession('user-abc12345');
 
-      expect(mockDAO.createStoryRecord).toHaveBeenCalledWith(mockAnswerSession.id, 'user-abc12345');
+      expect(mockDAO.createStoryRecord).toHaveBeenCalledWith(
+        mockAnswerSession.id,
+        'user-abc12345',
+        mockBootstrapContext.questionId,
+      );
       expect(result.storyRecordId).toBe(mockStoryRecord.id);
     });
 
     it('should link story.sessionId to session.id', async () => {
       mockDAO.createSession.mockResolvedValue(mockAnswerSession);
+      mockDAO.createBootstrapQuestionContext.mockResolvedValue(mockBootstrapContext);
       mockDAO.createStoryRecord.mockResolvedValue(mockStoryRecord);
 
       await SessionInitializationService.initializeSession('user-abc12345');
 
       // Verify createStoryRecord was called with the session's ID
-      expect(mockDAO.createStoryRecord).toHaveBeenCalledWith(mockAnswerSession.id, 'user-abc12345');
+      expect(mockDAO.createStoryRecord).toHaveBeenCalledWith(
+        mockAnswerSession.id,
+        'user-abc12345',
+        mockBootstrapContext.questionId,
+      );
 
       // Verify returned storyRecord matches
       const storyRecord = await mockDAO.createStoryRecord.mock.results[0].value;
@@ -94,6 +111,7 @@ describe('SessionInitializationService — Step 5: Service creates StoryRecord i
   describe('TypeInvariant', () => {
     it('should create a StoryRecord that conforms to AnswerStoryRecord schema', async () => {
       mockDAO.createSession.mockResolvedValue(mockAnswerSession);
+      mockDAO.createBootstrapQuestionContext.mockResolvedValue(mockBootstrapContext);
       mockDAO.createStoryRecord.mockResolvedValue(mockStoryRecord);
 
       await SessionInitializationService.initializeSession('user-abc12345');
@@ -111,6 +129,7 @@ describe('SessionInitializationService — Step 5: Service creates StoryRecord i
   describe('ErrorConsistency', () => {
     it('should throw STORY_PERSISTENCE_ERROR when createStoryRecord fails', async () => {
       mockDAO.createSession.mockResolvedValue(mockAnswerSession);
+      mockDAO.createBootstrapQuestionContext.mockResolvedValue(mockBootstrapContext);
       mockDAO.createStoryRecord.mockRejectedValue(new Error('Story table not found'));
 
       await expect(
@@ -119,6 +138,7 @@ describe('SessionInitializationService — Step 5: Service creates StoryRecord i
 
       // Reset mocks for second call
       mockDAO.createSession.mockResolvedValue(mockAnswerSession);
+      mockDAO.createBootstrapQuestionContext.mockResolvedValue(mockBootstrapContext);
       mockDAO.createStoryRecord.mockRejectedValue(new Error('Story table not found'));
 
       await expect(
@@ -130,8 +150,10 @@ describe('SessionInitializationService — Step 5: Service creates StoryRecord i
 
     it('should rollback session when story creation fails (deleteSession called)', async () => {
       mockDAO.createSession.mockResolvedValue(mockAnswerSession);
+      mockDAO.createBootstrapQuestionContext.mockResolvedValue(mockBootstrapContext);
       mockDAO.createStoryRecord.mockRejectedValue(new Error('Story table not found'));
       mockDAO.deleteSession.mockResolvedValue(undefined);
+      mockDAO.deleteBootstrapQuestionContext.mockResolvedValue(undefined);
 
       try {
         await SessionInitializationService.initializeSession('user-abc12345');
@@ -140,12 +162,17 @@ describe('SessionInitializationService — Step 5: Service creates StoryRecord i
       }
 
       expect(mockDAO.deleteSession).toHaveBeenCalledWith(mockAnswerSession.id);
+      expect(mockDAO.deleteBootstrapQuestionContext).toHaveBeenCalledWith(
+        mockBootstrapContext.questionId,
+      );
     });
 
     it('should still throw STORY_PERSISTENCE_ERROR even if rollback fails', async () => {
       mockDAO.createSession.mockResolvedValue(mockAnswerSession);
+      mockDAO.createBootstrapQuestionContext.mockResolvedValue(mockBootstrapContext);
       mockDAO.createStoryRecord.mockRejectedValue(new Error('Story table not found'));
       mockDAO.deleteSession.mockRejectedValue(new Error('Rollback also failed'));
+      mockDAO.deleteBootstrapQuestionContext.mockRejectedValue(new Error('Question rollback also failed'));
 
       await expect(
         SessionInitializationService.initializeSession('user-abc12345'),

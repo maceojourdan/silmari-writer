@@ -18,6 +18,46 @@ import type { AnswerSession, AnswerSessionState, AnswerStoryRecord } from '@/ser
 import type { SlotState } from '@/server/data_structures/VoiceInteractionContext';
 import { supabase } from '@/lib/supabase';
 import { SessionErrors, SessionError } from '@/server/error_definitions/SessionErrors';
+import { randomUUID } from 'node:crypto';
+
+const DEFAULT_BOOTSTRAP_QUESTION = {
+  text: 'Tell me about a time you led a cross-functional effort that delivered meaningful business impact.',
+  category: 'behavioral',
+} as const;
+
+const DEFAULT_BOOTSTRAP_REQUIREMENTS = [
+  {
+    description: 'Demonstrates clear ownership and leadership across teammates or functions',
+    priority: 'REQUIRED' as const,
+  },
+  {
+    description: 'Shows measurable impact with concrete outcomes and metrics',
+    priority: 'REQUIRED' as const,
+  },
+  {
+    description: 'Reflects strong communication and stakeholder management',
+    priority: 'PREFERRED' as const,
+  },
+] as const;
+
+const DEFAULT_BOOTSTRAP_STORIES = [
+  {
+    title: 'Led delivery of a high-impact cross-functional project',
+    summary: 'Coordinated engineering, product, and operations to deliver a critical initiative under a tight deadline, balancing tradeoffs and maintaining alignment.',
+  },
+  {
+    title: 'Resolved execution risk through leadership and prioritization',
+    summary: 'Identified a major delivery risk, reset priorities with partners, and guided the team to a successful launch with measurable customer impact.',
+  },
+  {
+    title: 'Drove measurable outcomes through collaboration',
+    summary: 'Partnered across teams to improve a core workflow, resulting in clear performance gains and better user outcomes.',
+  },
+] as const;
+
+export interface BootstrapQuestionContext {
+  questionId: string;
+}
 
 function mapSession(data: Record<string, unknown>): Session {
   return {
@@ -136,11 +176,20 @@ export const SessionDAO = {
    * Create a new StoryRecord linked to an AnswerSession in INIT status.
    * Returns the persisted entity with generated ID and timestamps.
    */
-  async createStoryRecord(sessionId: string, userId: string): Promise<AnswerStoryRecord> {
+  async createStoryRecord(
+    sessionId: string,
+    userId: string,
+    questionId: string,
+  ): Promise<AnswerStoryRecord> {
     try {
       const { data, error } = await supabase
         .from('story_records')
-        .insert({ voice_session_id: sessionId, user_id: userId, status: 'INIT' })
+        .insert({
+          voice_session_id: sessionId,
+          question_id: questionId,
+          user_id: userId,
+          status: 'INIT',
+        })
         .select()
         .single();
 
@@ -154,6 +203,128 @@ export const SessionDAO = {
     } catch (err) {
       if (err instanceof SessionError) throw err;
       throw SessionErrors.StoryPersistenceError(`Unexpected: ${(err as Error).message}`);
+    }
+  },
+
+  /**
+   * Create baseline question context required by ORIENT:
+   * - one question
+   * - job requirements linked to that question
+   * - available stories linked to that question
+   */
+  async createBootstrapQuestionContext(): Promise<BootstrapQuestionContext> {
+    let questionId: string | null = null;
+
+    try {
+      const { data: questionData, error: questionError } = await supabase
+        .from('questions')
+        .insert(DEFAULT_BOOTSTRAP_QUESTION)
+        .select('id')
+        .single();
+
+      if (questionError) {
+        throw SessionErrors.SessionPersistenceError(
+          `Failed to create bootstrap question: ${questionError.message}`,
+        );
+      }
+      if (!questionData?.id) {
+        throw SessionErrors.SessionPersistenceError(
+          'No question id returned during bootstrap context creation',
+        );
+      }
+
+      questionId = questionData.id as string;
+
+      const jobRequirementRows = DEFAULT_BOOTSTRAP_REQUIREMENTS.map((req) => ({
+        id: `jr-${randomUUID()}`,
+        description: req.description,
+        priority: req.priority,
+        question_id: questionId,
+      }));
+
+      const { error: requirementsError } = await supabase
+        .from('job_requirements')
+        .insert(jobRequirementRows);
+
+      if (requirementsError) {
+        throw SessionErrors.SessionPersistenceError(
+          `Failed to create bootstrap job requirements: ${requirementsError.message}`,
+        );
+      }
+
+      const storyRows = DEFAULT_BOOTSTRAP_STORIES.map((story) => ({
+        id: `story-${randomUUID()}`,
+        title: story.title,
+        summary: story.summary,
+        status: 'AVAILABLE',
+        question_id: questionId,
+      }));
+
+      const { error: storiesError } = await supabase
+        .from('stories')
+        .insert(storyRows);
+
+      if (storiesError) {
+        throw SessionErrors.SessionPersistenceError(
+          `Failed to create bootstrap stories: ${storiesError.message}`,
+        );
+      }
+
+      return { questionId };
+    } catch (err) {
+      if (questionId) {
+        try {
+          await SessionDAO.deleteBootstrapQuestionContext(questionId);
+        } catch {
+          // Best-effort cleanup for partial bootstrap context.
+        }
+      }
+
+      if (err instanceof SessionError) throw err;
+      throw SessionErrors.SessionPersistenceError(`Unexpected: ${(err as Error).message}`);
+    }
+  },
+
+  /**
+   * Delete bootstrap question context in FK-safe order.
+   */
+  async deleteBootstrapQuestionContext(questionId: string): Promise<void> {
+    try {
+      const { error: storiesError } = await supabase
+        .from('stories')
+        .delete()
+        .eq('question_id', questionId);
+
+      if (storiesError) {
+        throw SessionErrors.PersistenceFailure(
+          `Failed to delete bootstrap stories: ${storiesError.message}`,
+        );
+      }
+
+      const { error: requirementsError } = await supabase
+        .from('job_requirements')
+        .delete()
+        .eq('question_id', questionId);
+
+      if (requirementsError) {
+        throw SessionErrors.PersistenceFailure(
+          `Failed to delete bootstrap job requirements: ${requirementsError.message}`,
+        );
+      }
+
+      const { error: questionError } = await supabase
+        .from('questions')
+        .delete()
+        .eq('id', questionId);
+
+      if (questionError) {
+        throw SessionErrors.PersistenceFailure(
+          `Failed to delete bootstrap question: ${questionError.message}`,
+        );
+      }
+    } catch (err) {
+      if (err instanceof SessionError) throw err;
+      throw SessionErrors.PersistenceFailure(`Unexpected: ${(err as Error).message}`);
     }
   },
 
