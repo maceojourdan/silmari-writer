@@ -32,9 +32,22 @@ export interface ContentItem {
 
 export interface ReviewWorkflowModuleProps {
   contentItems: ContentItem[];
+  onWorkflowStageChange?: (_workflowStage: string) => void;
 }
 
-export function ReviewWorkflowModule({ contentItems: initialItems }: ReviewWorkflowModuleProps) {
+function readErrorCode(value: unknown): string | undefined {
+  if (!value || typeof value !== 'object' || !('code' in value)) {
+    return undefined;
+  }
+
+  const code = (value as { code?: unknown }).code;
+  return typeof code === 'string' ? code : undefined;
+}
+
+export function ReviewWorkflowModule({
+  contentItems: initialItems,
+  onWorkflowStageChange,
+}: ReviewWorkflowModuleProps) {
   const [contentItems, setContentItems] = useState<ContentItem[]>(initialItems);
   const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
   const [workflowStage, setWorkflowStage] = useState<string | null>(null);
@@ -55,13 +68,14 @@ export function ReviewWorkflowModule({ contentItems: initialItems }: ReviewWorkf
 
     // Update workflow stage
     setWorkflowStage(response.workflowStage);
+    onWorkflowStageChange?.(response.workflowStage);
 
     // Clear selection
     setSelectedContentId(null);
   };
 
   const handleError = (error: Error) => {
-    const code = (error as any).code;
+    const code = readErrorCode(error);
     setUiError({
       code,
       message: error.message || 'An unexpected error occurred',
@@ -91,7 +105,7 @@ export function ReviewWorkflowModule({ contentItems: initialItems }: ReviewWorkf
       );
 
       setUiError({
-        code: (err as any)?.code,
+        code: readErrorCode(err),
         message,
       });
     }

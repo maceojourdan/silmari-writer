@@ -28,11 +28,13 @@ export interface AnswerState {
 export interface AnswerModuleProps {
   answerId: string;
   initialAnswer: AnswerState;
+  onFinalized?: (_response: FinalizeAnswerResponse) => void;
 }
 
 export default function AnswerModule({
   answerId,
   initialAnswer,
+  onFinalized,
 }: AnswerModuleProps) {
   const [answer, setAnswer] = useState<AnswerState>(initialAnswer);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +48,7 @@ export default function AnswerModule({
       status: 'FINALIZED',
     }));
     setError(null);
+    onFinalized?.(response);
   };
 
   return (

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
 import AppLayout from '@/components/layout/AppLayout';
 import ProjectSidebar from '@/components/layout/ProjectSidebar';
@@ -220,6 +221,17 @@ export default function HomePage() {
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {activeProjectId ? (
             <>
+              <div className="flex items-center justify-between border-b px-4 py-2">
+                <p className="text-xs text-muted-foreground">Chat Workspace</p>
+                <Link
+                  href="/writer"
+                  data-testid="workflow-entry-link"
+                  className="text-xs font-medium underline underline-offset-4 hover:text-foreground"
+                >
+                  Open Writer Workflow
+                </Link>
+              </div>
+
               <ConversationView messages={activeMessages} />
 
               {/* Voice controls */}
