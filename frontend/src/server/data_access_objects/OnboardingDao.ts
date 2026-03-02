@@ -13,73 +13,149 @@ import type {
   AnalyticsEvent,
   AnalyticsEventInsert,
 } from '@/server/data_structures/AnalyticsEvent';
+import { supabase } from '@/lib/supabase';
+import { BackendErrors, BackendError } from '@/server/error_definitions/BackendErrors';
+
+function mapOnboarding(data: Record<string, unknown>): Onboarding {
+  return {
+    id: data.id as string,
+    userId: (data.user_id ?? data.userId) as string,
+    step: data.step as number,
+    status: data.status as Onboarding['status'],
+    completedAt: (data.completed_at ?? data.completedAt) as string | null,
+    createdAt: (data.created_at ?? data.createdAt) as string,
+    updatedAt: (data.updated_at ?? data.updatedAt) as string,
+  };
+}
+
+function mapAnalyticsEvent(data: Record<string, unknown>): AnalyticsEvent {
+  return {
+    id: data.id as string,
+    kpiId: (data.kpi_id ?? data.kpiId) as string,
+    userId: (data.user_id ?? data.userId) as string,
+    timestamp: data.timestamp as string,
+    metadata: data.metadata as Record<string, unknown>,
+    createdAt: (data.created_at ?? data.createdAt) as string,
+  };
+}
 
 export const OnboardingDao = {
-  /**
-   * Find an onboarding record for a user and step.
-   * Returns null if not found.
-   */
   async findByUserAndStep(
     userId: string,
     step: number,
   ): Promise<Onboarding | null> {
-    // Supabase: supabase.from('onboarding').select('*').eq('userId', userId).eq('step', step).single()
-    throw new Error('OnboardingDao.findByUserAndStep not yet wired to Supabase');
+    try {
+      const { data, error } = await supabase
+        .from('onboarding')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('step', step)
+        .maybeSingle();
+
+      if (error) throw BackendErrors.PersistenceFailed(`Failed to find onboarding: ${error.message}`);
+      if (!data) return null;
+      return mapOnboarding(data);
+    } catch (err) {
+      if (err instanceof BackendError) throw err;
+      throw BackendErrors.PersistenceFailed(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
-  /**
-   * Update an onboarding record's status to completed.
-   * Returns the updated onboarding entity.
-   * Throws on database failure.
-   */
   async updateOnboardingStep(
     userId: string,
     step: number,
     fields: Partial<Pick<Onboarding, 'status' | 'completedAt' | 'updatedAt'>>,
   ): Promise<Onboarding> {
-    // Supabase: supabase.from('onboarding').update({ ...fields }).eq('userId', userId).eq('step', step).select().single()
-    throw new Error(
-      'OnboardingDao.updateOnboardingStep not yet wired to Supabase',
-    );
+    try {
+      const updatePayload: Record<string, unknown> = {
+        updated_at: new Date().toISOString(),
+      };
+      if (fields.status !== undefined) updatePayload.status = fields.status;
+      if (fields.completedAt !== undefined) updatePayload.completed_at = fields.completedAt;
+
+      const { data, error } = await supabase
+        .from('onboarding')
+        .update(updatePayload)
+        .eq('user_id', userId)
+        .eq('step', step)
+        .select()
+        .single();
+
+      if (error) throw BackendErrors.PersistenceFailed(`Failed to update onboarding step: ${error.message}`);
+      if (!data) throw BackendErrors.PersistenceFailed('No data returned from onboarding step update');
+      return mapOnboarding(data);
+    } catch (err) {
+      if (err instanceof BackendError) throw err;
+      throw BackendErrors.PersistenceFailed(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
-  /**
-   * Create a new onboarding record.
-   * Returns the created onboarding entity.
-   */
   async createOnboarding(
     data: Pick<Onboarding, 'userId' | 'step'>,
   ): Promise<Onboarding> {
-    // Supabase: supabase.from('onboarding').insert([{ ...data, status: 'NOT_STARTED' }]).select().single()
-    throw new Error('OnboardingDao.createOnboarding not yet wired to Supabase');
+    try {
+      const { data: row, error } = await supabase
+        .from('onboarding')
+        .insert([{
+          user_id: data.userId,
+          step: data.step,
+          status: 'NOT_STARTED',
+        }])
+        .select()
+        .single();
+
+      if (error) throw BackendErrors.PersistenceFailed(`Failed to create onboarding: ${error.message}`);
+      if (!row) throw BackendErrors.PersistenceFailed('No data returned from onboarding creation');
+      return mapOnboarding(row);
+    } catch (err) {
+      if (err instanceof BackendError) throw err;
+      throw BackendErrors.PersistenceFailed(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
-  /**
-   * Insert an analytics event record.
-   * Returns the created analytics event.
-   * Throws on database failure.
-   */
   async insertAnalyticsEvent(
     data: AnalyticsEventInsert,
   ): Promise<AnalyticsEvent> {
-    // Supabase: supabase.from('analytics_events').insert([{ ...data, id: uuid(), createdAt: now() }]).select().single()
-    throw new Error(
-      'OnboardingDao.insertAnalyticsEvent not yet wired to Supabase',
-    );
+    try {
+      const { data: row, error } = await supabase
+        .from('analytics_events')
+        .insert([{
+          kpi_id: data.kpiId,
+          user_id: data.userId,
+          timestamp: data.timestamp,
+          metadata: data.metadata,
+        }])
+        .select()
+        .single();
+
+      if (error) throw BackendErrors.AnalyticsPersistenceFailed(`Failed to insert analytics event: ${error.message}`);
+      if (!row) throw BackendErrors.AnalyticsPersistenceFailed('No data returned from analytics event insert');
+      return mapAnalyticsEvent(row);
+    } catch (err) {
+      if (err instanceof BackendError) throw err;
+      throw BackendErrors.AnalyticsPersistenceFailed(`Unexpected: ${(err as Error).message}`);
+    }
   },
 
-  /**
-   * Find an analytics event by userId and kpiId (for idempotency checks).
-   * Returns null if not found.
-   */
   async findAnalyticsEvent(
     userId: string,
     kpiId: string,
     metadata: Record<string, unknown>,
   ): Promise<AnalyticsEvent | null> {
-    // Supabase: supabase.from('analytics_events').select('*').eq('userId', userId).eq('kpiId', kpiId).single()
-    throw new Error(
-      'OnboardingDao.findAnalyticsEvent not yet wired to Supabase',
-    );
+    try {
+      const { data, error } = await supabase
+        .from('analytics_events')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('kpi_id', kpiId)
+        .maybeSingle();
+
+      if (error) throw BackendErrors.AnalyticsPersistenceFailed(`Failed to find analytics event: ${error.message}`);
+      if (!data) return null;
+      return mapAnalyticsEvent(data);
+    } catch (err) {
+      if (err instanceof BackendError) throw err;
+      throw BackendErrors.AnalyticsPersistenceFailed(`Unexpected: ${(err as Error).message}`);
+    }
   },
 } as const;

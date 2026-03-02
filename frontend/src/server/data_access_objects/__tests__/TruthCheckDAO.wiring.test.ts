@@ -2,6 +2,7 @@
  * TruthCheckDAO Wiring Tests
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { TruthCheckSchema } from '@/server/data_structures/TruthCheck';
 import { TruthCheckError } from '@/server/error_definitions/TruthCheckErrors';
 
 const { mockSingle, mockSelect, mockInsert, mockFrom } = vi.hoisted(() => {
@@ -37,6 +38,13 @@ describe('TruthCheckDAO — Supabase Wiring', () => {
         const result = await TruthCheckDAO.create({ claim_id: 'cl-1', status: 'confirmed', source: 'voice' });
         expect(result.id).toBe('tc-1');
         expect(mockFrom).toHaveBeenCalledWith('truth_checks');
+      });
+    });
+    describe('TypeInvariant', () => {
+      it('returned object conforms to TruthCheckSchema', async () => {
+        mockSingle.mockResolvedValue({ data: baseRow, error: null });
+        const result = await TruthCheckDAO.create({ claim_id: 'cl-1', status: 'confirmed', source: 'voice' });
+        expect(TruthCheckSchema.safeParse(result).success).toBe(true);
       });
     });
     describe('ErrorConsistency', () => {

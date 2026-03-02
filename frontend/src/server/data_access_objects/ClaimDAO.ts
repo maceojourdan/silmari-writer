@@ -49,7 +49,7 @@ function mapCaseClaim(data: Record<string, unknown>): CaseClaim {
   return {
     id: data.id as string,
     caseId: (data.case_id ?? data.caseId) as string,
-    text: data.text as string,
+    text: (data.text ?? data.content) as string,
     status: data.status as CaseClaim['status'],
     metadata: data.metadata as Record<string, unknown> | undefined,
   };
@@ -59,7 +59,7 @@ function mapStoryRecordClaim(data: Record<string, unknown>): StoryRecordClaim {
   return {
     id: data.id as string,
     storyRecordId: (data.story_record_id ?? data.storyRecordId) as string,
-    confirmed: data.confirmed as boolean,
+    confirmed: data.confirmed !== undefined ? data.confirmed as boolean : data.status === 'CONFIRMED',
     content: data.content as string,
   };
 }
@@ -200,7 +200,7 @@ export const ClaimDAO = {
     try {
       const { data, error } = await supabase
         .from('claims')
-        .select('id, case_id, text, status, metadata')
+        .select('id, case_id, content, status, metadata')
         .eq('case_id', caseId);
 
       if (error) throw DomainErrors.PERSISTENCE_ERROR(`Failed to get claims by case: ${error.message}`);
@@ -215,7 +215,7 @@ export const ClaimDAO = {
     try {
       const { data, error } = await supabase
         .from('claims')
-        .select('id, story_record_id, confirmed, content')
+        .select('id, story_record_id, content, status')
         .eq('story_record_id', storyRecordId);
 
       if (error) throw DomainErrors.PERSISTENCE_ERROR(`Failed to get claims by story record: ${error.message}`);
