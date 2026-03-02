@@ -1,17 +1,25 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import { getSession } from '@/api_contracts/getSession';
 import { SessionWorkflowShell } from '@/modules/session/SessionWorkflowShell';
 import type { SessionView } from '@/server/data_structures/SessionView';
 
+interface SessionRouteParams {
+  sessionId: string;
+}
+
 export interface SessionPageProps {
-  params: {
-    sessionId: string;
-  };
+  params: SessionRouteParams | Promise<SessionRouteParams>;
 }
 
 export default function SessionPage({ params }: SessionPageProps) {
+  const resolvedParams =
+    typeof (params as Promise<SessionRouteParams>)?.then === 'function'
+      ? use(params as Promise<SessionRouteParams>)
+      : (params as SessionRouteParams);
+  const sessionId = resolvedParams?.sessionId;
+
   const [session, setSession] = useState<SessionView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -19,12 +27,21 @@ export default function SessionPage({ params }: SessionPageProps) {
   useEffect(() => {
     let cancelled = false;
 
+    if (!sessionId || sessionId.trim() === '') {
+      setSession(null);
+      setError('Session ID must be a valid UUID');
+      setLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
     const load = async () => {
       setLoading(true);
       setError(null);
 
       try {
-        const result = await getSession(params.sessionId);
+        const result = await getSession(sessionId);
         if (!cancelled) {
           setSession(result);
         }
@@ -47,7 +64,7 @@ export default function SessionPage({ params }: SessionPageProps) {
     return () => {
       cancelled = true;
     };
-  }, [params.sessionId]);
+  }, [sessionId]);
 
   if (loading) {
     return (
@@ -71,4 +88,3 @@ export default function SessionPage({ params }: SessionPageProps) {
     </main>
   );
 }
-
