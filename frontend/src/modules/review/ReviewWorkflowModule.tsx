@@ -129,6 +129,7 @@ export function ReviewWorkflowModule({ contentItems: initialItems }: ReviewWorkf
           selectedContentId={selectedContentId}
           onApproved={handleApproved}
           onError={handleError}
+          showVoiceCapture={false}
         />
       )}
 

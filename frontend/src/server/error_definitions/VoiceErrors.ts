@@ -22,7 +22,10 @@ export type VoiceErrorCode =
   | 'SLOT_VALIDATION_FAILED'
   | 'CONFIGURATION_ERROR'
   | 'VOICE_DELIVERY_FAILED'
-  | 'VALIDATION_FAILED';
+  | 'VALIDATION_FAILED'
+  | 'VOICE_INIT_FAILED'
+  | 'VOICE_INPUT_INVALID'
+  | 'GENERIC_VOICE_ERROR';
 
 export class VoiceError extends Error {
   code: VoiceErrorCode;
@@ -143,6 +146,51 @@ export const VoiceValidationError = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// Path 332: Voice input validation — initialization and input failures
+// ---------------------------------------------------------------------------
+
+export const VoiceInitError = {
+  VOICE_INIT_FAILED: (message = 'Unable to start voice capture. Please try again.') =>
+    new VoiceError(message, 'VOICE_INIT_FAILED', 500, true),
+} as const;
+
+export const VoiceInputError = {
+  VOICE_INPUT_INVALID: (message = 'Voice input could not be processed.') =>
+    new VoiceError(message, 'VOICE_INPUT_INVALID', 422, false),
+} as const;
+
+export const GenericVoiceError = {
+  GENERIC_VOICE_ERROR: (message = 'Something went wrong with voice input.') =>
+    new VoiceError(message, 'GENERIC_VOICE_ERROR', 500, false),
+} as const;
+
+// ---------------------------------------------------------------------------
+// Path 332: Simple constant error definitions for frontend validation
+// These are lightweight objects used by VoiceInputVerifier and ReviewScreen
+// to avoid constructing Error instances for simple validation failures.
+// ---------------------------------------------------------------------------
+
+export interface VoiceErrorDef {
+  code: string;
+  message: string;
+}
+
+export const VoiceInputErrors = {
+  VOICE_INIT_FAILED: {
+    code: 'VOICE_INIT_FAILED' as const,
+    message: 'Unable to start voice capture. Please try again.',
+  },
+  VOICE_INPUT_INVALID: {
+    code: 'VOICE_INPUT_INVALID' as const,
+    message: 'Voice input could not be processed.',
+  },
+  GENERIC_VOICE_ERROR: {
+    code: 'GENERIC_VOICE_ERROR' as const,
+    message: 'Something went wrong with voice input.',
+  },
+} as const;
+
+// ---------------------------------------------------------------------------
 // Convenience aggregate — all error factories
 // ---------------------------------------------------------------------------
 
@@ -158,4 +206,7 @@ export const VoiceErrors = {
   ...VoiceConfigurationError,
   ...VoiceDeliveryError,
   ...VoiceValidationError,
+  ...VoiceInitError,
+  ...VoiceInputError,
+  ...GenericVoiceError,
 } as const;
