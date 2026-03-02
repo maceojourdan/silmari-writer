@@ -3,6 +3,9 @@
   "framework": "nextjs",
   "regions": ["sfo1"],
   "functions": {
+    "src/app/api/upload/route.ts": {
+      "maxDuration": 60
+    },
     "src/app/api/transcribe/route.ts": {
       "maxDuration": 60
     },

@@ -127,7 +127,7 @@ describe('POST /api/upload', () => {
       expect(fileArg).toHaveProperty('size')
       expect(fileArg).toHaveProperty('type', 'audio/webm')
       expect(options).toEqual({
-        access: 'private',
+        access: 'public',
         token: 'test-blob-token',
       })
     })
@@ -164,7 +164,7 @@ describe('POST /api/upload', () => {
       formData.append('file', file)
 
       mockPut
-        .mockRejectedValueOnce(new Error('Vercel Blob: access must be "public"'))
+        .mockRejectedValueOnce(new Error('Vercel Blob: access must be "private"'))
         .mockResolvedValueOnce({
           url: 'https://blob.vercel-storage.com/recording.webm',
         })
@@ -177,11 +177,11 @@ describe('POST /api/upload', () => {
       expect(data.url).toBe('https://blob.vercel-storage.com/recording.webm')
       expect(mockPut).toHaveBeenCalledTimes(2)
       expect(mockPut.mock.calls[0][2]).toEqual({
-        access: 'private',
+        access: 'public',
         token: 'test-blob-token',
       })
       expect(mockPut.mock.calls[1][2]).toEqual({
-        access: 'public',
+        access: 'private',
         token: 'test-blob-token',
       })
     })

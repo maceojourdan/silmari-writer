@@ -7,7 +7,7 @@ type BlobAccess = 'public' | 'private'
 
 function getPreferredBlobAccess(): BlobAccess {
   const configured = process.env.BLOB_ACCESS
-  return configured === 'public' || configured === 'private' ? configured : 'private'
+  return configured === 'public' || configured === 'private' ? configured : 'public'
 }
 
 function getRequiredBlobAccessFromError(error: unknown): BlobAccess | null {
