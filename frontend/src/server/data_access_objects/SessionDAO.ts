@@ -41,7 +41,9 @@ function mapAnswerSession(data: Record<string, unknown>): AnswerSession {
 function mapStoryRecord(data: Record<string, unknown>): AnswerStoryRecord {
   return {
     id: data.id as string,
-    sessionId: data.session_id as string,
+    // Voice workflow records are linked via voice_session_id.
+    // Keep session_id as legacy fallback for older rows.
+    sessionId: (data.voice_session_id ?? data.session_id) as string,
     status: data.status as AnswerStoryRecord['status'],
     content: data.content as string | undefined,
     createdAt: data.created_at as string,
@@ -133,11 +135,11 @@ export const SessionDAO = {
    * Create a new StoryRecord linked to an AnswerSession in INIT status.
    * Returns the persisted entity with generated ID and timestamps.
    */
-  async createStoryRecord(sessionId: string): Promise<AnswerStoryRecord> {
+  async createStoryRecord(sessionId: string, userId: string): Promise<AnswerStoryRecord> {
     try {
       const { data, error } = await supabase
         .from('story_records')
-        .insert({ session_id: sessionId, status: 'INIT' })
+        .insert({ voice_session_id: sessionId, user_id: userId, status: 'INIT' })
         .select()
         .single();
 
@@ -210,7 +212,7 @@ export const SessionDAO = {
       const { data, error } = await supabase
         .from('story_records')
         .select('*')
-        .eq('session_id', sessionId)
+        .eq('voice_session_id', sessionId)
         .maybeSingle();
 
       if (error) {

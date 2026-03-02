@@ -68,7 +68,7 @@ describe('SessionInitializationService — Step 5: Service creates StoryRecord i
 
       const result = await SessionInitializationService.initializeSession('user-abc12345');
 
-      expect(mockDAO.createStoryRecord).toHaveBeenCalledWith(mockAnswerSession.id);
+      expect(mockDAO.createStoryRecord).toHaveBeenCalledWith(mockAnswerSession.id, 'user-abc12345');
       expect(result.storyRecordId).toBe(mockStoryRecord.id);
     });
 
@@ -79,7 +79,7 @@ describe('SessionInitializationService — Step 5: Service creates StoryRecord i
       await SessionInitializationService.initializeSession('user-abc12345');
 
       // Verify createStoryRecord was called with the session's ID
-      expect(mockDAO.createStoryRecord).toHaveBeenCalledWith(mockAnswerSession.id);
+      expect(mockDAO.createStoryRecord).toHaveBeenCalledWith(mockAnswerSession.id, 'user-abc12345');
 
       // Verify returned storyRecord matches
       const storyRecord = await mockDAO.createStoryRecord.mock.results[0].value;

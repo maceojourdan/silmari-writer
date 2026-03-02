@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS job_requirements (
   id            text        PRIMARY KEY,
   description   text        NOT NULL,
   priority      text        CHECK (priority IN ('REQUIRED','PREFERRED','NICE_TO_HAVE')),
-  question_id   text        NOT NULL REFERENCES questions(id)
+  question_id   uuid        NOT NULL REFERENCES questions(id)
 );
 
 CREATE TABLE IF NOT EXISTS claimants (
@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS stories (
   title         text        NOT NULL,
   summary       text        NOT NULL,
   status        text        NOT NULL DEFAULT 'AVAILABLE' CHECK (status IN ('AVAILABLE','CONFIRMED','EXCLUDED')),
-  question_id   text        NOT NULL REFERENCES questions(id)
+  question_id   uuid        NOT NULL REFERENCES questions(id)
 );
 
 CREATE TABLE IF NOT EXISTS onboarding (

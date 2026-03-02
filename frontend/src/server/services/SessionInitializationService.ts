@@ -41,7 +41,7 @@ export const SessionInitializationService = {
     // Step 2: Create StoryRecord linked to session
     let storyRecord;
     try {
-      storyRecord = await SessionDAO.createStoryRecord(session.id);
+      storyRecord = await SessionDAO.createStoryRecord(session.id, userId);
     } catch (error) {
       // Rollback: delete the session we just created
       try {

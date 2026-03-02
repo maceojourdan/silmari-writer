@@ -125,24 +125,24 @@ describe('SessionDAO — Supabase Wiring', () => {
   describe('createStoryRecord', () => {
     describe('Reachability', () => {
       it('inserts into story_records and returns entity', async () => {
-        const row = { id: 'sr-1', session_id: 'as-1', status: 'INIT', created_at: '2026-01-01', updated_at: '2026-01-01' };
+        const row = { id: 'sr-1', voice_session_id: 'as-1', user_id: 'u-1', status: 'INIT', created_at: '2026-01-01', updated_at: '2026-01-01' };
         mockSingle.mockResolvedValue({ data: row, error: null });
-        const result = await SessionDAO.createStoryRecord('as-1');
+        const result = await SessionDAO.createStoryRecord('as-1', 'u-1');
         expect(result.id).toBe('sr-1');
       });
     });
     describe('TypeInvariant', () => {
       it('conforms to AnswerStoryRecordSchema', async () => {
-        const row = { id: UUID1, session_id: UUID2, status: 'INIT', created_at: '2026-01-01', updated_at: '2026-01-01' };
+        const row = { id: UUID1, voice_session_id: UUID2, user_id: 'u-1', status: 'INIT', created_at: '2026-01-01', updated_at: '2026-01-01' };
         mockSingle.mockResolvedValue({ data: row, error: null });
-        const result = await SessionDAO.createStoryRecord(UUID2);
+        const result = await SessionDAO.createStoryRecord(UUID2, 'u-1');
         expect(AnswerStoryRecordSchema.safeParse(result).success).toBe(true);
       });
     });
     describe('ErrorConsistency', () => {
       it('throws SessionError on failure', async () => {
         mockSingle.mockResolvedValue({ data: null, error: { message: 'fail' } });
-        await expect(SessionDAO.createStoryRecord('as-1')).rejects.toThrow(SessionError);
+        await expect(SessionDAO.createStoryRecord('as-1', 'u-1')).rejects.toThrow(SessionError);
       });
     });
   });
@@ -186,7 +186,7 @@ describe('SessionDAO — Supabase Wiring', () => {
   describe('findStoryRecordBySessionId', () => {
     describe('Reachability', () => {
       it('returns story record when found', async () => {
-        const row = { id: 'sr-1', session_id: 'as-1', status: 'IN_PROGRESS', content: 'text', created_at: '2026-01-01', updated_at: '2026-01-01' };
+        const row = { id: 'sr-1', voice_session_id: 'as-1', status: 'IN_PROGRESS', content: 'text', created_at: '2026-01-01', updated_at: '2026-01-01' };
         mockMaybeSingle.mockResolvedValue({ data: row, error: null });
         const result = await SessionDAO.findStoryRecordBySessionId('as-1');
         expect(result).not.toBeNull();
@@ -199,7 +199,7 @@ describe('SessionDAO — Supabase Wiring', () => {
     describe('Reachability', () => {
       it('updates both entities and returns them', async () => {
         const sessionRow = { id: 'as-1', user_id: 'u-1', state: 'RECALL', created_at: '2026-01-01', updated_at: '2026-01-02' };
-        const storyRow = { id: 'sr-1', session_id: 'as-1', status: 'RECALL', content: 'new', created_at: '2026-01-01', updated_at: '2026-01-02' };
+        const storyRow = { id: 'sr-1', voice_session_id: 'as-1', status: 'RECALL', content: 'new', created_at: '2026-01-01', updated_at: '2026-01-02' };
         // First call returns session, second returns story record
         mockSingle.mockResolvedValueOnce({ data: sessionRow, error: null })
                   .mockResolvedValueOnce({ data: storyRow, error: null });
