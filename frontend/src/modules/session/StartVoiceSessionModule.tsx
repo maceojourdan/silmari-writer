@@ -55,6 +55,31 @@ export function useVoiceSession(): VoiceSessionContext {
   return useContext(SessionContext);
 }
 
+function isStartSessionAlreadyActiveError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const candidate = error as { code?: unknown; statusCode?: unknown; name?: unknown };
+  return (
+    candidate.code === 'SESSION_ALREADY_ACTIVE'
+    || candidate.statusCode === 409
+    || candidate.name === 'StartSessionAlreadyActiveError'
+  );
+}
+
+function mapStartSessionErrorToUiMessage(error: unknown): string {
+  if (isStartSessionAlreadyActiveError(error)) {
+    return 'You already have an active session. Please finalize or end it before starting a new one.';
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return 'An unexpected error occurred';
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -104,7 +129,7 @@ export default function StartVoiceSessionModule({
       setUIState('success');
       onNavigate(`/session/${result.sessionId}`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
+      const message = mapStartSessionErrorToUiMessage(err);
       frontendLogger.error(
         'VOICE_SESSION_START_FAILED',
         err instanceof Error ? err : new Error(String(err)),

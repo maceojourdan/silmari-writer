@@ -14,9 +14,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 
 // Mock dependencies
-vi.mock('@/api_contracts/startSessionFromUrl', () => ({
-  startSessionFromUrl: vi.fn(),
-}));
+vi.mock('@/api_contracts/startSessionFromUrl', async () => {
+  const actual = await vi.importActual<typeof import('@/api_contracts/startSessionFromUrl')>(
+    '@/api_contracts/startSessionFromUrl',
+  );
+  return {
+    ...actual,
+    startSessionFromUrl: vi.fn(),
+  };
+});
 
 vi.mock('@/logging/index', () => ({
   frontendLogger: {
@@ -26,8 +32,8 @@ vi.mock('@/logging/index', () => ({
   },
 }));
 
-import StartVoiceSessionModule from '../StartVoiceSessionModule';
-import { startSessionFromUrl } from '@/api_contracts/startSessionFromUrl';
+import StartVoiceSessionModule, { type StartVoiceSessionModuleProps } from '../StartVoiceSessionModule';
+import { StartSessionAlreadyActiveError, startSessionFromUrl } from '@/api_contracts/startSessionFromUrl';
 import { frontendLogger } from '@/logging/index';
 
 const mockStartSessionFromUrl = vi.mocked(startSessionFromUrl);
@@ -44,7 +50,7 @@ const sourceUrl = 'https://example.greenhouse.io/job/123';
 function renderModule(overrides: {
   user?: { id: string } | null;
   authToken?: string | null;
-  onNavigate?: (path: string) => void;
+  onNavigate?: StartVoiceSessionModuleProps['onNavigate'];
 } = {}) {
   const onNavigate = overrides.onNavigate ?? vi.fn();
   return {
@@ -116,9 +122,9 @@ describe('StartVoiceSessionModule - Step 1: User initiates voice session', () =>
     });
 
     it('should show loading state while creating session', async () => {
-      let resolvePromise: (value: any) => void;
-      const pendingPromise = new Promise((resolve) => { resolvePromise = resolve; });
-      mockStartSessionFromUrl.mockReturnValue(pendingPromise as any);
+      type SessionInitResult = Awaited<ReturnType<typeof startSessionFromUrl>>;
+      const deferred = Promise.withResolvers<SessionInitResult>();
+      mockStartSessionFromUrl.mockReturnValue(deferred.promise);
 
       renderModule();
 
@@ -134,7 +140,7 @@ describe('StartVoiceSessionModule - Step 1: User initiates voice session', () =>
 
       // Clean up
       await act(async () => {
-        resolvePromise!({
+        deferred.resolve({
           sessionId: '550e8400-e29b-41d4-a716-446655440000',
           state: 'initialized',
           canonicalUrl: sourceUrl,
@@ -241,6 +247,27 @@ describe('StartVoiceSessionModule - Step 1: User initiates voice session', () =>
         const errorEl = screen.getByRole('alert');
         expect(errorEl).toBeInTheDocument();
         expect(errorEl.textContent).toContain('Network failure');
+      });
+    });
+
+    it('shows actionable guidance when an active session conflict occurs', async () => {
+      mockStartSessionFromUrl.mockRejectedValue(
+        new StartSessionAlreadyActiveError('A session is already active.'),
+      );
+
+      renderModule();
+
+      fireEvent.change(screen.getByLabelText(/job posting url/i), {
+        target: { value: sourceUrl },
+      });
+      const button = screen.getByRole('button', { name: /Start Voice-Assisted Session/i });
+      fireEvent.click(button);
+
+      await waitFor(() => {
+        const errorEl = screen.getByRole('alert');
+        expect(errorEl).toBeInTheDocument();
+        expect(errorEl.textContent).toContain('already have an active session');
+        expect(errorEl.textContent).toContain('finalize or end it');
       });
     });
 

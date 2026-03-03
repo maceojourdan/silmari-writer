@@ -21,6 +21,18 @@ export const StartSessionFromUrlErrorSchema = z.object({
   message: z.string().min(1),
 });
 
+export class StartSessionAlreadyActiveError extends Error {
+  code: string;
+  statusCode: number;
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'StartSessionAlreadyActiveError';
+    this.code = 'SESSION_ALREADY_ACTIVE';
+    this.statusCode = 409;
+  }
+}
+
 export async function startSessionFromUrl(
   authToken: string,
   sourceUrl: string,
@@ -40,6 +52,15 @@ export async function startSessionFromUrl(
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({}));
       const parsedError = StartSessionFromUrlErrorSchema.safeParse(errorBody);
+
+      if (
+        response.status === 409
+        && parsedError.success
+        && parsedError.data.code === 'SESSION_ALREADY_ACTIVE'
+      ) {
+        throw new StartSessionAlreadyActiveError(parsedError.data.message);
+      }
+
       throw new Error(
         parsedError.success
           ? parsedError.data.message

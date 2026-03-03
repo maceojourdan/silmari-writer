@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { SessionErrors } from '@/server/error_definitions/SessionErrors';
+import { ChannelIngestionError } from '@/server/error_definitions/ChannelIngestionErrors';
 
 vi.mock('@/server/services/InitializeSessionService', () => ({
   InitializeSessionService: {
@@ -54,5 +56,37 @@ describe('ChannelIngestionPipelineAdapter.initializeFromUrl', () => {
       state: 'initialized',
     });
     expect(result.contextSummary).toContain('example.greenhouse.io');
+  });
+
+  it('preserves SESSION_ALREADY_ACTIVE as a 409 conflict', async () => {
+    mockInitialize.createSession.mockRejectedValue(SessionErrors.SessionAlreadyActive());
+
+    await expect(
+      ChannelIngestionPipelineAdapter.initializeFromUrl({
+        userId: 'user-1',
+        sourceUrl: 'https://example.greenhouse.io/job/123',
+        channel: 'sms',
+      }),
+    ).rejects.toMatchObject({
+      code: 'SESSION_ALREADY_ACTIVE',
+      statusCode: 409,
+      retryable: false,
+    } satisfies Partial<ChannelIngestionError>);
+  });
+
+  it('keeps unknown errors mapped to PIPELINE_INIT_FAILED 500', async () => {
+    mockInitialize.createSession.mockRejectedValue(new Error('boom'));
+
+    await expect(
+      ChannelIngestionPipelineAdapter.initializeFromUrl({
+        userId: 'user-1',
+        sourceUrl: 'https://example.greenhouse.io/job/123',
+        channel: 'sms',
+      }),
+    ).rejects.toMatchObject({
+      code: 'PIPELINE_INIT_FAILED',
+      statusCode: 500,
+      retryable: true,
+    } satisfies Partial<ChannelIngestionError>);
   });
 });

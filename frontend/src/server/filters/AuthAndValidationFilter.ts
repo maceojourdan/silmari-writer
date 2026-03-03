@@ -7,11 +7,47 @@
  */
 
 import { ApproveDraftPayloadSchema, type ApproveDraftPayload } from '@/verifiers/ApproveDraftVerifier';
-import { StoryErrors, StoryError } from '@/server/error_definitions/StoryErrors';
+import { StoryErrors } from '@/server/error_definitions/StoryErrors';
+import { createHash } from 'crypto';
 
 export interface AuthContext {
   userId: string;
   authenticated: boolean;
+}
+
+function hashIdentity(value: string): string {
+  return createHash('sha256').update(value).digest('hex').slice(0, 16);
+}
+
+function decodeBase64Url(input: string): string {
+  const normalized = input.replace(/-/g, '+').replace(/_/g, '/');
+  const padding = normalized.length % 4 === 0 ? '' : '='.repeat(4 - (normalized.length % 4));
+  return Buffer.from(`${normalized}${padding}`, 'base64').toString('utf8');
+}
+
+function tryDecodeJwtSub(token: string): string | null {
+  const tokenParts = token.split('.');
+  if (tokenParts.length < 2) {
+    return null;
+  }
+
+  try {
+    const payloadJson = decodeBase64Url(tokenParts[1]);
+    const payload = JSON.parse(payloadJson) as { sub?: unknown };
+    if (typeof payload.sub === 'string' && payload.sub.trim().length > 0) {
+      return payload.sub;
+    }
+  } catch {
+    // Fallback to token hashing when payload can't be decoded.
+  }
+
+  return null;
+}
+
+function deriveDeterministicUserId(token: string): string {
+  const jwtSub = tryDecodeJwtSub(token);
+  const identitySeed = jwtSub ?? `token:${token}`;
+  return `user-${hashIdentity(identitySeed)}`;
 }
 
 export const AuthAndValidationFilter = {
@@ -33,7 +69,7 @@ export const AuthAndValidationFilter = {
     }
 
     return {
-      userId: `user-${token.substring(0, 8)}`,
+      userId: deriveDeterministicUserId(token),
       authenticated: true,
     };
   },

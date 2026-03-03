@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { NextRequest } from 'next/server';
 
 vi.mock('@/server/services/ChannelIngestionPipelineAdapter', () => ({
   ChannelIngestionPipelineAdapter: {
@@ -13,12 +14,14 @@ vi.mock('@/server/settings/voiceUxFeatureFlags', () => ({
 import { POST } from '../route';
 import { ChannelIngestionPipelineAdapter } from '@/server/services/ChannelIngestionPipelineAdapter';
 import { isVoiceUxFeatureEnabled } from '@/server/settings/voiceUxFeatureFlags';
+import { ChannelIngestionErrors } from '@/server/error_definitions/ChannelIngestionErrors';
+import { deriveUserIdForToken } from '@/test_helpers/authTestUtils';
 
 const mockAdapter = vi.mocked(ChannelIngestionPipelineAdapter);
 const mockFeatureFlag = vi.mocked(isVoiceUxFeatureEnabled);
 
-function makeRequest(body: unknown, authToken?: string) {
-  return new Request('http://localhost/api/ingestion/url', {
+function makeRequest(body: unknown, authToken?: string): NextRequest {
+  return new NextRequest('http://localhost/api/ingestion/url', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -35,6 +38,8 @@ describe('POST /api/ingestion/url', () => {
   });
 
   it('returns 200 and initialized session payload for a valid URL', async () => {
+    const token = 'valid-token';
+
     mockAdapter.initializeFromUrl.mockResolvedValue({
       id: '550e8400-e29b-41d4-a716-446655440000',
       state: 'initialized',
@@ -44,8 +49,8 @@ describe('POST /api/ingestion/url', () => {
     const response = await POST(
       makeRequest(
         { sourceUrl: 'https://EXAMPLE.greenhouse.io/job/123/' },
-        'valid-token',
-      ) as any,
+        token,
+      ),
     );
 
     const data = await response.json();
@@ -57,7 +62,7 @@ describe('POST /api/ingestion/url', () => {
     });
 
     expect(mockAdapter.initializeFromUrl).toHaveBeenCalledWith({
-      userId: 'user-valid-to',
+      userId: deriveUserIdForToken(token),
       sourceUrl: 'https://example.greenhouse.io/job/123',
       channel: 'direct',
     });
@@ -70,7 +75,7 @@ describe('POST /api/ingestion/url', () => {
       makeRequest(
         { sourceUrl: 'https://example.greenhouse.io/job/123' },
         'valid-token',
-      ) as any,
+      ),
     );
 
     const data = await response.json();
@@ -80,7 +85,7 @@ describe('POST /api/ingestion/url', () => {
 
   it('returns 401 when authorization header is missing', async () => {
     const response = await POST(
-      makeRequest({ sourceUrl: 'https://example.greenhouse.io/job/123' }) as any,
+      makeRequest({ sourceUrl: 'https://example.greenhouse.io/job/123' }),
     );
 
     const data = await response.json();
@@ -94,12 +99,29 @@ describe('POST /api/ingestion/url', () => {
       makeRequest(
         { sourceUrl: 'https://example.com/not-supported' },
         'valid-token',
-      ) as any,
+      ),
     );
 
     const data = await response.json();
     expect(response.status).toBe(400);
     expect(data.code).toBe('INVALID_URL_DOMAIN');
     expect(mockAdapter.initializeFromUrl).not.toHaveBeenCalled();
+  });
+
+  it('returns 409 SESSION_ALREADY_ACTIVE when adapter reports active-session conflict', async () => {
+    mockAdapter.initializeFromUrl.mockRejectedValue(
+      ChannelIngestionErrors.SessionAlreadyActive(),
+    );
+
+    const response = await POST(
+      makeRequest(
+        { sourceUrl: 'https://example.greenhouse.io/job/123' },
+        'valid-token',
+      ),
+    );
+
+    const data = await response.json();
+    expect(response.status).toBe(409);
+    expect(data.code).toBe('SESSION_ALREADY_ACTIVE');
   });
 });

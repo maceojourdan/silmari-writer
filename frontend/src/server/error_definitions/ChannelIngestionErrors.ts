@@ -6,6 +6,7 @@ export type ChannelIngestionErrorCode =
   | 'NO_VALID_URL'
   | 'INVALID_URL_DOMAIN'
   | 'DUPLICATE_INGESTION'
+  | 'SESSION_ALREADY_ACTIVE'
   | 'PIPELINE_INIT_FAILED'
   | 'INTERNAL_ERROR';
 
@@ -50,10 +51,12 @@ export const ChannelIngestionErrors = {
   DuplicateIngestion: (message = 'Inbound message is a duplicate ingestion') =>
     new ChannelIngestionError(message, 'DUPLICATE_INGESTION', 409, false),
 
+  SessionAlreadyActive: (message = 'A session is already active. Please finalize or end the current session before starting a new one.') =>
+    new ChannelIngestionError(message, 'SESSION_ALREADY_ACTIVE', 409, false),
+
   PipelineInitFailed: (message = 'Failed to initialize session from inbound URL') =>
     new ChannelIngestionError(message, 'PIPELINE_INIT_FAILED', 500, true),
 
   Internal: (message = 'Unexpected channel ingestion failure') =>
     new ChannelIngestionError(message, 'INTERNAL_ERROR', 500, false),
 } as const;
-

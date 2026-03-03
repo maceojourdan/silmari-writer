@@ -1,5 +1,6 @@
 import { InitializeSessionService } from '@/server/services/InitializeSessionService';
 import { ChannelIngestionErrors } from '@/server/error_definitions/ChannelIngestionErrors';
+import { SessionError } from '@/server/error_definitions/SessionErrors';
 
 interface ChannelInitInput {
   userId: string;
@@ -11,6 +12,16 @@ interface ChannelInitResult {
   id: string;
   state: 'initialized';
   contextSummary: string;
+}
+
+function mapInitializationError(error: unknown) {
+  if (error instanceof SessionError && error.code === 'SESSION_ALREADY_ACTIVE') {
+    return ChannelIngestionErrors.SessionAlreadyActive(error.message);
+  }
+
+  return ChannelIngestionErrors.PipelineInitFailed(
+    `Channel initialization pipeline failed: ${error instanceof Error ? error.message : 'unknown error'}`,
+  );
 }
 
 export const ChannelIngestionPipelineAdapter = {
@@ -50,9 +61,7 @@ export const ChannelIngestionPipelineAdapter = {
             : `Context extracted from ${host} (${input.channel}).`,
       };
     } catch (error) {
-      throw ChannelIngestionErrors.PipelineInitFailed(
-        `Channel initialization pipeline failed: ${error instanceof Error ? error.message : 'unknown error'}`,
-      );
+      throw mapInitializationError(error);
     }
   },
 } as const;

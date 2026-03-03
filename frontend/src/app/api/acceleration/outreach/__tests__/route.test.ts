@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { NextRequest } from 'next/server';
 import { __resetVoiceUxMemoryStoreForTests, VoiceUxMemoryStore } from '@/server/data_access_objects/VoiceUxMemoryStore';
 import { AccelerationService } from '@/server/services/AccelerationService';
+import { deriveUserIdForToken } from '@/test_helpers/authTestUtils';
 import { POST } from '../route';
 
 describe('POST /api/acceleration/outreach', () => {
@@ -12,7 +13,7 @@ describe('POST /api/acceleration/outreach', () => {
 
   it('returns completed outreach draft for selected company', async () => {
     const token = 'outreach1';
-    const userId = `user-${token.substring(0, 8)}`;
+    const userId = deriveUserIdForToken(token);
 
     const shortlist = VoiceUxMemoryStore.saveShortlist(userId, [
       { companyId: 'company-1', companyName: 'Acme', rank: 1 },
@@ -40,7 +41,7 @@ describe('POST /api/acceleration/outreach', () => {
 
   it('returns degraded timeout response while preserving existing draft context', async () => {
     const token = 'outreach2';
-    const userId = `user-${token.substring(0, 8)}`;
+    const userId = deriveUserIdForToken(token);
 
     const shortlist = VoiceUxMemoryStore.saveShortlist(userId, [
       { companyId: 'company-1', companyName: 'Acme', rank: 1 },

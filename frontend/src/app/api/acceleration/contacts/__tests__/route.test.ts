@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { NextRequest } from 'next/server';
 import { __resetVoiceUxMemoryStoreForTests, VoiceUxMemoryStore } from '@/server/data_access_objects/VoiceUxMemoryStore';
+import { deriveUserIdForToken } from '@/test_helpers/authTestUtils';
 import { POST } from '../route';
 
 describe('POST /api/acceleration/contacts', () => {
@@ -11,7 +12,7 @@ describe('POST /api/acceleration/contacts', () => {
 
   it('returns contacts for authenticated user and selected company', async () => {
     const token = 'contacts1';
-    const userId = `user-${token.substring(0, 8)}`;
+    const userId = deriveUserIdForToken(token);
 
     const shortlist = VoiceUxMemoryStore.saveShortlist(userId, [
       { companyId: 'company-1', companyName: 'Acme', rank: 1 },

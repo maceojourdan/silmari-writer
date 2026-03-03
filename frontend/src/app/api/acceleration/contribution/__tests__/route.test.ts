@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { NextRequest } from 'next/server';
 import { __resetVoiceUxMemoryStoreForTests, VoiceUxMemoryStore } from '@/server/data_access_objects/VoiceUxMemoryStore';
+import { deriveUserIdForToken } from '@/test_helpers/authTestUtils';
 import { POST } from '../route';
 
 describe('POST /api/acceleration/contribution', () => {
@@ -12,7 +13,7 @@ describe('POST /api/acceleration/contribution', () => {
   it('denies cross-user company contribution access', async () => {
     const tokenA = 'contribA1';
     const tokenB = 'contribB1';
-    const userA = `user-${tokenA.substring(0, 8)}`;
+    const userA = deriveUserIdForToken(tokenA);
 
     const shortlist = VoiceUxMemoryStore.saveShortlist(userA, [
       { companyId: 'company-1', companyName: 'Acme', rank: 1 },
@@ -36,7 +37,7 @@ describe('POST /api/acceleration/contribution', () => {
 
   it('returns degraded timeout response and preserves shape', async () => {
     const token = 'contribC1';
-    const user = `user-${token.substring(0, 8)}`;
+    const user = deriveUserIdForToken(token);
 
     const shortlist = VoiceUxMemoryStore.saveShortlist(user, [
       { companyId: 'company-1', companyName: 'Acme', rank: 1 },

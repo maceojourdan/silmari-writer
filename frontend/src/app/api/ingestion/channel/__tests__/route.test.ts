@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { NextRequest } from 'next/server';
 
 vi.mock('@/server/filters/ChannelServiceAuthFilter', () => ({
   ChannelServiceAuthFilter: {
@@ -52,8 +53,8 @@ const mockReplySender = vi.mocked(ChannelReplySender);
 function createRequest(
   body: unknown,
   headers: Record<string, string> = {},
-): Request {
-  return new Request('http://localhost/api/ingestion/channel', {
+): NextRequest {
+  return new NextRequest('http://localhost/api/ingestion/channel', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -122,7 +123,7 @@ describe('POST /api/ingestion/channel', () => {
           providerMessageId: 'SM-123',
         },
         { 'x-ingestion-api-key': 'test-ingestion-key' },
-      ) as any,
+      ),
     );
 
     const data = await response.json();
@@ -144,7 +145,7 @@ describe('POST /api/ingestion/channel', () => {
         body: 'job https://example.greenhouse.io/job/123',
         providerName: 'twilio',
         providerMessageId: 'SM-123',
-      }) as any,
+      }),
     );
 
     const data = await response.json();
@@ -197,7 +198,7 @@ describe('POST /api/ingestion/channel', () => {
           providerMessageId: 'SM-123',
         },
         { 'x-ingestion-api-key': 'test-ingestion-key' },
-      ) as any,
+      ),
     );
 
     const data = await response.json();
@@ -251,7 +252,7 @@ describe('POST /api/ingestion/channel', () => {
           providerMessageId: 'msg-456',
         },
         { 'x-ingestion-api-key': 'test-ingestion-key' },
-      ) as any,
+      ),
     );
 
     const data = await response.json();
@@ -313,11 +314,70 @@ describe('POST /api/ingestion/channel', () => {
           providerMessageId: 'SM-123',
         },
         { 'x-ingestion-api-key': 'test-ingestion-key' },
-      ) as any,
+      ),
     );
 
     const data = await response.json();
     expect(response.status).toBe(200);
     expect(data.replyStatus).toBe('failed_non_blocking');
+  });
+
+  it('returns 409 SESSION_ALREADY_ACTIVE when adapter reports active-session conflict', async () => {
+    mockAuth.authorize.mockReturnValue(undefined);
+    mockHandler.handle.mockResolvedValue({
+      channel: 'sms',
+      sender: '+15555551212',
+      userId: 'user-1',
+      canonicalUrl: 'https://example.greenhouse.io/job/123',
+      sourceDomain: 'example.greenhouse.io',
+      providerName: 'twilio',
+      providerMessageId: 'SM-123',
+      receivedAt: '2026-03-03T13:00:00.000Z',
+      dedupe: {
+        providerKey: 'twilio:SM-123',
+        userUrlKey: 'user-1:https://example.greenhouse.io/job/123',
+      },
+    });
+    mockDao.findByProviderMessage.mockResolvedValue(null);
+    mockDao.findByUserAndCanonicalUrl.mockResolvedValue(null);
+    mockDao.createIngestionMessage.mockResolvedValue({
+      id: '550e8400-e29b-41d4-a716-446655440000',
+      providerName: 'twilio',
+      providerMessageId: 'SM-123',
+      channel: 'sms',
+      sender: '+15555551212',
+      userId: 'user-1',
+      rawBody: 'job https://example.greenhouse.io/job/123',
+      canonicalUrl: 'https://example.greenhouse.io/job/123',
+      sourceDomain: 'example.greenhouse.io',
+      status: 'received',
+      replyStatus: 'pending',
+      replyErrorCode: null,
+      sessionId: null,
+      receivedAt: '2026-03-03T13:00:00.000Z',
+      createdAt: '2026-03-03T13:00:00.000Z',
+      updatedAt: '2026-03-03T13:00:00.000Z',
+    });
+    mockAdapter.initializeFromUrl.mockRejectedValue(
+      ChannelIngestionErrors.SessionAlreadyActive(),
+    );
+
+    const response = await POST(
+      createRequest(
+        {
+          channel: 'sms',
+          sender: '+15555551212',
+          body: 'job https://example.greenhouse.io/job/123',
+          providerName: 'twilio',
+          providerMessageId: 'SM-123',
+        },
+        { 'x-ingestion-api-key': 'test-ingestion-key' },
+      ),
+    );
+
+    const data = await response.json();
+    expect(response.status).toBe(409);
+    expect(data.code).toBe('SESSION_ALREADY_ACTIVE');
+    expect(mockDao.updateContextFailed).toHaveBeenCalledTimes(1);
   });
 });

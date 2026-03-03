@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   StartSessionFromUrlRequestSchema,
   StartSessionFromUrlResponseSchema,
+  StartSessionAlreadyActiveError,
   startSessionFromUrl,
 } from '../startSessionFromUrl';
 
@@ -81,5 +82,28 @@ describe('startSessionFromUrl API contract', () => {
     await expect(
       startSessionFromUrl('valid-token', 'https://example.com/not-a-job'),
     ).rejects.toThrow('URL domain is not allowed for ingestion');
+  });
+
+  it('throws StartSessionAlreadyActiveError for 409 SESSION_ALREADY_ACTIVE', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: async () => ({
+        code: 'SESSION_ALREADY_ACTIVE',
+        message: 'A session is already active. Please finalize or end the current session.',
+      }),
+    });
+
+    await expect(
+      startSessionFromUrl('valid-token', 'https://example.greenhouse.io/job/123'),
+    ).rejects.toBeInstanceOf(StartSessionAlreadyActiveError);
+
+    try {
+      await startSessionFromUrl('valid-token', 'https://example.greenhouse.io/job/123');
+    } catch (error) {
+      expect(error).toBeInstanceOf(StartSessionAlreadyActiveError);
+      expect((error as StartSessionAlreadyActiveError).statusCode).toBe(409);
+      expect((error as StartSessionAlreadyActiveError).code).toBe('SESSION_ALREADY_ACTIVE');
+    }
   });
 });

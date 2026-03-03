@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { NextRequest } from 'next/server';
 import { __resetVoiceUxMemoryStoreForTests, VoiceUxMemoryStore } from '@/server/data_access_objects/VoiceUxMemoryStore';
+import { deriveUserIdForToken } from '@/test_helpers/authTestUtils';
 import { POST } from '../route';
 
 describe('POST /api/linkedin/drafts', () => {
@@ -11,7 +12,7 @@ describe('POST /api/linkedin/drafts', () => {
 
   it('returns manual-post-only linkedin draft response', async () => {
     const token = 'linkedin1';
-    const userId = `user-${token.substring(0, 8)}`;
+    const userId = deriveUserIdForToken(token);
 
     const shortlist = VoiceUxMemoryStore.saveShortlist(userId, [
       { companyId: 'company-1', companyName: 'Acme', rank: 1 },
@@ -36,7 +37,7 @@ describe('POST /api/linkedin/drafts', () => {
 
   it('denies cross-user linkedin draft generation access', async () => {
     const userAToken = 'alpha3333';
-    const userA = `user-${userAToken.substring(0, 8)}`;
+    const userA = deriveUserIdForToken(userAToken);
 
     const shortlist = VoiceUxMemoryStore.saveShortlist(userA, [
       { companyId: 'company-1', companyName: 'Acme', rank: 1 },

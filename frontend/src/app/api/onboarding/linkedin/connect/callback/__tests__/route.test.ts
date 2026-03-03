@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { NextRequest } from 'next/server';
 import { __resetVoiceUxMemoryStoreForTests } from '@/server/data_access_objects/VoiceUxMemoryStore';
 import { LinkedinOnboardingService } from '@/server/services/LinkedinOnboardingService';
+import { deriveUserIdForToken } from '@/test_helpers/authTestUtils';
 import { POST } from '../route';
 
 describe('POST /api/onboarding/linkedin/connect/callback', () => {
@@ -13,7 +14,7 @@ describe('POST /api/onboarding/linkedin/connect/callback', () => {
 
   it('accepts valid state+nonce callback and does not leak tokens in response', async () => {
     const token = 'oauthuser1234';
-    const userId = `user-${token.substring(0, 8)}`;
+    const userId = deriveUserIdForToken(token);
 
     const started = await LinkedinOnboardingService.startOauthConnect(
       userId,
