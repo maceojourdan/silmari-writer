@@ -234,6 +234,27 @@ Minimum fields:
 - `dwell_ms`
 - `cta_action`
 
+### New-Path Telemetry Ingestion Contract (Required)
+To ensure the above observability requirements are enforceable in production, telemetry emission must have an explicit server ingress contract.
+
+Required endpoint:
+1. `POST /api/telemetry/new-path-events`
+
+Required request shape:
+1. Top-level envelope:
+   - `event_name` (string enum matching supported new-path events)
+   - `payload` (event-specific object validated against event schema)
+2. For interstitial events, `payload` must include the fields listed in Interstitial observability requirements.
+
+Required behavior:
+1. Route validates `event_name` + `payload` against typed event schemas.
+2. Route delegates persistence/routing through shared telemetry gateway.
+3. Telemetry failures are non-blocking for UX flows:
+   - return accepted response semantics even when downstream sink write fails
+   - log failure with structured error metadata.
+4. Route must support browser telemetry delivery patterns (`POST`, and `OPTIONS` for preflight-safe behavior).
+5. Unsupported methods should return explicit method errors (`405`) with allowed methods declared.
+
 ### Voice interrogation observability requirements
 Track iterative refinement quality:
 1. `voice_turn_started` / `voice_turn_completed`
