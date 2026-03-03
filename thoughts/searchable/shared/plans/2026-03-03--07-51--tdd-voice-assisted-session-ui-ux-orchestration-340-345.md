@@ -222,12 +222,12 @@ export const ChannelIngestionHandler = {
 
 ### Success Criteria
 **Automated:**
-- [ ] Red fails for missing sender/canonical-url handling.
-- [ ] Green passes `npm --prefix frontend run test -- src/server/request_handlers/__tests__/ChannelIngestionHandler.test.ts`.
-- [ ] Typecheck passes.
+- [x] Red fails for missing sender/canonical-url handling.
+- [x] Green passes `npm --prefix frontend run test -- src/server/request_handlers/__tests__/ChannelIngestionHandler.test.ts`.
+- [x] Typecheck passes.
 
 **Manual:**
-- [ ] Inbound email and SMS examples produce consistent normalized objects.
+- [x] Inbound email and SMS examples produce consistent normalized objects.
 
 ---
 
@@ -293,13 +293,13 @@ return NextResponse.json({
 
 ### Success Criteria
 **Automated:**
-- [ ] Route tests cover success + all error branches.
-- [ ] Existing init route tests remain green.
-- [ ] API contract tests validate request/success/error schema for `/api/ingestion/channel`.
+- [x] Route tests cover success + all error branches.
+- [x] Existing init route tests remain green.
+- [x] API contract tests validate request/success/error schema for `/api/ingestion/channel`.
 
 **Manual:**
-- [ ] Deep link payload is identical for paste and channel-ingested sessions.
-- [ ] Origin-channel reply includes deep link + context summary and does not block session creation when reply send fails.
+- [x] Deep link payload is identical for paste and channel-ingested sessions.
+- [x] Origin-channel reply includes deep link + context summary and does not block session creation when reply send fails.
 
 ---
 
@@ -343,11 +343,11 @@ export function ArtifactCopyButton({ content, status, artifactType }: Props) {
 
 ### Success Criteria
 **Automated:**
-- [ ] `ArtifactCopyButton` tests pass.
-- [ ] Existing finalized-answer copy tests stay green.
+- [x] `ArtifactCopyButton` tests pass.
+- [x] Existing finalized-answer copy tests stay green.
 
 **Manual:**
-- [ ] Copy feedback appears within <500ms and resets correctly.
+- [x] Copy feedback appears within <500ms and resets correctly.
 
 ---
 
@@ -389,13 +389,13 @@ it('offers manual and oauth fallback after url parse failure', async () => {
 
 ### Success Criteria
 **Automated:**
-- [ ] UI and route tests for URL/manual/OAuth/skip paths.
-- [ ] Token leakage test (no token in client payload/logs).
-- [ ] OAuth security tests: invalid state rejected, token fields encrypted at rest, refresh/revoke semantics covered.
+- [x] UI and route tests for URL/manual/OAuth/skip paths.
+- [x] Token leakage test (no token in client payload/logs).
+- [x] OAuth security tests: invalid state rejected, token fields encrypted at rest, refresh/revoke semantics covered.
 
 **Manual:**
-- [ ] User can skip LinkedIn and continue onboarding.
-- [ ] OAuth callback failure states are user-safe and do not leak token material.
+- [x] User can skip LinkedIn and continue onboarding.
+- [x] OAuth callback failure states are user-safe and do not leak token material.
 
 ---
 
@@ -435,12 +435,12 @@ it('generates shortlist and persists user edits', async () => {
 
 ### Success Criteria
 **Automated:**
-- [ ] Shortlist module + route tests pass.
-- [ ] Event payload contract test for `shortlist_generated` and `shortlist_company_saved`.
-- [ ] Auth contract tests cover unauthorized and cross-user denial branches.
+- [x] Shortlist module + route tests pass.
+- [x] Event payload contract test for `shortlist_generated` and `shortlist_company_saved`.
+- [x] Auth contract tests cover unauthorized and cross-user denial branches.
 
 **Manual:**
-- [ ] User can curate list without losing unsaved local state on transient errors.
+- [x] User can curate list without losing unsaved local state on transient errors.
 
 ---
 
@@ -483,12 +483,12 @@ it('returns contribution areas and contact suggestions scoped to selected compan
 
 ### Success Criteria
 **Automated:**
-- [ ] Discovery and outreach generation tests pass.
-- [ ] Copy button rendering tests pass for outreach artifacts.
-- [ ] Timeout/cancellation tests verify degraded-mode responses preserve user context.
+- [x] Discovery and outreach generation tests pass.
+- [x] Copy button rendering tests pass for outreach artifacts.
+- [x] Timeout/cancellation tests verify degraded-mode responses preserve user context.
 
 **Manual:**
-- [ ] Contact/relevance and contribution labels are understandable in UI.
+- [x] Contact/relevance and contribution labels are understandable in UI.
 
 ---
 
@@ -530,12 +530,12 @@ it('renders manual-post-only safeguard and no publish controls', async () => {
 
 ### Success Criteria
 **Automated:**
-- [ ] UI tests enforce manual-post-only invariant.
-- [ ] No route/API named for LinkedIn publish exists.
-- [ ] API contract tests validate request/success/error schema for draft generation.
+- [x] UI tests enforce manual-post-only invariant.
+- [x] No route/API named for LinkedIn publish exists.
+- [x] API contract tests validate request/success/error schema for draft generation.
 
 **Manual:**
-- [ ] Reminder remains visible whenever drafts are displayed.
+- [x] Reminder remains visible whenever drafts are displayed.
 
 ---
 
@@ -578,13 +578,13 @@ it('auto-advances only after minimum display time even when processing completes
 
 ### Success Criteria
 **Automated:**
-- [ ] Mapper + controller tests pass.
-- [ ] Existing `SessionWorkflowShell` tests remain green.
-- [ ] Abandonment telemetry tests validate sendBeacon primary and non-blocking fallback path.
+- [x] Mapper + controller tests pass.
+- [x] Existing `SessionWorkflowShell` tests remain green.
+- [x] Abandonment telemetry tests validate sendBeacon primary and non-blocking fallback path.
 
 **Manual:**
-- [ ] Interstitial never presents as error styling.
-- [ ] User can continue/wait and progress is visible.
+- [x] Interstitial never presents as error styling.
+- [x] User can continue/wait and progress is visible.
 
 ---
 
@@ -624,12 +624,12 @@ it('validates required payload fields for interstitial_shown event', () => {
 
 ### Success Criteria
 **Automated:**
-- [ ] Event contract tests pass for all `340-345` events.
-- [ ] Existing analytics tests remain green.
-- [ ] Event sink routing tests verify destination mapping and non-blocking failure semantics.
+- [x] Event contract tests pass for all `340-345` events.
+- [x] Existing analytics tests remain green.
+- [x] Event sink routing tests verify destination mapping and non-blocking failure semantics.
 
 **Manual:**
-- [ ] QA logs clearly show success/failure payloads for all new flows.
+- [x] QA logs clearly show success/failure payloads for all new flows.
 
 ---
 

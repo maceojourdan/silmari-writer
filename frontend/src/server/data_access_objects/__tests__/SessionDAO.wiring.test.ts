@@ -170,8 +170,8 @@ describe('SessionDAO — Supabase Wiring', () => {
         mockSingle.mockResolvedValue({ data: { id: UUID1 }, error: null });
         mockInsert
           .mockReturnValueOnce({ select: mockSelect })
-          .mockReturnValueOnce({}) // job_requirements insert
-          .mockReturnValueOnce({}); // stories insert
+          .mockReturnValueOnce({ select: mockSelect }) // job_requirements insert
+          .mockReturnValueOnce({ select: mockSelect }); // stories insert
 
         const result = await SessionDAO.createBootstrapQuestionContext();
         expect(result.questionId).toBe(UUID1);
