@@ -1,23 +1,65 @@
 import { z } from 'zod';
+import {
+  DEFAULT_RECALL_QUESTIONS,
+  initializeQuestionProgress,
+  QuestionProgressStateSchema,
+  type QuestionProgressState,
+} from '@/lib/recallQuestions';
 
 export const SessionVoiceTurnsResponseSchema = z.object({
   sessionId: z.string().uuid(),
   workingAnswer: z.string(),
   turns: z.array(z.string()),
+  questionProgress: QuestionProgressStateSchema.optional(),
 });
 
-export type SessionVoiceTurnsResponse = z.infer<typeof SessionVoiceTurnsResponseSchema>;
+type SessionVoiceTurnsResponseRaw = z.infer<typeof SessionVoiceTurnsResponseSchema>;
 
-const SessionVoiceTurnsRequestSchema = z.object({
+export interface SessionVoiceTurnsResponse {
+  sessionId: string;
+  workingAnswer: string;
+  turns: string[];
+  questionProgress: QuestionProgressState;
+}
+
+const UpdateWorkingAnswerRequestSchema = z.object({
   sessionId: z.string().uuid(),
-  action: z.enum(['update_working_answer', 'reset_turns']),
-  content: z.string().optional(),
+  action: z.literal('update_working_answer'),
+  content: z.string(),
 });
+
+const ResetTurnsRequestSchema = z.object({
+  sessionId: z.string().uuid(),
+  action: z.literal('reset_turns'),
+});
+
+const AdvanceQuestionRequestSchema = z.object({
+  sessionId: z.string().uuid(),
+  action: z.literal('advance_question'),
+});
+
+const SessionVoiceTurnsRequestSchema = z.discriminatedUnion('action', [
+  UpdateWorkingAnswerRequestSchema,
+  ResetTurnsRequestSchema,
+  AdvanceQuestionRequestSchema,
+]);
 
 interface VoiceTurnsRequest {
   sessionId: string;
-  action: 'update_working_answer' | 'reset_turns';
+  action: 'update_working_answer' | 'reset_turns' | 'advance_question';
   content?: string;
+}
+
+function withDefaultQuestionProgress(
+  response: SessionVoiceTurnsResponseRaw,
+): SessionVoiceTurnsResponse {
+  const fallbackQuestionProgress = initializeQuestionProgress(DEFAULT_RECALL_QUESTIONS);
+  return {
+    sessionId: response.sessionId,
+    workingAnswer: response.workingAnswer,
+    turns: response.turns,
+    questionProgress: response.questionProgress ?? fallbackQuestionProgress,
+  };
 }
 
 async function fetchVoiceTurns(
@@ -40,7 +82,7 @@ async function fetchVoiceTurns(
     );
   }
 
-  return parsed.data;
+  return withDefaultQuestionProgress(parsed.data);
 }
 
 export async function getSessionVoiceTurns(sessionId: string): Promise<SessionVoiceTurnsResponse> {
@@ -75,6 +117,26 @@ export async function resetSessionVoiceTurns(sessionId: string): Promise<Session
   const payload: VoiceTurnsRequest = {
     sessionId,
     action: 'reset_turns',
+  };
+
+  const validated = SessionVoiceTurnsRequestSchema.safeParse(payload);
+  if (!validated.success) {
+    throw new Error(
+      validated.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join(', '),
+    );
+  }
+
+  return fetchVoiceTurns('/api/session/voice-turns', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(validated.data),
+  });
+}
+
+export async function advanceSessionQuestion(sessionId: string): Promise<SessionVoiceTurnsResponse> {
+  const payload: VoiceTurnsRequest = {
+    sessionId,
+    action: 'advance_question',
   };
 
   const validated = SessionVoiceTurnsRequestSchema.safeParse(payload);

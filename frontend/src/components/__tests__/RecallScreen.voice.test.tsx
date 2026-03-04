@@ -15,6 +15,7 @@ const mockOnVoiceResponseSaved = vi.fn();
 const mockGetSessionVoiceTurns = vi.fn();
 const mockUpdateSessionWorkingAnswer = vi.fn();
 const mockResetSessionVoiceTurns = vi.fn();
+const mockAdvanceSessionQuestion = vi.fn();
 const mockLoadRecallProgress = vi.fn();
 const mockEmitNewPathClientEvent = vi.fn();
 
@@ -44,6 +45,7 @@ vi.mock('@/api_contracts/sessionVoiceTurns', () => ({
   getSessionVoiceTurns: (sessionId: string) => mockGetSessionVoiceTurns(sessionId),
   updateSessionWorkingAnswer: (sessionId: string, content: string) => mockUpdateSessionWorkingAnswer(sessionId, content),
   resetSessionVoiceTurns: (sessionId: string) => mockResetSessionVoiceTurns(sessionId),
+  advanceSessionQuestion: (sessionId: string) => mockAdvanceSessionQuestion(sessionId),
 }));
 
 vi.mock('@/data_loaders/RecallProgressLoader', () => ({
@@ -95,18 +97,48 @@ describe('RecallScreen voice session wiring', () => {
       sessionId: SESSION_ID,
       workingAnswer: '',
       turns: [],
+      questionProgress: {
+        currentIndex: 0,
+        total: 4,
+        completed: [],
+        activeQuestionId: 'q-default-1',
+      },
     });
 
     mockUpdateSessionWorkingAnswer.mockResolvedValue({
       sessionId: SESSION_ID,
       workingAnswer: '',
       turns: [],
+      questionProgress: {
+        currentIndex: 0,
+        total: 4,
+        completed: [],
+        activeQuestionId: 'q-default-1',
+      },
     });
 
     mockResetSessionVoiceTurns.mockResolvedValue({
       sessionId: SESSION_ID,
       workingAnswer: '',
       turns: [],
+      questionProgress: {
+        currentIndex: 0,
+        total: 4,
+        completed: [],
+        activeQuestionId: 'q-default-1',
+      },
+    });
+
+    mockAdvanceSessionQuestion.mockResolvedValue({
+      sessionId: SESSION_ID,
+      workingAnswer: '',
+      turns: [],
+      questionProgress: {
+        currentIndex: 1,
+        total: 4,
+        completed: ['q-default-1'],
+        activeQuestionId: 'q-default-2',
+      },
     });
 
     mockLoadRecallProgress.mockResolvedValue({
@@ -153,6 +185,37 @@ describe('RecallScreen voice session wiring', () => {
         'voice_edit',
         expect.objectContaining({
           instructions: expect.stringContaining('warm greeting'),
+        }),
+      );
+    });
+  });
+
+  it('includes the active question in coach prompt and realtime instructions', async () => {
+    const user = userEvent.setup();
+    render(
+      <RecallScreen
+        questions={[
+          { id: 'q-custom-1', text: 'Question one?', category: 'custom', position: 0 },
+          { id: 'q-custom-2', text: 'Question two?', category: 'custom', position: 1 },
+        ]}
+        initialQuestionProgress={{
+          currentIndex: 1,
+          total: 2,
+          completed: ['q-custom-1'],
+          activeQuestionId: 'q-custom-2',
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('recall-question-text')).toHaveTextContent('Question two?');
+
+    await user.click(screen.getByTestId('record-button'));
+
+    await waitFor(() => {
+      expect(mockConnect).toHaveBeenCalledWith(
+        'voice_edit',
+        expect.objectContaining({
+          instructions: expect.stringContaining('Question two?'),
         }),
       );
     });
@@ -248,12 +311,58 @@ describe('RecallScreen voice session wiring', () => {
       sessionId: SESSION_ID,
       workingAnswer: 'Recovered answer from DB',
       turns: ['Recovered answer from DB'],
+      questionProgress: {
+        currentIndex: 0,
+        total: 4,
+        completed: [],
+        activeQuestionId: 'q-default-1',
+      },
     });
 
     render(<RecallScreen sessionId={SESSION_ID} />);
 
     await waitFor(() => {
       expect(screen.getByTestId('working-answer-editor')).toHaveValue('Recovered answer from DB');
+    });
+  });
+
+  it('advances questions monotonically and calls onAdvanceToReview on final question', async () => {
+    const user = userEvent.setup();
+    const onAdvanceToReview = vi.fn();
+    mockSessionState = 'connected';
+
+    render(
+      <RecallScreen
+        onAdvanceToReview={onAdvanceToReview}
+        questions={[
+          { id: 'q-custom-1', text: 'Question one?', category: 'custom', position: 0 },
+          { id: 'q-custom-2', text: 'Question two?', category: 'custom', position: 1 },
+        ]}
+        initialQuestionProgress={{
+          currentIndex: 0,
+          total: 2,
+          completed: [],
+          activeQuestionId: 'q-custom-1',
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('recall-question-progress')).toHaveTextContent('Question 1 of 2');
+    expect(screen.getByTestId('recall-question-text')).toHaveTextContent('Question one?');
+
+    await user.click(screen.getByTestId('record-button'));
+    await user.click(screen.getByRole('button', { name: /next question/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('recall-question-progress')).toHaveTextContent('Question 2 of 2');
+      expect(screen.getByTestId('recall-question-text')).toHaveTextContent('Question two?');
+    });
+
+    await user.click(screen.getByTestId('record-button'));
+    await user.click(screen.getByRole('button', { name: /finish to review/i }));
+
+    await waitFor(() => {
+      expect(onAdvanceToReview).toHaveBeenCalledTimes(1);
     });
   });
 });

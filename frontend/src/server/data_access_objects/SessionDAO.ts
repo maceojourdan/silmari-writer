@@ -16,6 +16,7 @@
 import type { Session, SessionState } from '@/server/data_structures/Session';
 import type { AnswerSession, AnswerSessionState, AnswerStoryRecord } from '@/server/data_structures/AnswerSession';
 import type { SlotState } from '@/server/data_structures/VoiceInteractionContext';
+import { QuestionProgressStateSchema, type QuestionProgressState } from '@/lib/recallQuestions';
 import { supabase } from '@/lib/supabase';
 import { SessionErrors, SessionError } from '@/server/error_definitions/SessionErrors';
 import { randomUUID } from 'node:crypto';
@@ -84,6 +85,7 @@ function mapStoryRecord(data: Record<string, unknown>): AnswerStoryRecord {
   const responses = Array.isArray(rawResponses)
     ? rawResponses.filter((value): value is string => typeof value === 'string')
     : undefined;
+  const questionProgress = QuestionProgressStateSchema.safeParse(data.question_progress);
 
   return {
     id: data.id as string,
@@ -94,6 +96,7 @@ function mapStoryRecord(data: Record<string, unknown>): AnswerStoryRecord {
     status: data.status as AnswerStoryRecord['status'],
     content: data.content as string | undefined,
     responses,
+    questionProgress: questionProgress.success ? questionProgress.data : undefined,
     createdAt: data.created_at as string,
     updatedAt: data.updated_at as string,
   };
@@ -590,6 +593,41 @@ export const SessionDAO = {
 
       if (!data) {
         throw SessionErrors.PersistenceFailure('No data returned from story record responses update');
+      }
+
+      return mapStoryRecord(data);
+    } catch (err) {
+      if (err instanceof SessionError) throw err;
+      throw SessionErrors.PersistenceFailure(`Unexpected: ${(err as Error).message}`);
+    }
+  },
+
+  async updateStoryRecordQuestionProgress(
+    sessionId: string,
+    questionProgress: QuestionProgressState,
+  ): Promise<AnswerStoryRecord | null> {
+    try {
+      const storyRecord = await this.findStoryRecordBySessionId(sessionId);
+      if (!storyRecord) {
+        return null;
+      }
+
+      const { data, error } = await supabase
+        .from('story_records')
+        .update({
+          question_progress: questionProgress,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', storyRecord.id)
+        .select()
+        .single();
+
+      if (error) {
+        throw SessionErrors.PersistenceFailure(`Failed to update story record question progress: ${error.message}`);
+      }
+
+      if (!data) {
+        throw SessionErrors.PersistenceFailure('No data returned from story record question progress update');
       }
 
       return mapStoryRecord(data);

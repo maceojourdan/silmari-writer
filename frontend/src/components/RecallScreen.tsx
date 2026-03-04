@@ -20,12 +20,21 @@ import { useRealtimeSession } from '@/hooks/useRealtimeSession';
 import { VOICE_MODES } from '@/lib/voice-types';
 import { submitVoiceResponse } from '@/api_contracts/submitVoiceResponse';
 import {
+  advanceSessionQuestion,
   getSessionVoiceTurns,
   resetSessionVoiceTurns,
   updateSessionWorkingAnswer,
 } from '@/api_contracts/sessionVoiceTurns';
 import { emitNewPathClientEvent } from '@/lib/newPathTelemetryClient';
 import { extractFinalTranscriptEvent } from '@/lib/realtime-transcript';
+import {
+  DEFAULT_RECALL_QUESTIONS,
+  advanceQuestionProgress,
+  getQuestionByProgress,
+  initializeQuestionProgress,
+  type QuestionProgressState,
+  type RecallQuestion,
+} from '@/lib/recallQuestions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -39,35 +48,53 @@ export interface RecallScreenProps {
   sessionId?: string;
   initialWorkingAnswer?: string | null;
   initialResponses?: string[];
+  questions?: RecallQuestion[];
+  initialQuestionProgress?: QuestionProgressState | null;
   onVoiceResponseSaved?: () => Promise<void> | void;
+  onAdvanceToReview?: () => void;
 }
 
 type VoiceSubmitStatus = 'idle' | 'listening' | 'submitting' | 'saved' | 'error';
 type EditorSaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
-function buildRecallInstructions(selectedStory: Story | null | undefined): string {
+function buildRecallInstructions(
+  selectedStory: Story | null | undefined,
+  activeQuestionText: string | null,
+): string {
   const storyContext = selectedStory
     ? `Selected story:\nTitle: ${selectedStory.title}\nSummary: ${selectedStory.summary}`
     : 'No story context is available yet.';
+  const questionContext = activeQuestionText
+    ? `Active question:\n${activeQuestionText}`
+    : 'No active question is available.';
 
   return `You are a recall interview coach helping a candidate prepare interview-ready examples.
 
 ${storyContext}
+${questionContext}
 
 Start with a warm greeting: say hello, provide one sentence of context, and ask one short opening question.
 Use conversational interviewing techniques:
 - Keep the tone calm and supportive.
 - Ask one focused question at a time.
 - Help the user cover anchors (context), actions (what they did), and outcomes (impact).
-- If the user asks to move on too early, briefly mention what is still missing and offer a quick follow-up question.`;
+- If the user asks to move on too early, briefly mention what is still missing and offer a quick follow-up question.
+- Keep the active question in focus; do not switch to a different question unless user confirms they are moving on.`;
 }
 
-function buildOpeningCoachPrompt(selectedStory: Story | null | undefined): string {
+function buildOpeningCoachPrompt(
+  selectedStory: Story | null | undefined,
+  activeQuestionText: string | null,
+): string {
+  const questionSuffix = activeQuestionText
+    ? ` Current question: ${activeQuestionText}`
+    : '';
+
   if (!selectedStory) {
-    return 'Hello. Let\'s get you warmed up. Tell me the situation you want to describe first, then we will add actions and outcomes.';
+    return `Hello. Let\'s get you warmed up. Tell me the situation you want to describe first, then we will add actions and outcomes.${questionSuffix}`.trim();
   }
 
-  return `Hello. Let\'s shape "${selectedStory.title}" into a strong interview answer. Start with the situation and your goal, then we will fill in actions and outcomes.`;
+  return `Hello. Let\'s shape "${selectedStory.title}" into a strong interview answer. Start with the situation and your goal, then we will fill in actions and outcomes.${questionSuffix}`.trim();
 }
 
 function detectMoveOnIntent(transcript: string): boolean {
@@ -114,12 +141,22 @@ export default function RecallScreen({
   sessionId,
   initialWorkingAnswer = null,
   initialResponses = [],
+  questions,
+  initialQuestionProgress = null,
   onVoiceResponseSaved,
+  onAdvanceToReview,
 }: RecallScreenProps) {
   const { connect, disconnect, sessionState, setOnEvent } = useRealtimeSession();
+  const questionSet = useMemo(
+    () => (Array.isArray(questions) && questions.length > 0 ? questions : DEFAULT_RECALL_QUESTIONS),
+    [questions],
+  );
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [submitStatus, setSubmitStatus] = useState<VoiceSubmitStatus>('idle');
   const [liveProgress, setLiveProgress] = useState<RecallProgress>(progress);
+  const [questionProgress, setQuestionProgress] = useState<QuestionProgressState>(
+    () => initialQuestionProgress ?? initializeQuestionProgress(questionSet),
+  );
   const [workingAnswer, setWorkingAnswer] = useState<string>(() => {
     if (initialWorkingAnswer && initialWorkingAnswer.trim().length > 0) {
       return initialWorkingAnswer;
@@ -128,7 +165,13 @@ export default function RecallScreen({
   });
   const [editorStatus, setEditorStatus] = useState<EditorSaveStatus>('idle');
   const [stopControlsVisible, setStopControlsVisible] = useState(false);
-  const [coachPrompt, setCoachPrompt] = useState(() => buildOpeningCoachPrompt(selectedStory));
+  const [coachPrompt, setCoachPrompt] = useState(() => {
+    const initialQuestion = getQuestionByProgress(
+      questionSet,
+      initialQuestionProgress ?? initializeQuestionProgress(questionSet),
+    );
+    return buildOpeningCoachPrompt(selectedStory, initialQuestion?.text ?? null);
+  });
 
   const submittedKeysRef = useRef<Set<string>>(new Set());
   const isSubmittingRef = useRef(false);
@@ -138,6 +181,22 @@ export default function RecallScreen({
   const isConnecting = sessionState === 'connecting';
   const isConnected = sessionState === 'connected';
   const incompleteSlots = useMemo(() => deriveIncompleteSlots(liveProgress), [liveProgress]);
+  const activeQuestion = useMemo(
+    () => getQuestionByProgress(questionSet, questionProgress),
+    [questionProgress, questionSet],
+  );
+
+  useEffect(() => {
+    setQuestionProgress(initialQuestionProgress ?? initializeQuestionProgress(questionSet));
+  }, [initialQuestionProgress, questionSet]);
+
+  useEffect(() => {
+    if (stopControlsVisible) {
+      return;
+    }
+
+    setCoachPrompt(buildOpeningCoachPrompt(selectedStory, activeQuestion?.text ?? null));
+  }, [activeQuestion?.id, activeQuestion?.text, selectedStory, stopControlsVisible]);
 
   useEffect(() => {
     workingAnswerRef.current = workingAnswer;
@@ -172,6 +231,10 @@ export default function RecallScreen({
 
         if (persistedConversation.workingAnswer.trim().length > 0) {
           setWorkingAnswer(persistedConversation.workingAnswer);
+        }
+
+        if (persistedConversation.questionProgress.total > 0) {
+          setQuestionProgress(persistedConversation.questionProgress);
         }
 
         if (persistedConversation.turns.length > 0) {
@@ -214,6 +277,35 @@ export default function RecallScreen({
     return 'Record';
   }, [isConnected, isConnecting]);
 
+  const handleNextQuestion = useCallback(async () => {
+    const locallyAdvanced = advanceQuestionProgress(questionSet, questionProgress);
+    let resolvedProgress = locallyAdvanced;
+    setQuestionProgress(locallyAdvanced);
+    setStopControlsVisible(false);
+
+    if (sessionId) {
+      try {
+        const advanced = await advanceSessionQuestion(sessionId);
+        resolvedProgress = advanced.questionProgress;
+        setQuestionProgress(advanced.questionProgress);
+        if (advanced.workingAnswer.trim().length > 0) {
+          setWorkingAnswer(advanced.workingAnswer);
+        }
+      } catch {
+        // Non-blocking; local progression still advances.
+      }
+    }
+
+    const nextQuestion = getQuestionByProgress(questionSet, resolvedProgress);
+    if (!nextQuestion) {
+      setCoachPrompt('You completed all recall questions. Moving to review.');
+      onAdvanceToReview?.();
+      return;
+    }
+
+    setCoachPrompt(buildOpeningCoachPrompt(selectedStory, nextQuestion.text));
+  }, [onAdvanceToReview, questionProgress, questionSet, selectedStory, sessionId]);
+
   const presentStopState = useCallback(
     (reason: 'manual_stop' | 'move_on_intent') => {
       setStopControlsVisible(true);
@@ -240,6 +332,11 @@ export default function RecallScreen({
   );
 
   const handleRecord = useCallback(async () => {
+    if (!activeQuestion) {
+      onAdvanceToReview?.();
+      return;
+    }
+
     setVoiceError(null);
 
     if (isConnected) {
@@ -255,14 +352,14 @@ export default function RecallScreen({
     setStopControlsVisible(false);
 
     const connected = await connect(VOICE_MODES.VOICE_EDIT, {
-      instructions: buildRecallInstructions(selectedStory),
+      instructions: buildRecallInstructions(selectedStory, activeQuestion.text),
     });
 
     if (!connected) {
       setVoiceError('Unable to start voice model session. Please try again.');
       setSubmitStatus('error');
     }
-  }, [connect, disconnect, isConnected, presentStopState, selectedStory]);
+  }, [activeQuestion, connect, disconnect, isConnected, onAdvanceToReview, presentStopState, selectedStory]);
 
   const persistWorkingAnswer = useCallback(async () => {
     if (!sessionId) {
@@ -301,11 +398,18 @@ export default function RecallScreen({
 
     setWorkingAnswer('');
     setLiveProgress(NEUTRAL_PROGRESS);
+    const resetProgress = initializeQuestionProgress(questionSet);
+    setQuestionProgress(resetProgress);
     setSubmitStatus('idle');
     setEditorStatus('idle');
     setStopControlsVisible(false);
-    setCoachPrompt(buildOpeningCoachPrompt(selectedStory));
-  }, [disconnect, isConnected, selectedStory, sessionId]);
+    setCoachPrompt(
+      buildOpeningCoachPrompt(
+        selectedStory,
+        getQuestionByProgress(questionSet, resetProgress)?.text ?? null,
+      ),
+    );
+  }, [disconnect, isConnected, questionSet, selectedStory, sessionId]);
 
   useEffect(() => {
     if (sessionState === 'connected' && !isSubmittingRef.current) {
@@ -415,6 +519,18 @@ export default function RecallScreen({
   return (
     <div data-testid="recall-screen" className="flex flex-col items-center gap-6 p-6">
       <h2 className="text-xl font-semibold">Recall</h2>
+
+      <section
+        data-testid="recall-active-question"
+        className="w-full max-w-2xl rounded-md border border-border bg-card p-4"
+      >
+        <p data-testid="recall-question-progress" className="text-xs uppercase tracking-wide text-muted-foreground">
+          Question {Math.min(questionProgress.currentIndex + 1, questionProgress.total)} of {questionProgress.total}
+        </p>
+        <p data-testid="recall-question-text" className="mt-1 text-sm text-foreground">
+          {activeQuestion?.text ?? 'All questions completed.'}
+        </p>
+      </section>
 
       <section
         data-testid="recall-coach-prompt"
@@ -548,10 +664,12 @@ export default function RecallScreen({
               size="sm"
               variant="outline"
               onClick={() => {
-                presentStopState('move_on_intent');
+                void handleNextQuestion();
               }}
             >
-              Next question
+              {questionProgress.currentIndex >= questionProgress.total - 1
+                ? 'Finish to Review'
+                : 'Next question'}
             </Button>
           </div>
         </section>

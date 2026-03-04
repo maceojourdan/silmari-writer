@@ -170,6 +170,7 @@ export function WritingFlowModule({
             initialWorkingAnswer={initialWorkingAnswer}
             initialResponses={initialResponses}
             onVoiceResponseSaved={onVoiceResponseSaved}
+            onAdvanceToReview={() => setState({ activeStep: 'REVIEW' })}
           />
         </RecallRenderErrorBoundary>
       )}

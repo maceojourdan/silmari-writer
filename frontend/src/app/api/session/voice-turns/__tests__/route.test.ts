@@ -5,6 +5,7 @@ vi.mock('@/server/data_access_objects/SessionDAO', () => ({
     findStoryRecordBySessionId: vi.fn(),
     updateStoryRecordWorkingAnswer: vi.fn(),
     replaceStoryRecordResponses: vi.fn(),
+    updateStoryRecordQuestionProgress: vi.fn(),
   },
 }));
 
@@ -12,6 +13,8 @@ import { SessionDAO } from '@/server/data_access_objects/SessionDAO';
 import { GET, POST } from '../route';
 
 const mockSessionDAO = vi.mocked(SessionDAO);
+type GetRequest = Parameters<typeof GET>[0];
+type PostRequest = Parameters<typeof POST>[0];
 
 describe('/api/session/voice-turns', () => {
   beforeEach(() => {
@@ -20,7 +23,7 @@ describe('/api/session/voice-turns', () => {
 
   it('GET returns 400 for invalid sessionId', async () => {
     const request = new Request('http://localhost:3000/api/session/voice-turns?sessionId=bad');
-    const response = await GET(request as any);
+    const response = await GET(request as unknown as GetRequest);
 
     expect(response.status).toBe(400);
   });
@@ -32,14 +35,20 @@ describe('/api/session/voice-turns', () => {
       status: 'RECALL',
       content: 'Saved answer',
       responses: ['Turn 1', 'Turn 2'],
+      questionProgress: {
+        currentIndex: 1,
+        total: 4,
+        completed: ['q-default-1'],
+        activeQuestionId: 'q-default-2',
+      },
       createdAt: '2026-03-03T00:00:00.000Z',
       updatedAt: '2026-03-03T00:00:01.000Z',
-    } as any);
+    });
 
     const request = new Request(
       'http://localhost:3000/api/session/voice-turns?sessionId=550e8400-e29b-41d4-a716-446655440000',
     );
-    const response = await GET(request as any);
+    const response = await GET(request as unknown as GetRequest);
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -47,6 +56,12 @@ describe('/api/session/voice-turns', () => {
       sessionId: '550e8400-e29b-41d4-a716-446655440000',
       workingAnswer: 'Saved answer',
       turns: ['Turn 1', 'Turn 2'],
+      questionProgress: {
+        currentIndex: 1,
+        total: 4,
+        completed: ['q-default-1'],
+        activeQuestionId: 'q-default-2',
+      },
     });
   });
 
@@ -57,9 +72,15 @@ describe('/api/session/voice-turns', () => {
       status: 'RECALL',
       content: 'Updated answer',
       responses: ['Turn 1'],
+      questionProgress: {
+        currentIndex: 0,
+        total: 4,
+        completed: [],
+        activeQuestionId: 'q-default-1',
+      },
       createdAt: '2026-03-03T00:00:00.000Z',
       updatedAt: '2026-03-03T00:00:02.000Z',
-    } as any);
+    });
 
     const request = new Request('http://localhost:3000/api/session/voice-turns', {
       method: 'POST',
@@ -71,7 +92,7 @@ describe('/api/session/voice-turns', () => {
       }),
     });
 
-    const response = await POST(request as any);
+    const response = await POST(request as unknown as PostRequest);
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -80,6 +101,12 @@ describe('/api/session/voice-turns', () => {
       'Updated answer',
     );
     expect(body.workingAnswer).toBe('Updated answer');
+    expect(body.questionProgress).toEqual({
+      currentIndex: 0,
+      total: 4,
+      completed: [],
+      activeQuestionId: 'q-default-1',
+    });
   });
 
   it('POST reset_turns clears responses and working answer', async () => {
@@ -89,9 +116,15 @@ describe('/api/session/voice-turns', () => {
       status: 'RECALL',
       content: 'Old',
       responses: [],
+      questionProgress: {
+        currentIndex: 2,
+        total: 4,
+        completed: ['q-default-1', 'q-default-2'],
+        activeQuestionId: 'q-default-3',
+      },
       createdAt: '2026-03-03T00:00:00.000Z',
       updatedAt: '2026-03-03T00:00:02.000Z',
-    } as any);
+    });
 
     mockSessionDAO.updateStoryRecordWorkingAnswer.mockResolvedValue({
       id: 'story-1',
@@ -99,9 +132,15 @@ describe('/api/session/voice-turns', () => {
       status: 'RECALL',
       content: '',
       responses: [],
+      questionProgress: {
+        currentIndex: 2,
+        total: 4,
+        completed: ['q-default-1', 'q-default-2'],
+        activeQuestionId: 'q-default-3',
+      },
       createdAt: '2026-03-03T00:00:00.000Z',
       updatedAt: '2026-03-03T00:00:03.000Z',
-    } as any);
+    });
 
     const request = new Request('http://localhost:3000/api/session/voice-turns', {
       method: 'POST',
@@ -112,7 +151,7 @@ describe('/api/session/voice-turns', () => {
       }),
     });
 
-    const response = await POST(request as any);
+    const response = await POST(request as unknown as PostRequest);
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -124,6 +163,73 @@ describe('/api/session/voice-turns', () => {
       sessionId: '550e8400-e29b-41d4-a716-446655440000',
       workingAnswer: '',
       turns: [],
+      questionProgress: {
+        currentIndex: 2,
+        total: 4,
+        completed: ['q-default-1', 'q-default-2'],
+        activeQuestionId: 'q-default-3',
+      },
+    });
+  });
+
+  it('POST advance_question increments question progress', async () => {
+    mockSessionDAO.findStoryRecordBySessionId.mockResolvedValue({
+      id: 'story-1',
+      sessionId: '550e8400-e29b-41d4-a716-446655440000',
+      status: 'RECALL',
+      content: 'Saved answer',
+      responses: ['Turn 1'],
+      questionProgress: {
+        currentIndex: 0,
+        total: 4,
+        completed: [],
+        activeQuestionId: 'q-default-1',
+      },
+      createdAt: '2026-03-03T00:00:00.000Z',
+      updatedAt: '2026-03-03T00:00:01.000Z',
+    });
+
+    mockSessionDAO.updateStoryRecordQuestionProgress.mockResolvedValue({
+      id: 'story-1',
+      sessionId: '550e8400-e29b-41d4-a716-446655440000',
+      status: 'RECALL',
+      content: 'Saved answer',
+      responses: ['Turn 1'],
+      questionProgress: {
+        currentIndex: 1,
+        total: 4,
+        completed: ['q-default-1'],
+        activeQuestionId: 'q-default-2',
+      },
+      createdAt: '2026-03-03T00:00:00.000Z',
+      updatedAt: '2026-03-03T00:00:03.000Z',
+    });
+
+    const request = new Request('http://localhost:3000/api/session/voice-turns', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: '550e8400-e29b-41d4-a716-446655440000',
+        action: 'advance_question',
+      }),
+    });
+
+    const response = await POST(request as unknown as PostRequest);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(mockSessionDAO.updateStoryRecordQuestionProgress).toHaveBeenCalledWith(
+      '550e8400-e29b-41d4-a716-446655440000',
+      expect.objectContaining({
+        currentIndex: 1,
+        activeQuestionId: 'q-default-2',
+      }),
+    );
+    expect(body.questionProgress).toEqual({
+      currentIndex: 1,
+      total: 4,
+      completed: ['q-default-1'],
+      activeQuestionId: 'q-default-2',
     });
   });
 });

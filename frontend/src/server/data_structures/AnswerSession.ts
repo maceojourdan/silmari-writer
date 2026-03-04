@@ -13,6 +13,7 @@
  */
 
 import { z } from 'zod';
+import { QuestionProgressStateSchema } from '@/lib/recallQuestions';
 
 // ---------------------------------------------------------------------------
 // AnswerSession State Enum
@@ -65,6 +66,7 @@ export const AnswerStoryRecordSchema = z.object({
   status: z.enum(['INIT', 'IN_PROGRESS', 'RECALL', 'COMPLETE', 'VERIFY']),
   content: z.string().optional(),
   responses: z.array(z.string()).optional(),
+  questionProgress: QuestionProgressStateSchema.optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
