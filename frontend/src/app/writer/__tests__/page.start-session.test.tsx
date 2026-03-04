@@ -24,6 +24,24 @@ describe('WriterPage start-session flow', () => {
     vi.clearAllMocks();
   });
 
+  it('renders and switches start input modes', async () => {
+    const user = userEvent.setup();
+
+    render(<WriterPage />);
+
+    expect(screen.getByTestId('input-mode-url')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByLabelText(/job posting url/i)).toBeInTheDocument();
+
+    await user.click(screen.getByTestId('input-mode-file_upload'));
+    expect(screen.getByTestId('input-mode-file_upload')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByLabelText(/job posting url/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId('input-mode-panel-file_upload')).toBeInTheDocument();
+
+    await user.click(screen.getByTestId('input-mode-default_questions'));
+    expect(screen.getByTestId('input-mode-default_questions')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('input-mode-panel-default_questions')).toBeInTheDocument();
+  });
+
   it('navigates to /session/[id] after successful session creation', async () => {
     const user = userEvent.setup();
     mockStartSessionFromUrl.mockResolvedValue({
