@@ -79,7 +79,9 @@ Use conversational interviewing techniques:
 - Ask one focused question at a time.
 - Help the user cover anchors (context), actions (what they did), and outcomes (impact).
 - If the user asks to move on too early, briefly mention what is still missing and offer a quick follow-up question.
-- Keep the active question in focus; do not switch to a different question unless user confirms they are moving on.`;
+- Keep the active question in focus; do not switch to a different question unless user confirms they are moving on.
+- When you believe the question has been fully answered (anchors, actions, and outcomes covered), tell the user they did a great job and say: "When you're ready, say 'next question' or 'move on' to continue to the next one."
+- Always use the exact phrases "next question", "move on", or "let's continue" when directing the user to advance — these are the trigger phrases the app listens for.`;
 }
 
 function buildOpeningCoachPrompt(

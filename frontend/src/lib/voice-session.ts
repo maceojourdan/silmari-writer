@@ -208,6 +208,7 @@ export async function createVoiceSession(options: VoiceSessionOptions): Promise<
           turn_detection: needsMicrophone ? { type: 'server_vad' } : null,
           input_audio_format: 'pcm16',
           output_audio_format: 'pcm16',
+          input_audio_transcription: { model: 'whisper-1' },
         },
       };
       if (instructions) {
