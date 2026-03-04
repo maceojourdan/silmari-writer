@@ -417,7 +417,7 @@ export default function RecallScreen({
       return;
     }
 
-    if (sessionState !== 'connected' && sessionState !== 'connecting') {
+    if (sessionState !== 'connecting') {
       setSubmitStatus('idle');
     }
   }, [sessionState]);
