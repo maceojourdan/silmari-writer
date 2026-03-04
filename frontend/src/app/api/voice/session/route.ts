@@ -23,10 +23,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Build session config — only type and model per the docs
+  // Build session config
   const sessionConfig: Record<string, unknown> = {
     type: 'realtime',
     model,
+    input_audio_transcription: { model: 'gpt-4o-transcribe' },
   };
 
   if (body.instructions) {

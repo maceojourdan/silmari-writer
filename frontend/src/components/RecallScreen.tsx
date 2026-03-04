@@ -176,7 +176,6 @@ export default function RecallScreen({
   });
 
   const submittedKeysRef = useRef<Set<string>>(new Set());
-  const isSubmittingRef = useRef(false);
   const workingAnswerRef = useRef(workingAnswer);
   const greetingEmittedRef = useRef(false);
 
@@ -349,7 +348,6 @@ export default function RecallScreen({
     }
 
     submittedKeysRef.current.clear();
-    isSubmittingRef.current = false;
     setSubmitStatus('idle');
     setStopControlsVisible(false);
 
@@ -414,7 +412,7 @@ export default function RecallScreen({
   }, [disconnect, isConnected, questionSet, selectedStory, sessionId]);
 
   useEffect(() => {
-    if (sessionState === 'connected' && !isSubmittingRef.current) {
+    if (sessionState === 'connected') {
       setSubmitStatus((current) => (current === 'saved' ? current : 'listening'));
       return;
     }
@@ -440,10 +438,6 @@ export default function RecallScreen({
         return;
       }
 
-      if (isSubmittingRef.current) {
-        return;
-      }
-
       if (detectMoveOnIntent(finalTranscriptEvent.transcript)) {
         const transcriptExcerpt = finalTranscriptEvent.transcript.slice(0, 120);
 
@@ -459,9 +453,7 @@ export default function RecallScreen({
         return;
       }
 
-      isSubmittingRef.current = true;
       submittedKeysRef.current.add(finalTranscriptEvent.dedupeKey);
-      setSubmitStatus('submitting');
 
       // Merge transcript into working answer immediately so the UI
       // updates regardless of whether the backend call succeeds.
@@ -470,6 +462,7 @@ export default function RecallScreen({
         finalTranscriptEvent.transcript,
       );
       setWorkingAnswer(mergedAnswer);
+      setSubmitStatus('submitting');
 
       void (async () => {
         try {
@@ -494,8 +487,6 @@ export default function RecallScreen({
         } catch {
           submittedKeysRef.current.delete(finalTranscriptEvent.dedupeKey);
           setSubmitStatus('error');
-        } finally {
-          isSubmittingRef.current = false;
         }
       })();
     });
