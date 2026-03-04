@@ -1,3 +1,8 @@
+---
+name: debug
+description: Execute the imported Claude Code 'debug' workflow. Use when the user asks to debug.
+---
+
 # Debug
 
 You are tasked with helping debug issues during manual testing or implementation. This command allows you to investigate problems by examining logs, database state, and git history without editing files. Think of this as a way to bootstrap a debugging session without using the primary window's context.
@@ -28,28 +33,6 @@ Please describe what's going wrong:
 I can investigate logs, database state, and recent changes to help identify the issue.
 ```
 
-## Environment Information
-
-You have access to these key locations and tools:
-
-**Logs** (automatically created by `make daemon` and `make wui`):
-- MCP logs: `~/.silmari-oracle/logs/mcp-claude-approvals-*.log`
-- Combined WUI/Daemon logs: `~/.silmari-oracle/logs/wui-${BRANCH_NAME}/codelayer.log`
-- First line shows: `[timestamp] starting [service] in [directory]`
-
-**Database**:
-- Location: `~/.silmari-oracle/daemon-{BRANCH_NAME}.db`
-- SQLite database with sessions, events, approvals, etc.
-- Can query directly with `sqlite3`
-
-**Git State**:
-- Check current branch, recent commits, uncommitted changes
-- Similar to how `commit` and `describe_pr` commands work
-
-**Service Status**:
-- Check if daemon is running: `ps aux | grep hld`
-- Check if WUI is running: `ps aux | grep wui`
-- Socket exists: `~/.silmari-oracle/daemon.sock`
 
 ## Process Steps
 
@@ -84,29 +67,14 @@ Spawn parallel Task agents for efficient investigation:
 ```
 Task 1 - Check Recent Logs:
 Find and analyze the most recent logs for errors:
-1. Find latest daemon log: ls -t ~/.silmari-oracle/logs/daemon-*.log | head -1
-2. Find latest WUI log: ls -t ~/.silmari-oracle/logs/wui-*.log | head -1
-3. Search for errors, warnings, or issues around the problem timeframe
+1. Search for errors, warnings, or issues around the problem timeframe
 4. Note the working directory (first line of log)
 5. Look for stack traces or repeated errors
 Return: Key errors/warnings with timestamps
 ```
 
 ```
-Task 2 - Database State:
-Check the current database state:
-1. Connect to database: sqlite3 ~/.silmari-oracle/daemon.db
-2. Check schema: .tables and .schema for relevant tables
-3. Query recent data:
-   - SELECT * FROM sessions ORDER BY created_at DESC LIMIT 5;
-   - SELECT * FROM conversation_events WHERE created_at > datetime('now', '-1 hour');
-   - Other queries based on the issue
-4. Look for stuck states or anomalies
-Return: Relevant database findings
-```
-
-```
-Task 3 - Git and File State:
+Task 2 - Git and File State:
 Understand what changed recently:
 1. Check git status and current branch
 2. Look at recent commits: git log --oneline -10
@@ -128,15 +96,10 @@ Based on the investigation, present a focused debug report:
 
 ### Evidence Found
 
-**From Logs** (`~/.silmari-oracle/logs/`):
+**From beads**:
 - [Error/warning with timestamp]
 - [Pattern or repeated issue]
 
-**From Database**:
-```sql
--- Relevant query and result
-[Finding from database]
-```
 
 **From Git/Files**:
 - [Recent changes that might be related]
@@ -144,12 +107,6 @@ Based on the investigation, present a focused debug report:
 
 ### Root Cause
 [Most likely explanation based on evidence]
-
-### Recommended Fix
-[Proposed code change]
-
-### Fix Verification (TLA+ — when applicable)
-[See Step 3.5 below for when and how to verify fixes]
 
 ### Next Steps
 
@@ -159,9 +116,9 @@ Based on the investigation, present a focused debug report:
    ```
 
 2. **If That Doesn't Work**:
-   - Restart services: `make daemon` and `make wui`
-   - Check browser console for WUI errors
-   - Run with debug: `silmari-oracle_DEBUG=true make daemon`
+   - Alternative 1
+   - Alternative 2
+   - ...
 
 ### Can't Access?
 Some issues might be outside my reach:
@@ -175,60 +132,6 @@ Some issues might be outside my reach:
 
 Would you like me to investigate something specific further?
 ```
-
-### Step 3.5: Verify the Fix with TLA+ (When Applicable)
-
-After identifying root cause and proposing a fix, check whether the fix should be verified
-with a TLA+ behavioral model. **This is not always needed** — use it when the root cause
-matches one of these patterns:
-
-| Root Cause Pattern | Why TLA+ Helps | Example |
-|---|---|---|
-| **Broad catch/error swallowing** | ErrorConsistency checks that each step has independent error paths | `catch` spanning 120 lines reports all failures as "JSON parse error" |
-| **State machine bug** | Reachability verifies all terminal states are reachable | Retry loop exits early on one path, never reaches exhaustion state |
-| **Missing transition** | Model enumeration reveals unreachable states or dead code | Function handles success and timeout but not cancellation |
-| **Implicit ordering dependency** | TypeInvariant catches data flowing to a step before its dependency runs | Step 5 reads a value that Step 3 was supposed to write, but Step 3 was skipped on error |
-| **Two retry/recovery layers interacting** | Full state exploration finds paths where layers conflict | HTTP retry and schema retry both fire, causing 9x total retries instead of 3 |
-
-**Skip TLA+ verification for:**
-- Configuration errors (wrong env var, missing file)
-- Simple typos or off-by-one errors
-- Issues where the fix is a one-line change with obvious correctness
-- Problems outside the codebase (browser, OS, network)
-
-**When applicable, generate a path spec for the fixed code:**
-
-1. Extract the behavioral model of the **fixed** code (not the broken code):
-   - Identify states, transitions, and error paths in the proposed fix
-   - Write a path spec to `specs/orchestration/<bug-name>-fix-model.md`
-   - Include the invariant that was violated as an explicit property
-
-2. Run verification:
-   ```bash
-   silmari verify-path specs/orchestration/<bug-name>-fix-model.md
-   ```
-
-3. Interpret results and update the debug report:
-   - **All pass** → Fix verified. The invariant that was broken now holds.
-   - **ErrorConsistency fails** → The fix didn't fully separate error paths. Revise.
-   - **Reachability fails** → The fix introduced a dead state. Revise.
-
-4. Include in the debug report:
-   ```markdown
-   ### Fix Verification
-
-   **Model:** `specs/orchestration/<bug-name>-fix-model.md`
-   **TLC result:** ALL PROPERTIES PASSED (N states, M distinct)
-   **Key invariant verified:** [the specific property that was broken and is now fixed]
-   ```
-
-   Or if TLA+ wasn't applicable:
-   ```markdown
-   ### Fix Verification
-
-   TLA+ not applicable — [reason: config error / one-line fix / etc.]
-   Fix verified by: [alternative: code review / test run / manual check]
-   ```
 
 ### Step 4: Track in Beads
 
@@ -268,26 +171,6 @@ After presenting findings:
 - **No file editing** - Pure investigation only
 
 ## Quick Reference
-
-**Find Latest Logs**:
-```bash
-ls -t ~/.silmari-oracle/logs/daemon-*.log | head -1
-ls -t ~/.silmari-oracle/logs/wui-*.log | head -1
-```
-
-**Database Queries**:
-```bash
-sqlite3 ~/.silmari-oracle/daemon.db ".tables"
-sqlite3 ~/.silmari-oracle/daemon.db ".schema sessions"
-sqlite3 ~/.silmari-oracle/daemon.db "SELECT * FROM sessions ORDER BY created_at DESC LIMIT 5;"
-```
-
-**Service Check**:
-```bash
-ps aux | grep hld     # Is daemon running?
-ps aux | grep wui     # Is WUI running?
-```
-
 **Git State**:
 ```bash
 git status
