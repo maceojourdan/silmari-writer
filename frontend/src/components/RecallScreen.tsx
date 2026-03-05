@@ -780,7 +780,7 @@ export default function RecallScreen({
       </div>
 
       {voiceError && (
-        <p data-testid="voice-model-error" role="alert" className="text-sm text-red-600">
+        <p data-testid="voice-model-error" role="alert" className="text-sm text-destructive">
           {voiceError}
         </p>
       )}
@@ -852,7 +852,7 @@ export default function RecallScreen({
       {stopControlsVisible && (
         <Card
           data-testid="recall-stop-controls"
-          className="w-full border-amber-200 bg-amber-50 text-amber-950"
+          className="w-full border-border bg-muted/60 text-foreground"
         >
           <CardContent className="p-3">
             <p className="text-sm font-semibold">Recording stopped</p>

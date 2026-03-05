@@ -12,8 +12,8 @@ function formatTime(seconds: number): string {
 }
 
 function getTimerColor(seconds: number): string {
-  if (seconds <= 60) return 'text-red-500';
-  if (seconds <= 300) return 'text-yellow-500';
+  if (seconds <= 60) return 'text-destructive';
+  if (seconds <= 300) return 'text-primary';
   return 'text-muted-foreground';
 }
 

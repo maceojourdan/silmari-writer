@@ -16,6 +16,7 @@ import { useState } from 'react';
 import ArtifactCopyButton from '@/components/ArtifactCopyButton';
 import { SharedErrors } from '@/server/error_definitions/SharedErrors';
 import type { ExportFormat } from '@/server/data_structures/ExportFormat';
+import { Button } from '@/components/ui/button';
 
 export interface ExportCopyControlsProps {
   answerId: string;
@@ -58,21 +59,22 @@ export default function ExportCopyControls({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex gap-2">
-        <button
-          className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+        <Button
+          size="sm"
           onClick={() => handleExport('markdown')}
           aria-label="Export Markdown"
         >
           Export Markdown
-        </button>
+        </Button>
 
-        <button
-          className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-md border hover:bg-gray-50 transition-colors"
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => handleExport('plain_text')}
           aria-label="Export Plain Text"
         >
           Export Plain Text
-        </button>
+        </Button>
 
         <ArtifactCopyButton
           artifactType="answer"
@@ -80,7 +82,7 @@ export default function ExportCopyControls({
           content={content}
           sessionId={answerId}
           label="Copy to Clipboard"
-          className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-md border hover:bg-gray-50 transition-colors"
+          className="flex items-center gap-1 rounded-md border border-input bg-card px-3 py-1.5 text-sm font-medium shadow-xs hover:bg-accent hover:text-accent-foreground"
           copyHandler={async () => {
             if (!validateState()) {
               throw SharedErrors.AnswerNotFinalized();
@@ -93,7 +95,7 @@ export default function ExportCopyControls({
       </div>
 
       {error && (
-        <div className="text-sm text-red-600" role="alert">
+        <div className="text-sm text-destructive" role="alert">
           {error}
         </div>
       )}

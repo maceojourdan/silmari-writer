@@ -297,9 +297,9 @@ export default function StartVoiceSessionModule({
             )}
 
             {uiState === 'success' && (
-              <div data-testid="session-init" className="inline-flex items-center gap-2 text-green-700">
+              <div data-testid="session-init" className="inline-flex items-center gap-2 text-primary">
                 <CheckCircle2 className="h-4 w-4" />
-                <Badge variant="outline" className="border-green-600/30 bg-green-500/10 text-green-700">
+                <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
                   Session initialized: {sessionContext.state}
                 </Badge>
               </div>

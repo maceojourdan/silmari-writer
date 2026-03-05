@@ -70,12 +70,12 @@ const AudioRecorder = forwardRef<AudioRecorderHandle, AudioRecorderProps>(
   const getTimerColorClass = (elapsedSeconds: number): string => {
     const remaining = getRemainingTime(elapsedSeconds)
     if (remaining <= CRITICAL_THRESHOLD_SECONDS) {
-      return 'text-red-500' // Critical: red at 30 seconds remaining
+      return 'text-destructive' // Critical: red at 30 seconds remaining
     }
     if (remaining <= WARNING_THRESHOLD_SECONDS) {
-      return 'text-yellow-500' // Warning: yellow/orange at 1 minute remaining
+      return 'text-primary' // Warning state
     }
-    return 'text-gray-600' // Normal
+    return 'text-muted-foreground' // Normal
   }
 
   // Play audio warning beep
@@ -291,7 +291,7 @@ const AudioRecorder = forwardRef<AudioRecorderHandle, AudioRecorderProps>(
       {state === 'recording' && (
         <div
           data-testid="recording-indicator"
-          className="w-3 h-3 bg-red-500 rounded-full animate-pulse"
+          className="w-3 h-3 bg-destructive rounded-full animate-pulse"
         />
       )}
 
@@ -305,7 +305,7 @@ const AudioRecorder = forwardRef<AudioRecorderHandle, AudioRecorderProps>(
         </span>
       )}
       {state === 'stopped' && (
-        <span className="font-mono text-sm text-gray-600 min-w-[50px]">
+        <span className="font-mono text-sm text-muted-foreground min-w-[50px]">
           {formatTime(recordingTime)}
         </span>
       )}

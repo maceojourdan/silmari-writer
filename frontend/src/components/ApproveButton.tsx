@@ -17,6 +17,7 @@ import { assertDraft } from '@/verifiers/sessionStateVerifier';
 import { approveSession, ApproveSessionRequestSchema } from '@/api_contracts/approveSession';
 import type { ApproveSessionResponse } from '@/api_contracts/approveSession';
 import { StateTransitionError } from '@/server/error_definitions/StateTransitionErrors';
+import { Button } from '@/components/ui/button';
 
 export interface ApproveButtonProps {
   sessionId: string;
@@ -76,7 +77,7 @@ export default function ApproveButton({
 
   if (isApproved) {
     return (
-      <div className="flex items-center gap-2 text-green-600" data-testid="approve-success">
+      <div className="flex items-center gap-2 text-primary" data-testid="approve-success">
         <span>Session approved successfully.</span>
       </div>
     );
@@ -84,17 +85,16 @@ export default function ApproveButton({
 
   return (
     <div className="flex flex-col gap-2">
-      <button
-        className="flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      <Button
         onClick={handleApprove}
         disabled={isLoading}
         aria-label="Approve Session"
       >
         {isLoading ? 'Approving...' : 'Approve Session'}
-      </button>
+      </Button>
 
       {error && (
-        <div className="text-sm text-red-600" role="alert">
+        <div className="text-sm text-destructive" role="alert">
           {error}
         </div>
       )}

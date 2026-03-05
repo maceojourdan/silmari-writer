@@ -95,7 +95,7 @@ export function OrientStoryModule({ questionId, jobId, onConfirmed }: OrientStor
   // Confirmed state
   if (state.phase === 'confirmed') {
     return (
-      <Card data-testid="orient-story-confirmed" className="border-green-500/35 bg-green-500/5">
+      <Card data-testid="orient-story-confirmed" className="border-primary/30 bg-primary/10">
         <CardHeader className="space-y-2">
           <Badge variant="secondary" className="w-fit">Story Confirmed</Badge>
           <CardTitle className="text-base">{state.story.title}</CardTitle>

@@ -317,7 +317,7 @@ describe('AudioRecorder', () => {
       })
 
       const timer = screen.getByTestId('countdown-timer')
-      expect(timer).toHaveClass('text-gray-600')
+      expect(timer).toHaveClass('text-muted-foreground')
     })
 
     it('should change to warning color (yellow) at 1 minute remaining', async () => {
@@ -335,7 +335,7 @@ describe('AudioRecorder', () => {
       })
 
       const timer = screen.getByTestId('countdown-timer')
-      expect(timer).toHaveClass('text-yellow-500')
+      expect(timer).toHaveClass('text-primary')
     })
 
     it('should change to critical color (red) at 30 seconds remaining', async () => {
@@ -353,7 +353,7 @@ describe('AudioRecorder', () => {
       })
 
       const timer = screen.getByTestId('countdown-timer')
-      expect(timer).toHaveClass('text-red-500')
+      expect(timer).toHaveClass('text-destructive')
     })
   })
 

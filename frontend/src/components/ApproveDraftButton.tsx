@@ -16,6 +16,7 @@
 import { useState } from 'react';
 import { validateApproveDraftPayload } from '@/verifiers/ApproveDraftVerifier';
 import { approveStory } from '@/api_contracts/approveStory';
+import { Button } from '@/components/ui/button';
 
 export interface ApproveDraftButtonProps {
   draftId: string;
@@ -72,7 +73,7 @@ export default function ApproveDraftButton({
 
   if (isApproved) {
     return (
-      <div className="flex items-center gap-2 text-green-600" data-testid="approve-success">
+      <div className="flex items-center gap-2 text-primary" data-testid="approve-success">
         <span>Story approved and saved successfully.</span>
       </div>
     );
@@ -80,17 +81,16 @@ export default function ApproveDraftButton({
 
   return (
     <div className="flex flex-col gap-2">
-      <button
-        className="flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      <Button
         onClick={handleApprove}
         disabled={isLoading}
         aria-label="Approve Draft"
       >
         {isLoading ? 'Approving...' : 'Approve Draft'}
-      </button>
+      </Button>
 
       {error && (
-        <div className="text-sm text-red-600" role="alert">
+        <div className="text-sm text-destructive" role="alert">
           {error}
         </div>
       )}

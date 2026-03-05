@@ -117,7 +117,7 @@ export function ReviewWorkflowModule({
 
   return (
     <div data-testid="review-workflow-module" className="flex flex-col gap-4">
-      <h2 className="text-xl font-semibold">Content Review</h2>
+      <h2 className="font-serif text-xl font-bold">Content Review</h2>
 
       {/* Content item list */}
       <div className="flex flex-col gap-2">
@@ -127,7 +127,7 @@ export function ReviewWorkflowModule({
             className={`p-3 rounded-md border text-left transition-colors ${
               selectedContentId === item.id
                 ? 'border-primary bg-primary/10'
-                : 'border-gray-200 hover:border-gray-300'
+                : 'border-border hover:bg-accent/40'
             }`}
             onClick={() => handleSelect(item.id)}
             data-testid={`content-item-${item.id}`}
@@ -160,9 +160,9 @@ export function ReviewWorkflowModule({
       {editSuccess && (
         <div
           data-testid="edit-success"
-          className="rounded-md border border-blue-200 bg-blue-50 p-4"
+          className="rounded-md border border-primary/30 bg-primary/10 p-4"
         >
-          <p className="text-sm text-blue-800">Content updated successfully via voice edit.</p>
+          <p className="text-sm text-primary">Content updated successfully via voice edit.</p>
         </div>
       )}
 
@@ -170,10 +170,10 @@ export function ReviewWorkflowModule({
       {uiError && (
         <div
           data-testid="error-notification"
-          className="rounded-md border border-red-200 bg-red-50 p-4"
+          className="rounded-md border border-destructive/30 bg-destructive/10 p-4"
           role="alert"
         >
-          <p className="text-sm text-red-800">{uiError.message}</p>
+          <p className="text-sm text-destructive">{uiError.message}</p>
         </div>
       )}
 
@@ -181,9 +181,9 @@ export function ReviewWorkflowModule({
       {workflowStage && (
         <div
           data-testid="workflow-stage"
-          className="rounded-md border border-green-200 bg-green-50 p-4"
+          className="rounded-md border border-primary/30 bg-primary/10 p-4"
         >
-          <p className="text-sm text-green-800">
+          <p className="text-sm text-primary">
             Next stage: <span className="font-medium">{workflowStage}</span>
           </p>
         </div>

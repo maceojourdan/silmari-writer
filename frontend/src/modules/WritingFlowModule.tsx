@@ -94,10 +94,10 @@ function FallbackRecallError() {
       className="flex flex-col items-center justify-center p-8 text-center"
       role="alert"
     >
-      <p className="text-lg font-medium text-red-600">
+      <p className="text-lg font-medium text-destructive">
         Unable to load Recall step
       </p>
-      <p className="mt-2 text-sm text-gray-500">
+      <p className="mt-2 text-sm text-muted-foreground">
         Please try refreshing the page.
       </p>
     </div>

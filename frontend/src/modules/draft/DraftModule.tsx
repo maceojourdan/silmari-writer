@@ -48,7 +48,7 @@ export function DraftModule({ storyRecordId }: DraftModuleProps) {
 
   return (
     <div data-testid="draft-module" className="flex flex-col gap-4">
-      <h2 className="text-xl font-semibold">Draft Generation</h2>
+      <h2 className="font-serif text-xl font-bold">Draft Generation</h2>
 
       <DraftGeneratorButton
         storyRecordId={storyRecordId}
@@ -59,10 +59,10 @@ export function DraftModule({ storyRecordId }: DraftModuleProps) {
       {uiError && (
         <div
           data-testid="error-notification"
-          className="rounded-md border border-red-200 bg-red-50 p-4"
+          className="rounded-md border border-destructive/30 bg-destructive/10 p-4"
           role="alert"
         >
-          <p className="text-sm text-red-800">{uiError.message}</p>
+          <p className="text-sm text-destructive">{uiError.message}</p>
         </div>
       )}
 
@@ -72,7 +72,7 @@ export function DraftModule({ storyRecordId }: DraftModuleProps) {
           <div className="whitespace-pre-wrap border rounded-md p-4">
             {draftResponse.content}
           </div>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             Claims used: {draftResponse.claimsUsed.join(', ')}
           </p>
         </div>

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 
 interface EditMessageModalProps {
   isOpen: boolean;
@@ -43,47 +45,46 @@ export default function EditMessageModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       role="dialog"
       aria-modal="true"
     >
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 p-6">
+      <div className="mx-4 w-full max-w-2xl rounded-lg border border-border bg-card p-6 shadow-xl">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Edit Message</h2>
+          <h2 className="text-xl font-bold font-serif">Edit Message</h2>
           <button
             onClick={onCancel}
-            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+            className="rounded p-1 hover:bg-accent"
             aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <textarea
-          className="w-full h-64 p-3 border border-gray-300 dark:border-gray-600 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+        <Textarea
+          className="h-64 resize-none"
           value={editedContent}
           onChange={(e) => setEditedContent(e.target.value)}
           autoFocus
         />
 
-        <div className="mt-2 text-sm text-gray-500">
+        <div className="mt-2 text-sm text-muted-foreground">
           {editedContent.length} characters
         </div>
 
         <div className="flex justify-end gap-2 mt-4">
-          <button
+          <Button
             onClick={onCancel}
-            className="px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+            variant="outline"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleSave}
             disabled={editedContent.trim().length === 0}
-            className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Save
-          </button>
+          </Button>
         </div>
       </div>
     </div>

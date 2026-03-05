@@ -19,6 +19,7 @@ import { useState, useCallback } from 'react';
 import { completeOnboardingStep } from '@/api_contracts/CompleteOnboardingStep';
 import type { CompleteOnboardingStepResponse } from '@/api_contracts/CompleteOnboardingStep';
 import { validateOnboardingCompletion } from '@/verifiers/OnboardingCompletionVerifier';
+import { Button } from '@/components/ui/button';
 
 export interface OnboardingStepOneProps {
   userId: string;
@@ -66,7 +67,7 @@ export default function OnboardingStepOne({
   if (isCompleted) {
     return (
       <div
-        className="flex items-center gap-2 text-green-600"
+        className="flex items-center gap-2 text-primary"
         data-testid="onboarding-success"
       >
         <span>Onboarding step 1 completed successfully.</span>
@@ -76,21 +77,16 @@ export default function OnboardingStepOne({
 
   return (
     <div className="flex flex-col gap-2">
-      <button
-        className={`flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-          isLoading
-            ? 'opacity-50 cursor-not-allowed bg-primary text-primary-foreground'
-            : 'bg-primary text-primary-foreground hover:bg-primary/90'
-        }`}
+      <Button
         onClick={handleComplete}
         disabled={isLoading}
         aria-label="Complete Onboarding Step"
       >
         {isLoading ? 'Completing...' : 'Complete Step 1'}
-      </button>
+      </Button>
 
       {error && (
-        <div className="text-sm text-red-600" role="alert">
+        <div className="text-sm text-destructive" role="alert">
           {error}
         </div>
       )}

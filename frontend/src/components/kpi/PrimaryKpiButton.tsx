@@ -16,6 +16,7 @@
 import { useState } from 'react';
 import { recordPrimaryKpi } from '@/api_contracts/recordPrimaryKpi';
 import type { RecordPrimaryKpiApiResponse } from '@/api_contracts/recordPrimaryKpi';
+import { Button } from '@/components/ui/button';
 import { validateKpiAction } from '@/verifiers/KpiActionVerifier';
 
 export interface PrimaryKpiButtonProps {
@@ -61,7 +62,7 @@ export default function PrimaryKpiButton({
 
   if (isRecorded) {
     return (
-      <div className="flex items-center gap-2 text-green-600" data-testid="kpi-success">
+      <div className="flex items-center gap-2 text-primary" data-testid="kpi-success">
         <span>KPI action recorded successfully.</span>
       </div>
     );
@@ -69,22 +70,18 @@ export default function PrimaryKpiButton({
 
   return (
     <div className="flex flex-col gap-2">
-      <button
-        className={`flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-          isLoading
-            ? 'opacity-50 cursor-not-allowed bg-primary text-primary-foreground'
-            : 'bg-primary text-primary-foreground hover:bg-primary/90'
-        }`}
+      <Button
+        className="w-fit"
         onClick={handleClick}
         disabled={isLoading}
         aria-label="Record KPI Action"
         data-testid="kpi-button"
       >
         {isLoading ? 'Recording...' : 'Record KPI'}
-      </button>
+      </Button>
 
       {error && (
-        <div className="text-sm text-red-600" role="alert" data-testid="kpi-error">
+        <div className="text-sm text-destructive" role="alert" data-testid="kpi-error">
           {error}
         </div>
       )}

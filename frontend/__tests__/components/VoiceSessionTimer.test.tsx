@@ -33,7 +33,7 @@ describe('VoiceSessionTimer', () => {
     );
     render(<VoiceSessionTimer timeRemaining={299} />);
     const timer = screen.getByTestId('voice-session-timer');
-    expect(timer.className).toContain('text-yellow');
+    expect(timer.className).toContain('text-primary');
   });
 
   it('should show critical color when time <= 1 minute', async () => {
@@ -42,6 +42,6 @@ describe('VoiceSessionTimer', () => {
     );
     render(<VoiceSessionTimer timeRemaining={59} />);
     const timer = screen.getByTestId('voice-session-timer');
-    expect(timer.className).toContain('text-red');
+    expect(timer.className).toContain('text-destructive');
   });
 });

@@ -30,10 +30,10 @@ export interface RecordButtonProps {
 // ---------------------------------------------------------------------------
 
 const PROMINENT_CLASSES =
-  'rounded-full w-24 h-24 text-3xl sm:w-32 sm:h-32 sm:text-4xl bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg transition-colors focus:outline-none focus:ring-4 focus:ring-red-300';
+  'rounded-full w-24 h-24 text-3xl sm:w-32 sm:h-32 sm:text-4xl border border-destructive-border bg-destructive text-white shadow-destructive-border font-bold transition-colors hover:bg-destructive/90 focus:outline-none focus:ring-4 focus:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50';
 
 const DEFAULT_CLASSES =
-  'text-lg rounded-full w-16 h-16 bg-red-500 hover:bg-red-600 text-white font-medium shadow transition-colors focus:outline-none focus:ring-2 focus:ring-red-300';
+  'text-lg rounded-full w-16 h-16 border border-destructive-border bg-destructive text-white shadow-destructive-border font-medium transition-colors hover:bg-destructive/90 focus:outline-none focus:ring-2 focus:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50';
 
 function getButtonClasses(prominent: boolean): string {
   try {

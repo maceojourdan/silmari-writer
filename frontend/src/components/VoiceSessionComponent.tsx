@@ -24,6 +24,8 @@ import { useState } from 'react';
 import type { AnswerSession } from '@/server/data_structures/AnswerSession';
 import type { SubmitVoiceResponseResponse } from '@/api_contracts/submitVoiceResponse';
 import { submitVoiceResponse } from '@/api_contracts/submitVoiceResponse';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { frontendLogger } from '@/logging/index';
 
 // ---------------------------------------------------------------------------
@@ -51,7 +53,7 @@ export default function VoiceSessionComponent({
   if (!session) {
     return (
       <div data-testid="voice-session-component">
-        <div className="text-sm text-red-600" role="alert">
+        <div className="text-sm text-destructive" role="alert">
           No active session found. Please start a session first.
         </div>
       </div>
@@ -62,7 +64,7 @@ export default function VoiceSessionComponent({
   if (session.state !== 'INIT') {
     return (
       <div data-testid="voice-session-component">
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-muted-foreground">
           Session is in {session.state} state. Voice input is only available in INIT state.
         </div>
       </div>
@@ -101,9 +103,9 @@ export default function VoiceSessionComponent({
 
   return (
     <div data-testid="voice-session-component" className="flex flex-col gap-3">
-      <textarea
+      <Textarea
         data-testid="transcript-input"
-        className="w-full p-3 border border-border rounded-md text-sm resize-none"
+        className="resize-none"
         placeholder="Enter your response..."
         value={transcript}
         onChange={(e) => setTranscript(e.target.value)}
@@ -111,18 +113,18 @@ export default function VoiceSessionComponent({
         rows={4}
       />
 
-      <button
+      <Button
         data-testid="submit-transcript"
         type="button"
-        className="px-4 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+        className="w-fit"
         onClick={handleSubmit}
         disabled={isSubmitting || !transcript.trim()}
       >
         {isSubmitting ? 'Submitting...' : 'Submit Response'}
-      </button>
+      </Button>
 
       {error && (
-        <div className="text-sm text-red-600" role="alert">
+        <div className="text-sm text-destructive" role="alert">
           {error}
         </div>
       )}

@@ -143,21 +143,21 @@ export default function FinalizedAnswerModule({
 
       {/* Loading indicator */}
       {isLoading && (
-        <div data-testid="loading-indicator" className="text-sm text-gray-500">
+        <div data-testid="loading-indicator" className="text-sm text-muted-foreground">
           Processing...
         </div>
       )}
 
       {/* Success Message */}
       {success && (
-        <div data-testid="success-message" className="text-sm text-green-600" role="status">
+        <div data-testid="success-message" className="text-sm text-primary" role="status">
           {success}
         </div>
       )}
 
       {/* Error Display */}
       {error && (
-        <div className="text-sm text-red-600" role="alert">
+        <div className="text-sm text-destructive" role="alert">
           {error}
         </div>
       )}

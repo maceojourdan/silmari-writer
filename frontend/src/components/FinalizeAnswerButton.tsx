@@ -16,6 +16,7 @@ import { useState } from 'react';
 import { finalizeAnswer } from '@/api_contracts/finalizeAnswer';
 import type { FinalizeAnswerResponse } from '@/api_contracts/finalizeAnswer';
 import { SharedErrors } from '@/server/error_definitions/SharedErrors';
+import { Button } from '@/components/ui/button';
 
 export interface FinalizeAnswerButtonProps {
   answerId: string;
@@ -59,7 +60,7 @@ export default function FinalizeAnswerButton({
 
   if (isFinalized) {
     return (
-      <div className="flex items-center gap-2 text-green-600" data-testid="finalize-success">
+      <div className="flex items-center gap-2 text-primary" data-testid="finalize-success">
         <span>Answer finalized successfully.</span>
       </div>
     );
@@ -67,22 +68,17 @@ export default function FinalizeAnswerButton({
 
   return (
     <div className="flex flex-col gap-2">
-      <button
-        className={`flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-          !editable || isLoading
-            ? 'opacity-50 cursor-not-allowed bg-primary text-primary-foreground'
-            : 'bg-primary text-primary-foreground hover:bg-primary/90'
-        }`}
+      <Button
         onClick={handleFinalize}
         disabled={isLoading}
         aria-disabled={!editable}
         aria-label="Finalize Answer"
       >
         {isLoading ? 'Finalizing...' : 'Finalize Answer'}
-      </button>
+      </Button>
 
       {error && (
-        <div className="text-sm text-red-600" role="alert">
+        <div className="text-sm text-destructive" role="alert">
           {error}
         </div>
       )}

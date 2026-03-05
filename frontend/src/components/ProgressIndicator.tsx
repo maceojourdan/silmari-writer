@@ -63,7 +63,7 @@ export default function ProgressIndicator({ progress }: ProgressIndicatorProps) 
       {incompleteSlots.size > 0 && (
         <div
           data-testid="progress-incomplete-hint"
-          className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+          className="rounded-md border border-border bg-muted/50 px-3 py-2 text-xs text-muted-foreground"
         >
           Incomplete now: {[...incompleteSlots].join(', ')}.
         </div>

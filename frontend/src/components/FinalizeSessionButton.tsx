@@ -17,6 +17,7 @@ import { useState } from 'react';
 import { finalizeSession, FinalizeSessionResponseSchema } from '@/api_contracts/finalizeSession';
 import type { FinalizeSessionResponse } from '@/api_contracts/finalizeSession';
 import { frontendLogger } from '@/logging/index';
+import { Button } from '@/components/ui/button';
 
 export interface FinalizeSessionButtonProps {
   sessionId: string;
@@ -70,14 +71,14 @@ export default function FinalizeSessionButton({
   if (result) {
     return (
       <div
-        className="flex flex-col gap-2 p-4 bg-green-50 border border-green-200 rounded-md"
+        className="flex flex-col gap-2 rounded-md border border-primary/30 bg-primary/10 p-4"
         data-testid="finalize-success"
       >
-        <span className="text-green-700 font-medium">Session finalized</span>
-        <span className="text-sm text-green-600">
+        <span className="font-medium text-primary">Session finalized</span>
+        <span className="text-sm text-primary">
           Session state: {result.sessionState}
         </span>
-        <span className="text-sm text-green-600">
+        <span className="text-sm text-primary">
           StoryRecord status: {result.storyRecordStatus}
         </span>
       </div>
@@ -86,24 +87,23 @@ export default function FinalizeSessionButton({
 
   return (
     <div className="flex flex-col gap-2">
-      <button
-        className="flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      <Button
         onClick={handleFinalize}
         disabled={isLoading}
         aria-label="Finalize Session"
       >
         {isLoading ? 'Finalizing...' : 'Finalize Session'}
-      </button>
+      </Button>
 
       {error && (
-        <div className="text-sm text-red-600" role="alert">
+        <div className="text-sm text-destructive" role="alert">
           {error}
         </div>
       )}
 
       {showRetry && (
         <button
-          className="text-sm text-blue-600 underline hover:text-blue-800"
+          className="text-sm text-primary underline underline-offset-4 hover:text-primary/90"
           onClick={handleFinalize}
           aria-label="Retry"
         >

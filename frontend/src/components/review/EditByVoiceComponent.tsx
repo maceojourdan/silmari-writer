@@ -14,6 +14,7 @@
  */
 
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -93,36 +94,34 @@ export default function EditByVoiceComponent({
 
   return (
     <div className="flex flex-col gap-2" data-testid="edit-by-voice">
-      <button
-        className="flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      <Button
         onClick={handleStartCapture}
         disabled={isBlocked}
         aria-label="Edit by Voice"
       >
         Edit by Voice
-      </button>
+      </Button>
 
       {isCapturing && (
         <div className="flex flex-col gap-2" data-testid="voice-capture-form">
           <input
             type="text"
-            className="px-3 py-2 border rounded-md text-sm"
+            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
             placeholder="Enter voice instruction..."
             value={instructionText}
             onChange={(e) => setInstructionText(e.target.value)}
           />
-          <button
-            className="px-4 py-2 text-sm font-medium rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors"
+          <Button
             onClick={handleSubmit}
             aria-label="Submit"
           >
             Submit
-          </button>
+          </Button>
         </div>
       )}
 
       {error && (
-        <div className="text-sm text-red-600" role="alert">
+        <div className="text-sm text-destructive" role="alert">
           {error}
         </div>
       )}

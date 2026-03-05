@@ -84,7 +84,7 @@ export default function DraftSessionView({ session: initialSession }: DraftSessi
 
       {confirmationVisible && (
         <div
-          className="text-sm text-green-600 font-medium"
+          className="text-sm text-primary font-medium"
           data-testid="approval-confirmation"
           role="status"
         >
@@ -93,7 +93,7 @@ export default function DraftSessionView({ session: initialSession }: DraftSessi
       )}
 
       {error && (
-        <div className="text-sm text-red-600" role="alert">
+        <div className="text-sm text-destructive" role="alert">
           {error}
         </div>
       )}

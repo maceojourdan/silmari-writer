@@ -15,6 +15,7 @@
  */
 
 import { useBehavioralQuestionModule } from '@/modules/behavioralQuestion/module';
+import { Button } from '@/components/ui/button';
 
 export interface BehavioralQuestionFormProps {
   sessionId: string;
@@ -49,10 +50,10 @@ export default function BehavioralQuestionForm({
       <div className="flex items-center gap-2">
         <span
           data-testid="status-badge"
-          className={`px-2 py-1 text-xs font-semibold rounded ${
+          className={`rounded px-2 py-1 text-xs font-semibold ${
             status === 'VERIFY'
-              ? 'bg-green-100 text-green-800'
-              : 'bg-gray-100 text-gray-800'
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-secondary text-secondary-foreground'
           }`}
         >
           {status}
@@ -69,11 +70,11 @@ export default function BehavioralQuestionForm({
           type="text"
           value={draft.objective}
           onChange={(e) => updateField('objective', e.target.value)}
-          className="border rounded px-3 py-2 text-sm"
+          className="rounded border border-input bg-background px-3 py-2 text-sm"
           placeholder="What was the objective or situation?"
         />
         {errors.objective && (
-          <span className="text-xs text-red-600">{errors.objective}</span>
+          <span className="text-xs text-destructive">{errors.objective}</span>
         )}
       </div>
 
@@ -90,7 +91,7 @@ export default function BehavioralQuestionForm({
                 newActions[i] = e.target.value;
                 updateField('actions', newActions);
               }}
-              className="flex-1 border rounded px-3 py-2 text-sm"
+              className="flex-1 rounded border border-input bg-background px-3 py-2 text-sm"
               placeholder={`Action ${i + 1}`}
             />
             <button
@@ -99,7 +100,7 @@ export default function BehavioralQuestionForm({
                 const newActions = draft.actions.filter((_, idx) => idx !== i);
                 updateField('actions', newActions);
               }}
-              className="text-red-500 text-sm px-2"
+              className="px-2 text-sm text-destructive hover:text-destructive/80"
               aria-label={`Remove action ${i + 1}`}
             >
               Remove
@@ -109,13 +110,13 @@ export default function BehavioralQuestionForm({
         <button
           type="button"
           onClick={() => updateField('actions', [...draft.actions, ''])}
-          className="text-sm text-blue-600 hover:text-blue-800 self-start"
+          className="self-start text-sm text-primary hover:text-primary/80"
           aria-label="Add action"
         >
           + Add Action
         </button>
         {errors.actions && (
-          <span className="text-xs text-red-600">{errors.actions}</span>
+          <span className="text-xs text-destructive">{errors.actions}</span>
         )}
       </div>
 
@@ -132,7 +133,7 @@ export default function BehavioralQuestionForm({
                 newObstacles[i] = e.target.value;
                 updateField('obstacles', newObstacles);
               }}
-              className="flex-1 border rounded px-3 py-2 text-sm"
+              className="flex-1 rounded border border-input bg-background px-3 py-2 text-sm"
               placeholder={`Obstacle ${i + 1}`}
             />
             <button
@@ -143,7 +144,7 @@ export default function BehavioralQuestionForm({
                 );
                 updateField('obstacles', newObstacles);
               }}
-              className="text-red-500 text-sm px-2"
+              className="px-2 text-sm text-destructive hover:text-destructive/80"
               aria-label={`Remove obstacle ${i + 1}`}
             >
               Remove
@@ -153,13 +154,13 @@ export default function BehavioralQuestionForm({
         <button
           type="button"
           onClick={() => updateField('obstacles', [...draft.obstacles, ''])}
-          className="text-sm text-blue-600 hover:text-blue-800 self-start"
+          className="self-start text-sm text-primary hover:text-primary/80"
           aria-label="Add obstacle"
         >
           + Add Obstacle
         </button>
         {errors.obstacles && (
-          <span className="text-xs text-red-600">{errors.obstacles}</span>
+          <span className="text-xs text-destructive">{errors.obstacles}</span>
         )}
       </div>
 
@@ -173,11 +174,11 @@ export default function BehavioralQuestionForm({
           type="text"
           value={draft.outcome}
           onChange={(e) => updateField('outcome', e.target.value)}
-          className="border rounded px-3 py-2 text-sm"
+          className="rounded border border-input bg-background px-3 py-2 text-sm"
           placeholder="What was the result or outcome?"
         />
         {errors.outcome && (
-          <span className="text-xs text-red-600">{errors.outcome}</span>
+          <span className="text-xs text-destructive">{errors.outcome}</span>
         )}
       </div>
 
@@ -191,30 +192,33 @@ export default function BehavioralQuestionForm({
           type="text"
           value={draft.roleClarity}
           onChange={(e) => updateField('roleClarity', e.target.value)}
-          className="border rounded px-3 py-2 text-sm"
+          className="rounded border border-input bg-background px-3 py-2 text-sm"
           placeholder="What was your specific role?"
         />
         {errors.roleClarity && (
-          <span className="text-xs text-red-600">{errors.roleClarity}</span>
+          <span className="text-xs text-destructive">{errors.roleClarity}</span>
         )}
       </div>
 
       {/* API Error */}
       {apiError && (
-        <div className="text-sm text-red-600 p-2 bg-red-50 rounded" role="alert">
+        <div
+          className="rounded border border-destructive/30 bg-destructive/10 p-2 text-sm text-destructive"
+          role="alert"
+        >
           {apiError}
         </div>
       )}
 
       {/* Submit Button */}
-      <button
+      <Button
         type="submit"
         disabled={isSubmitting || status === 'VERIFY'}
-        className="px-4 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-fit"
         aria-label="Submit for verification"
       >
         {isSubmitting ? 'Submitting...' : 'Submit for Verification'}
-      </button>
+      </Button>
     </form>
   );
 }

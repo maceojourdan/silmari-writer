@@ -21,6 +21,8 @@ import { useState } from 'react';
 import { updateAnswer, UpdateAnswerApiError } from '@/api_contracts/updateAnswer';
 import type { UpdateAnswerResponse } from '@/api_contracts/updateAnswer';
 import { validateAnswerUpdate } from '@/verifiers/answerUpdateVerifier';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 
 export interface AnswerEditorProps {
   answerId: string;
@@ -77,8 +79,8 @@ export default function AnswerEditor({
 
   return (
     <div className="flex flex-col gap-2">
-      <textarea
-        className="w-full min-h-[120px] p-3 border border-gray-300 rounded-md resize-y focus:outline-none focus:ring-2 focus:ring-primary"
+      <Textarea
+        className="min-h-[120px] resize-y"
         value={content}
         onChange={(e) => setContent(e.target.value)}
         data-testid="answer-content-input"
@@ -86,22 +88,17 @@ export default function AnswerEditor({
         disabled={isLoading}
       />
 
-      <button
-        className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-          isLoading
-            ? 'opacity-50 cursor-not-allowed bg-primary text-primary-foreground'
-            : 'bg-primary text-primary-foreground hover:bg-primary/90'
-        }`}
+      <Button
         onClick={handleSave}
         disabled={isLoading}
         aria-label="Save"
       >
         {isLoading ? 'Saving...' : 'Save'}
-      </button>
+      </Button>
 
       {error && (
         <div
-          className="text-sm text-red-600"
+          className="text-sm text-destructive"
           role="alert"
           data-testid="answer-editor-error"
         >

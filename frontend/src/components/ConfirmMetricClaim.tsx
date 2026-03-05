@@ -82,8 +82,8 @@ export default function ConfirmMetricClaim({
       <div
         className={`flex items-center gap-2 p-4 rounded ${
           resultStatus === 'confirmed'
-            ? 'bg-green-50 text-green-800'
-            : 'bg-red-50 text-red-800'
+            ? 'border border-primary/30 bg-primary/10 text-primary'
+            : 'border border-destructive/30 bg-destructive/10 text-destructive'
         }`}
         data-testid="result-status"
       >
@@ -97,7 +97,7 @@ export default function ConfirmMetricClaim({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4">
       {/* Source display */}
-      <div className="text-sm text-gray-600">
+      <div className="text-sm text-muted-foreground">
         Source: <span className="font-medium">{source}</span>
       </div>
 
@@ -108,8 +108,8 @@ export default function ConfirmMetricClaim({
           onClick={() => setDecision('Y')}
           className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
             decision === 'Y'
-              ? 'bg-green-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
           }`}
           aria-label="Confirm"
         >
@@ -120,8 +120,8 @@ export default function ConfirmMetricClaim({
           onClick={() => setDecision('N')}
           className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
             decision === 'N'
-              ? 'bg-red-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              ? 'bg-destructive text-white'
+              : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
           }`}
           aria-label="Deny"
         >
@@ -131,7 +131,7 @@ export default function ConfirmMetricClaim({
 
       {/* Validation error */}
       {error && (
-        <div className="text-sm text-red-600 p-2 bg-red-50 rounded" role="alert">
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 p-2 text-sm text-destructive" role="alert">
           {error}
         </div>
       )}

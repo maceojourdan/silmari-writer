@@ -17,6 +17,7 @@ import { useState } from 'react';
 import { generateCaseDraft } from '@/api_contracts/generateDraft';
 import type { GenerateCaseDraftResponse } from '@/api_contracts/generateDraft';
 import { frontendLogger } from '@/logging/index';
+import { Button } from '@/components/ui/button';
 
 export interface DraftGeneratorProps {
   caseId: string;
@@ -58,11 +59,11 @@ export default function DraftGenerator({
   if (draftResponse) {
     return (
       <div className="flex flex-col gap-4" data-testid="draft-content">
-        <h3 className="text-lg font-semibold">Generated Draft</h3>
+        <h3 className="font-serif text-lg font-bold">Generated Draft</h3>
         <div className="whitespace-pre-wrap border rounded-md p-4">
           {draftResponse.content}
         </div>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-muted-foreground">
           Claims used: {draftResponse.claimsUsed.join(', ')}
         </p>
       </div>
@@ -71,17 +72,16 @@ export default function DraftGenerator({
 
   return (
     <div className="flex flex-col gap-2">
-      <button
-        className="flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      <Button
         onClick={handleGenerateDraft}
         disabled={isLoading}
         aria-label="Generate Draft"
       >
         {isLoading ? 'Generating...' : 'Generate Draft'}
-      </button>
+      </Button>
 
       {error && (
-        <div className="text-sm text-red-600" role="alert">
+        <div className="text-sm text-destructive" role="alert">
           {error}
         </div>
       )}

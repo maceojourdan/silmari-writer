@@ -34,6 +34,7 @@ import { frontendLogger } from '@/logging/index';
 import { VoiceInputErrors } from '@/server/error_definitions/VoiceErrors';
 import type { VoiceErrorDef } from '@/server/error_definitions/VoiceErrors';
 import { validateVoiceInput } from '@/verifiers/VoiceInputVerifier';
+import { Button } from '@/components/ui/button';
 
 // ---------------------------------------------------------------------------
 // Voice Session Types (Path 332)
@@ -191,13 +192,13 @@ export default function ReviewScreen({
     if (!voiceError) return null;
     try {
       return (
-        <div className="text-sm text-red-600" role="alert" data-testid="voice-error">
+        <div className="text-sm text-destructive" role="alert" data-testid="voice-error">
           {voiceError.message}
         </div>
       );
     } catch {
       return (
-        <div className="text-sm text-red-600" role="alert" data-testid="voice-error-fallback">
+        <div className="text-sm text-destructive" role="alert" data-testid="voice-error-fallback">
           {VoiceInputErrors.GENERIC_VOICE_ERROR.message}
         </div>
       );
@@ -206,7 +207,7 @@ export default function ReviewScreen({
 
   if (isApproved) {
     return (
-      <div className="flex items-center gap-2 text-green-600" data-testid="approve-success">
+      <div className="flex items-center gap-2 text-primary" data-testid="approve-success">
         <span>Content approved successfully.</span>
       </div>
     );
@@ -214,56 +215,53 @@ export default function ReviewScreen({
 
   return (
     <div className="flex flex-col gap-2" data-testid="review-screen">
-      <button
-        className="flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      <Button
         onClick={handleApprove}
         disabled={isSubmitting}
         aria-label={isSubmitting ? 'Approving...' : 'Approve'}
       >
         {isSubmitting ? 'Approving...' : 'Approve'}
-      </button>
+      </Button>
 
       {/* Path 331: Return to Recall button */}
-      <button
+      <Button
         data-testid="return-to-recall"
-        className="flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+        variant="outline"
         onClick={handleReturnToRecall}
         aria-label="Return to Recall"
       >
         Return to Recall
-      </button>
+      </Button>
 
       {/* Path 332: Edit by Voice controls (shown when showVoiceCapture=true) */}
       {showVoiceCapture && (
         <>
-          <button
+          <Button
             data-testid="edit-by-voice-btn"
-            className="flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors"
             onClick={handleEditByVoice}
             aria-label="Edit by Voice"
           >
             Edit by Voice
-          </button>
+          </Button>
 
           {/* Path 332: Voice capture form */}
           {voiceSession?.status === 'capturing' && (
             <div data-testid="voice-capture-active" className="flex flex-col gap-2">
               <input
                 type="text"
-                className="px-3 py-2 border rounded-md text-sm"
+                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
                 placeholder="Enter voice instruction..."
                 value={voiceTranscript}
                 onChange={(e) => setVoiceTranscript(e.target.value)}
                 data-testid="voice-transcript-input"
               />
-              <button
-                className="px-4 py-2 text-sm font-medium rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors"
+              <Button
                 onClick={handleVoiceSubmit}
                 aria-label="Submit Voice Input"
                 data-testid="voice-submit-btn"
               >
                 Submit Voice Input
-              </button>
+              </Button>
             </div>
           )}
 
@@ -273,7 +271,7 @@ export default function ReviewScreen({
       )}
 
       {error && (
-        <div className="text-sm text-red-600" role="alert">
+        <div className="text-sm text-destructive" role="alert">
           {error}
         </div>
       )}

@@ -1,5 +1,17 @@
 import type { Metadata } from "next";
+import { Nunito, PT_Serif } from "next/font/google";
 import "./globals.css";
+
+const nunito = Nunito({
+  variable: "--font-nunito",
+  subsets: ["latin"],
+});
+
+const ptSerif = PT_Serif({
+  variable: "--font-pt-serif",
+  subsets: ["latin"],
+  weight: ["400", "700"],
+});
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -13,7 +25,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">
+      <body className={`${nunito.variable} ${ptSerif.variable} antialiased relative`}>
+        <div className="texture" aria-hidden="true" />
         {children}
       </body>
     </html>

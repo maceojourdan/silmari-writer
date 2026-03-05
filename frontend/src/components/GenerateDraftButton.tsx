@@ -18,6 +18,7 @@ import { useState } from 'react';
 import { validateDraftRequestPayload } from '@/verifiers/draftRequestVerifier';
 import { generateDraft } from '@/api_contracts/generateDraft';
 import type { GenerateDraftResponse } from '@/api_contracts/generateDraft';
+import { Button } from '@/components/ui/button';
 
 export interface GenerateDraftButtonProps {
   claimSetId: string;
@@ -62,7 +63,7 @@ export default function GenerateDraftButton({
   if (draftResponse) {
     return (
       <div className="flex flex-col gap-4" data-testid="draft-preview">
-        <h3 className="text-lg font-semibold">Generated Draft</h3>
+        <h3 className="font-serif text-lg font-bold">Generated Draft</h3>
         {draftResponse.draft.sections.map((section) => (
           <div key={section.sectionName} className="border rounded-md p-3">
             <h4 className="font-medium capitalize mb-2">{section.sectionName}</h4>
@@ -81,17 +82,16 @@ export default function GenerateDraftButton({
 
   return (
     <div className="flex flex-col gap-2">
-      <button
-        className="flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      <Button
         onClick={handleGenerateDraft}
         disabled={isLoading}
         aria-label="Generate Draft"
       >
         {isLoading ? 'Generating...' : 'Generate Draft'}
-      </button>
+      </Button>
 
       {error && (
-        <div className="text-sm text-red-600" role="alert">
+        <div className="text-sm text-destructive" role="alert">
           {error}
         </div>
       )}

@@ -67,7 +67,7 @@ export default function AnswerModule({
       {answer.editable && (
         <div data-testid="editing-controls" className="flex gap-2">
           <button
-            className="px-3 py-1 text-sm border rounded-md hover:bg-gray-50"
+            className="rounded-md border border-border px-3 py-1 text-sm hover:bg-accent"
             aria-label="Edit Answer"
           >
             Edit
@@ -86,7 +86,7 @@ export default function AnswerModule({
 
       {/* Error Display */}
       {error && (
-        <div className="text-sm text-red-600" role="alert">
+        <div className="text-sm text-destructive" role="alert">
           {error}
         </div>
       )}

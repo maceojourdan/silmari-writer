@@ -11,11 +11,12 @@ const Separator = React.forwardRef<HTMLDivElement, SeparatorProps>(
     return (
       <div
         ref={ref}
+        data-slot="separator-root"
         role={decorative ? undefined : 'separator'}
         aria-orientation={orientation}
         className={cn(
-          'shrink-0 bg-border',
-          orientation === 'horizontal' ? 'h-px w-full' : 'h-full w-px',
+          'shrink-0 bg-border/60',
+          orientation === 'horizontal' ? 'h-0.5 w-full' : 'h-full w-0.5',
           className,
         )}
         {...props}

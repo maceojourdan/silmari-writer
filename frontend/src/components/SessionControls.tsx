@@ -20,6 +20,7 @@ import {
   ModifySessionPayloadSchema,
 } from '@/verifiers/SessionModificationVerifier';
 import { modifySession } from '@/api_contracts/modifySession';
+import { Button } from '@/components/ui/button';
 
 export interface SessionControlsProps {
   sessionId: string;
@@ -76,17 +77,16 @@ export default function SessionControls({
 
   return (
     <div className="flex flex-col gap-2">
-      <button
-        className="flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      <Button
         onClick={() => handleModify('ADD_VOICE')}
         disabled={isLoading}
         aria-label="Add Voice Input"
       >
         {isLoading ? 'Processing...' : 'Add Voice Input'}
-      </button>
+      </Button>
 
       {error && (
-        <div className="text-sm text-red-600" role="alert">
+        <div className="text-sm text-destructive" role="alert">
           {error}
         </div>
       )}

@@ -21,6 +21,7 @@ import { useState } from 'react';
 import { isExplicitlyAffirmative } from '@/verifiers/consentVerifier';
 import { startVoiceSession } from '@/api_contracts/startVoiceSession';
 import { frontendLogger } from '@/logging/index';
+import { Button } from '@/components/ui/button';
 
 type UIState = 'idle' | 'consent_prompt' | 'blocked' | 'loading' | 'active' | 'error';
 
@@ -97,7 +98,7 @@ export default function VoiceSessionStart() {
 
   if (uiState === 'active') {
     return (
-      <div className="flex items-center gap-2 text-green-600" data-testid="voice-session-active">
+      <div className="flex items-center gap-2 text-primary" data-testid="voice-session-active">
         <span>Voice session active</span>
       </div>
     );
@@ -110,20 +111,19 @@ export default function VoiceSessionStart() {
           Do you consent to starting a voice session?
         </p>
         <div className="flex gap-2">
-          <button
-            className="px-4 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+          <Button
             onClick={handleAgree}
             aria-label="I agree"
           >
             I agree
-          </button>
-          <button
-            className="px-4 py-2 text-sm font-medium rounded-md border border-border hover:bg-accent transition-colors"
+          </Button>
+          <Button
+            variant="outline"
             onClick={handleDecline}
             aria-label="Decline"
           >
             Decline
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -141,17 +141,17 @@ export default function VoiceSessionStart() {
     return (
       <div className="flex flex-col gap-2">
         {error && (
-          <div className="text-sm text-red-600" role="alert">
+          <div className="text-sm text-destructive" role="alert">
             {error}
           </div>
         )}
-        <button
-          className="px-4 py-2 text-sm font-medium rounded-md border border-border hover:bg-accent transition-colors"
+        <Button
+          variant="outline"
           onClick={handleTryAgain}
           aria-label="Try again"
         >
           Try again
-        </button>
+        </Button>
       </div>
     );
   }
@@ -159,7 +159,7 @@ export default function VoiceSessionStart() {
   if (uiState === 'error') {
     return (
       <div className="flex flex-col gap-2">
-        <div className="text-sm text-red-600" role="alert">
+        <div className="text-sm text-destructive" role="alert">
           {error || 'An unexpected error occurred'}
         </div>
       </div>
@@ -169,13 +169,12 @@ export default function VoiceSessionStart() {
   // Idle state (default)
   return (
     <div className="flex flex-col gap-2">
-      <button
-        className="flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+      <Button
         onClick={handleStartClick}
         aria-label="Start Voice Session"
       >
         Start Voice Session
-      </button>
+      </Button>
     </div>
   );
 }

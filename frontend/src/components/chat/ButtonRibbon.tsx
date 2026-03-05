@@ -224,7 +224,7 @@ export default function ButtonRibbon({ messageId, content }: ButtonRibbonProps) 
 
       {/* Error message display */}
       {blockingOperation?.error && (
-        <div className="text-sm text-red-600 ml-2">
+        <div className="ml-2 text-sm text-destructive">
           {blockingOperation.error}
         </div>
       )}

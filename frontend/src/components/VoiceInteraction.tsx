@@ -68,7 +68,7 @@ export default function VoiceInteraction({ payload }: VoiceInteractionProps) {
         data-testid="next-state-indicator"
         className="inline-flex items-center gap-2 text-sm font-medium text-primary"
       >
-        <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
+        <span className="inline-block w-2 h-2 rounded-full bg-primary" />
         Next step: {payload.nextState}
       </div>
 
@@ -94,7 +94,7 @@ export default function VoiceInteraction({ payload }: VoiceInteractionProps) {
       {audioFailed && (
         <div
           data-testid="fallback-text"
-          className="p-3 rounded-md bg-amber-50 border border-amber-200 text-sm text-amber-800"
+          className="rounded-md border border-border bg-muted/60 p-3 text-sm text-foreground"
           role="alert"
         >
           <span className="font-medium">Audio unavailable:</span>{' '}
