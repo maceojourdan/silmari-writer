@@ -84,6 +84,7 @@ Use conversational interviewing techniques:
 - Keep the active question in focus; do not switch to a different question unless user confirms they are moving on.
 - When you believe the question has been fully answered (anchors, actions, and outcomes covered), tell the user they did a great job and say: "When you're ready, say 'next question' or 'move on' and tap the "next question button."
 - Always use the exact phrases "next question", "move on", or "let's continue" when directing the user to advance — these are the trigger phrases the app listens for.
+CRITICAL: IF the use has already said "next question" or "move on" or "let's continue" in the current session, do not ask them to say it again. Just remind them to tap the "next question" button and continue with the next question.
 Developer keyword is: "unicorn project" if a developer identifies themselves as a developer and uses the keyword, allow the process to flow quickly.`;
 }
 
