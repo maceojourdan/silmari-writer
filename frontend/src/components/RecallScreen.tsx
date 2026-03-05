@@ -58,14 +58,6 @@ export interface RecallScreenProps {
 
 type VoiceSubmitStatus = 'idle' | 'listening' | 'submitting' | 'saved' | 'error';
 type EditorSaveStatus = 'idle' | 'saving' | 'saved' | 'error';
-type MoveOnBlockedReason = 'incomplete_slots' | 'advance_in_flight';
-
-interface AdvanceQuestionFlowResult {
-  advanced: boolean;
-  blockedReason?: 'advance_in_flight';
-  fromProgress: QuestionProgressState;
-  resolvedProgress: QuestionProgressState;
-}
 
 function buildRecallInstructions(
   selectedStory: Story | null | undefined,
@@ -192,7 +184,6 @@ export default function RecallScreen({
   const questionProgressRef = useRef(questionProgress);
   const latestProgressRef = useRef(liveProgress);
   const pendingProgressRefreshRef = useRef<Promise<RecallProgress> | null>(null);
-  const advanceInFlightRef = useRef(false);
 
   const isConnecting = sessionState === 'connecting';
   const isConnected = sessionState === 'connected';
@@ -322,111 +313,34 @@ export default function RecallScreen({
     return 'Record';
   }, [isConnected, isConnecting]);
 
-  const shouldAdvanceFromMoveOnIntent = useCallback((progressSnapshot: RecallProgress) => {
-    return deriveIncompleteSlots(progressSnapshot).length === 0;
-  }, []);
-
-  const evaluateMoveOnAfterProgressRefresh = useCallback(async () => {
-    if (pendingProgressRefreshRef.current) {
-      await pendingProgressRefreshRef.current;
-    } else if (sessionId && sessionSource) {
-      await refreshProgress();
-    }
-
-    const snapshot = latestProgressRef.current;
-    return {
-      snapshot,
-      incompleteSlotsSnapshot: deriveIncompleteSlots(snapshot),
-    };
-  }, [refreshProgress, sessionId, sessionSource]);
-
-  const emitMoveOnBlockedTelemetry = useCallback((
-    blockingReason: MoveOnBlockedReason,
-    incompleteSlotsSnapshot: Array<'anchors' | 'actions' | 'outcomes'>,
-  ) => {
-    if (!sessionId) {
-      return;
-    }
-
-    void emitNewPathClientEvent('recall_move_on_blocked', {
-      session_id: sessionId,
-      user_id: 'unknown_user',
-      source: 'ui',
-      session_source: sessionSource ?? 'unknown',
-      blocking_reason: blockingReason,
-      incomplete_slots: incompleteSlotsSnapshot,
-    });
-  }, [sessionId, sessionSource]);
-
-  const emitMoveOnAdvancedTelemetry = useCallback((
-    fromProgress: QuestionProgressState,
-    resolvedProgress: QuestionProgressState,
-  ) => {
-    if (!sessionId) {
-      return;
-    }
-
-    void emitNewPathClientEvent('recall_move_on_advanced', {
-      session_id: sessionId,
-      user_id: 'unknown_user',
-      source: 'ui',
-      session_source: sessionSource ?? 'unknown',
-      from_question_index: fromProgress.currentIndex,
-      to_question_index: resolvedProgress.currentIndex,
-      from_question_id: fromProgress.activeQuestionId,
-      to_question_id: resolvedProgress.activeQuestionId,
-      total_questions: resolvedProgress.total,
-    });
-  }, [sessionId, sessionSource]);
-
-  const advanceQuestionFlow = useCallback(async (): Promise<AdvanceQuestionFlowResult> => {
+  const advanceQuestionFlow = useCallback(async () => {
     const startingProgress = questionProgressRef.current;
-    if (advanceInFlightRef.current) {
-      return {
-        advanced: false,
-        blockedReason: 'advance_in_flight',
-        fromProgress: startingProgress,
-        resolvedProgress: startingProgress,
-      };
-    }
+    const locallyAdvanced = advanceQuestionProgress(questionSet, startingProgress);
+    let resolvedProgress = locallyAdvanced;
+    setQuestionProgress(locallyAdvanced);
+    setStopControlsVisible(false);
 
-    advanceInFlightRef.current = true;
-
-    try {
-      const locallyAdvanced = advanceQuestionProgress(questionSet, startingProgress);
-      let resolvedProgress = locallyAdvanced;
-      setQuestionProgress(locallyAdvanced);
-      setStopControlsVisible(false);
-
-      if (sessionId && sessionSource) {
-        try {
-          const advanced = await advanceSessionQuestion(sessionId, sessionSource);
-          resolvedProgress = advanced.questionProgress;
-          setQuestionProgress(advanced.questionProgress);
-          if (advanced.workingAnswer.trim().length > 0) {
-            setWorkingAnswer(advanced.workingAnswer);
-          }
-        } catch {
-          // Non-blocking; local progression still advances.
+    if (sessionId && sessionSource) {
+      try {
+        const advanced = await advanceSessionQuestion(sessionId, sessionSource);
+        resolvedProgress = advanced.questionProgress;
+        setQuestionProgress(advanced.questionProgress);
+        if (advanced.workingAnswer.trim().length > 0) {
+          setWorkingAnswer(advanced.workingAnswer);
         }
+      } catch {
+        // Non-blocking; local progression still advances.
       }
-
-      const nextQuestion = getQuestionByProgress(questionSet, resolvedProgress);
-      if (!nextQuestion) {
-        setCoachPrompt('You completed all recall questions. Moving to review.');
-        onAdvanceToReview?.();
-      } else {
-        setCoachPrompt(buildOpeningCoachPrompt(selectedStory, nextQuestion.text));
-      }
-
-      return {
-        advanced: true,
-        fromProgress: startingProgress,
-        resolvedProgress,
-      };
-    } finally {
-      advanceInFlightRef.current = false;
     }
+
+    const nextQuestion = getQuestionByProgress(questionSet, resolvedProgress);
+    if (!nextQuestion) {
+      setCoachPrompt('You completed all recall questions. Moving to review.');
+      onAdvanceToReview?.();
+      return;
+    }
+
+    setCoachPrompt(buildOpeningCoachPrompt(selectedStory, nextQuestion.text));
   }, [onAdvanceToReview, questionSet, selectedStory, sessionId, sessionSource]);
 
   const handleNextQuestion = useCallback(async () => {
@@ -611,36 +525,7 @@ export default function RecallScreen({
           incomplete_slots_count: currentIncompleteSlots.length,
         });
 
-        if (advanceInFlightRef.current) {
-          emitMoveOnBlockedTelemetry('advance_in_flight', currentIncompleteSlots);
-          presentStopState('move_on_intent', currentIncompleteSlots);
-          return;
-        }
-
-        void (async () => {
-          const { snapshot, incompleteSlotsSnapshot } = await evaluateMoveOnAfterProgressRefresh();
-          if (!shouldAdvanceFromMoveOnIntent(snapshot)) {
-            emitMoveOnBlockedTelemetry('incomplete_slots', incompleteSlotsSnapshot);
-            presentStopState('move_on_intent', incompleteSlotsSnapshot);
-            return;
-          }
-
-          disconnect();
-          const advanceResult = await advanceQuestionFlow();
-          if (!advanceResult.advanced) {
-            emitMoveOnBlockedTelemetry(
-              advanceResult.blockedReason ?? 'advance_in_flight',
-              incompleteSlotsSnapshot,
-            );
-            presentStopState('move_on_intent', incompleteSlotsSnapshot);
-            return;
-          }
-
-          emitMoveOnAdvancedTelemetry(
-            advanceResult.fromProgress,
-            advanceResult.resolvedProgress,
-          );
-        })();
+        presentStopState('move_on_intent', currentIncompleteSlots);
         return;
       }
 
@@ -686,11 +571,6 @@ export default function RecallScreen({
       setOnEvent(null);
     };
   }, [
-    advanceQuestionFlow,
-    disconnect,
-    emitMoveOnAdvancedTelemetry,
-    emitMoveOnBlockedTelemetry,
-    evaluateMoveOnAfterProgressRefresh,
     isConnected,
     onVoiceResponseSaved,
     persistTranscriptBySource,
@@ -699,7 +579,6 @@ export default function RecallScreen({
     sessionId,
     sessionSource,
     setOnEvent,
-    shouldAdvanceFromMoveOnIntent,
   ]);
 
   const submitStatusMessage = useMemo(() => {

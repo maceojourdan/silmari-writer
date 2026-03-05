@@ -332,7 +332,7 @@ describe('RecallScreen voice session wiring', () => {
     });
   });
 
-  it('advances on move-on voice intent when guards pass', async () => {
+  it('treats move-on utterances as control intents and keeps manual progression', async () => {
     mockSessionState = 'connected';
     render(<RecallScreen sessionId={SESSION_ID} sessionSource="answer_session" />);
 
@@ -344,57 +344,19 @@ describe('RecallScreen voice session wiring', () => {
 
     await waitFor(() => {
       expect(mockSubmitVoiceResponse).not.toHaveBeenCalled();
-      expect(mockDisconnect).toHaveBeenCalledTimes(1);
-      expect(mockAdvanceSessionQuestion).toHaveBeenCalledWith(SESSION_ID, 'answer_session');
-      expect(screen.getByTestId('recall-question-progress')).toHaveTextContent('Question 2 of 4');
-    });
-
-    const disconnectCallOrder = mockDisconnect.mock.invocationCallOrder[0];
-    const advanceCallOrder = mockAdvanceSessionQuestion.mock.invocationCallOrder[0];
-    expect(disconnectCallOrder).toBeLessThan(advanceCallOrder);
-    expect(mockEmitNewPathClientEvent).toHaveBeenCalledWith(
-      'recall_move_on_advanced',
-      expect.objectContaining({
-        session_id: SESSION_ID,
-        session_source: 'answer_session',
-      }),
-    );
-  });
-
-  it('does not advance on move-on when slots are missing', async () => {
-    mockSessionState = 'connected';
-    mockLoadRecallProgress.mockResolvedValueOnce({
-      anchors: 1,
-      actions: 0,
-      outcomes: 0,
-      incompleteSlots: ['actions', 'outcomes'],
-    });
-
-    render(<RecallScreen sessionId={SESSION_ID} sessionSource="answer_session" />);
-
-    emitVoiceEvent({
-      type: 'conversation.item.input_audio_transcription.completed',
-      item_id: 'item-2',
-      transcript: 'move on',
-    });
-
-    await waitFor(() => {
       expect(mockAdvanceSessionQuestion).not.toHaveBeenCalled();
       expect(screen.getByTestId('recall-stop-controls')).toBeInTheDocument();
-      expect(screen.getByTestId('incomplete-slot-guidance')).toHaveTextContent('actions, outcomes');
     });
 
     expect(mockEmitNewPathClientEvent).toHaveBeenCalledWith(
-      'recall_move_on_blocked',
+      'recall_move_on_intent',
       expect.objectContaining({
         session_id: SESSION_ID,
-        session_source: 'answer_session',
-        blocking_reason: 'incomplete_slots',
       }),
     );
   });
 
-  it('does not double-advance on repeated move-on dedupe key', async () => {
+  it('does not double-handle repeated move-on dedupe key', async () => {
     mockSessionState = 'connected';
     render(<RecallScreen sessionId={SESSION_ID} sessionSource="answer_session" />);
 
@@ -408,147 +370,29 @@ describe('RecallScreen voice session wiring', () => {
     emitVoiceEvent(repeatedEvent);
 
     await waitFor(() => {
-      expect(mockAdvanceSessionQuestion).toHaveBeenCalledTimes(1);
-      expect(screen.getByTestId('recall-question-progress')).toHaveTextContent('Question 2 of 4');
-    });
-  });
-
-  it('blocks second move-on while advancement is already in flight', async () => {
-    mockSessionState = 'connected';
-
-    let resolveAdvance: () => void = () => {};
-    mockAdvanceSessionQuestion.mockImplementationOnce(() => (
-      new Promise((resolve) => {
-        resolveAdvance = () => {
-          resolve({
-            sessionId: SESSION_ID,
-            sessionSource: 'answer_session',
-            workingAnswer: '',
-            turns: [],
-            questionProgress: {
-              currentIndex: 1,
-              total: 4,
-              completed: ['q-default-1'],
-              activeQuestionId: 'q-default-2',
-            },
-          });
-        };
-      })
-    ));
-
-    render(<RecallScreen sessionId={SESSION_ID} sessionSource="answer_session" />);
-
-    emitVoiceEvent({
-      type: 'conversation.item.input_audio_transcription.completed',
-      item_id: 'item-inflight-1',
-      transcript: 'next question',
-    });
-
-    emitVoiceEvent({
-      type: 'conversation.item.input_audio_transcription.completed',
-      item_id: 'item-inflight-2',
-      transcript: 'move on',
-    });
-
-    await waitFor(() => {
-      expect(mockAdvanceSessionQuestion).toHaveBeenCalledTimes(1);
-    });
-
-    expect(mockEmitNewPathClientEvent).toHaveBeenCalledWith(
-      'recall_move_on_blocked',
-      expect.objectContaining({
-        session_id: SESSION_ID,
-        session_source: 'answer_session',
-        blocking_reason: 'advance_in_flight',
-      }),
-    );
-
-    resolveAdvance();
-
-    await waitFor(() => {
-      expect(screen.getByTestId('recall-question-progress')).toHaveTextContent('Question 2 of 4');
-    });
-  });
-
-  it('defers move-on guard until latest progress refresh resolves', async () => {
-    mockSessionState = 'connected';
-
-    let resolveProgressRefresh: (value: {
-      anchors: number;
-      actions: number;
-      outcomes: number;
-      incompleteSlots: Array<'anchors' | 'actions' | 'outcomes'>;
-    }) => void = () => {};
-
-    mockLoadRecallProgress.mockImplementationOnce(
-      () => new Promise((resolve) => {
-        resolveProgressRefresh = resolve;
-      }),
-    );
-
-    render(<RecallScreen sessionId={SESSION_ID} sessionSource="answer_session" />);
-
-    emitVoiceEvent({
-      type: 'conversation.item.input_audio_transcription.completed',
-      item_id: 'item-race-1',
-      transcript: 'next question',
-    });
-
-    await waitFor(() => {
       expect(mockAdvanceSessionQuestion).not.toHaveBeenCalled();
-    });
-
-    resolveProgressRefresh({
-      anchors: 1,
-      actions: 1,
-      outcomes: 1,
-      incompleteSlots: [],
-    });
-
-    await waitFor(() => {
-      expect(mockAdvanceSessionQuestion).toHaveBeenCalledTimes(1);
-      expect(screen.getByTestId('recall-question-progress')).toHaveTextContent('Question 2 of 4');
+      expect(screen.getByTestId('recall-stop-controls')).toBeInTheDocument();
     });
   });
 
-  it('voice and manual progression converge on same state transition path', async () => {
+  it('keeps manual next button path after move-on voice intent', async () => {
     const user = userEvent.setup();
     mockSessionState = 'connected';
 
-    mockAdvanceSessionQuestion
-      .mockResolvedValueOnce({
-        sessionId: SESSION_ID,
-        sessionSource: 'answer_session',
-        workingAnswer: '',
-        turns: [],
-        questionProgress: {
-          currentIndex: 1,
-          total: 4,
-          completed: ['q-default-1'],
-          activeQuestionId: 'q-default-2',
-        },
-      })
-      .mockResolvedValueOnce({
-        sessionId: SESSION_ID,
-        sessionSource: 'answer_session',
-        workingAnswer: '',
-        turns: [],
-        questionProgress: {
-          currentIndex: 2,
-          total: 4,
-          completed: ['q-default-1', 'q-default-2'],
-          activeQuestionId: 'q-default-3',
-        },
-      });
+    mockAdvanceSessionQuestion.mockResolvedValueOnce({
+      sessionId: SESSION_ID,
+      sessionSource: 'answer_session',
+      workingAnswer: '',
+      turns: [],
+      questionProgress: {
+        currentIndex: 1,
+        total: 4,
+        completed: ['q-default-1'],
+        activeQuestionId: 'q-default-2',
+      },
+    });
 
     render(<RecallScreen sessionId={SESSION_ID} sessionSource="answer_session" />);
-
-    await user.click(screen.getByTestId('record-button'));
-    await user.click(screen.getByRole('button', { name: /next question/i }));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('recall-question-progress')).toHaveTextContent('Question 2 of 4');
-    });
 
     emitVoiceEvent({
       type: 'conversation.item.input_audio_transcription.completed',
@@ -557,8 +401,15 @@ describe('RecallScreen voice session wiring', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId('recall-question-progress')).toHaveTextContent('Question 3 of 4');
-      expect(mockAdvanceSessionQuestion).toHaveBeenCalledTimes(2);
+      expect(screen.getByTestId('recall-stop-controls')).toBeInTheDocument();
+      expect(mockAdvanceSessionQuestion).not.toHaveBeenCalled();
+    });
+
+    await user.click(screen.getByRole('button', { name: /next question/i }));
+
+    await waitFor(() => {
+      expect(mockAdvanceSessionQuestion).toHaveBeenCalledWith(SESSION_ID, 'answer_session');
+      expect(screen.getByTestId('recall-question-progress')).toHaveTextContent('Question 2 of 4');
     });
   });
 
