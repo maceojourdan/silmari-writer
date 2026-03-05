@@ -18,6 +18,7 @@ const mockResetSessionVoiceTurns = vi.fn();
 const mockAdvanceSessionQuestion = vi.fn();
 const mockLoadRecallProgress = vi.fn();
 const mockEmitNewPathClientEvent = vi.fn();
+const mockClipboardWriteText = vi.fn();
 
 let mockSessionState: 'idle' | 'connecting' | 'connected' | 'error' = 'idle';
 let capturedEventHandler: ((event: VoiceEvent) => void) | null = null;
@@ -80,6 +81,7 @@ describe('RecallScreen voice session wiring', () => {
     vi.clearAllMocks();
     mockSessionState = 'idle';
     capturedEventHandler = null;
+    mockClipboardWriteText.mockResolvedValue(undefined);
 
     mockConnect.mockResolvedValue(true);
     mockOnVoiceResponseSaved.mockResolvedValue(undefined);
@@ -166,6 +168,12 @@ describe('RecallScreen voice session wiring', () => {
     });
 
     mockEmitNewPathClientEvent.mockResolvedValue(true);
+
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: mockClipboardWriteText },
+      configurable: true,
+      writable: true,
+    });
   });
 
   it('renders proactive coach greeting', () => {
@@ -201,7 +209,7 @@ describe('RecallScreen voice session wiring', () => {
       expect(mockConnect).toHaveBeenCalledWith(
         'voice_edit',
         expect.objectContaining({
-          instructions: expect.stringContaining('warm greeting'),
+          instructions: expect.stringContaining('Active question:'),
         }),
       );
     });
@@ -458,6 +466,60 @@ describe('RecallScreen voice session wiring', () => {
 
     await waitFor(() => {
       expect(mockLoadRecallProgress).toHaveBeenCalledWith(SESSION_ID, 'session');
+    });
+  });
+
+  it('copies working answer with Clipboard API', async () => {
+    const writeTextMock = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: writeTextMock },
+      configurable: true,
+      writable: true,
+    });
+
+    render(
+      <RecallScreen
+        sessionId={SESSION_ID}
+        sessionSource="answer_session"
+        initialWorkingAnswer="Polished draft answer"
+      />,
+    );
+
+    screen.getByTestId('copy-working-answer-button').click();
+
+    await waitFor(() => {
+      expect(writeTextMock).toHaveBeenCalledWith('Polished draft answer');
+      expect(screen.getByTestId('copy-working-answer-button')).toHaveTextContent('Copied!');
+    });
+  });
+
+  it('falls back to execCommand copy when Clipboard API is unavailable', async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(navigator, 'clipboard', {
+      value: undefined,
+      configurable: true,
+      writable: true,
+    });
+    const execCommandMock = vi.fn(() => true);
+    Object.defineProperty(document, 'execCommand', {
+      value: execCommandMock,
+      configurable: true,
+      writable: true,
+    });
+
+    render(
+      <RecallScreen
+        sessionId={SESSION_ID}
+        sessionSource="answer_session"
+        initialWorkingAnswer="Fallback copy content"
+      />,
+    );
+
+    await user.click(screen.getByTestId('copy-working-answer-button'));
+
+    await waitFor(() => {
+      expect(execCommandMock).toHaveBeenCalledWith('copy');
+      expect(screen.getByTestId('copy-working-answer-button')).toHaveTextContent('Copied!');
     });
   });
 

@@ -58,6 +58,38 @@ export interface RecallScreenProps {
 
 type VoiceSubmitStatus = 'idle' | 'listening' | 'submitting' | 'saved' | 'error';
 type EditorSaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+type CopyStatus = 'idle' | 'copied' | 'error';
+
+async function copyTextToClipboard(content: string): Promise<void> {
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(content);
+    return;
+  }
+
+  if (typeof document !== 'undefined') {
+    const textarea = document.createElement('textarea');
+    textarea.value = content;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.top = '0';
+    textarea.style.left = '-9999px';
+    textarea.style.opacity = '0';
+
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    textarea.setSelectionRange(0, textarea.value.length);
+
+    const copied = typeof document.execCommand === 'function' && document.execCommand('copy');
+    document.body.removeChild(textarea);
+
+    if (copied) {
+      return;
+    }
+  }
+
+  throw new Error('Clipboard is unavailable');
+}
 
 function buildRecallInstructions(
   selectedStory: Story | null | undefined,
@@ -172,6 +204,7 @@ export default function RecallScreen({
     return initialResponses.join('\n\n');
   });
   const [editorStatus, setEditorStatus] = useState<EditorSaveStatus>('idle');
+  const [copyStatus, setCopyStatus] = useState<CopyStatus>('idle');
   const [stopControlsVisible, setStopControlsVisible] = useState(false);
   const [coachPrompt, setCoachPrompt] = useState(() => {
     const initialQuestion = getQuestionByProgress(
@@ -184,6 +217,7 @@ export default function RecallScreen({
   const submittedKeysRef = useRef<Set<string>>(new Set());
   const workingAnswerRef = useRef(workingAnswer);
   const greetingEmittedRef = useRef(false);
+  const copyStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const questionProgressRef = useRef(questionProgress);
   const latestProgressRef = useRef(liveProgress);
   const pendingProgressRefreshRef = useRef<Promise<RecallProgress> | null>(null);
@@ -221,6 +255,22 @@ export default function RecallScreen({
   useEffect(() => {
     latestProgressRef.current = liveProgress;
   }, [liveProgress]);
+
+  useEffect(() => () => {
+    if (copyStatusTimerRef.current) {
+      clearTimeout(copyStatusTimerRef.current);
+    }
+  }, []);
+
+  const scheduleCopyStatusReset = useCallback(() => {
+    if (copyStatusTimerRef.current) {
+      clearTimeout(copyStatusTimerRef.current);
+    }
+
+    copyStatusTimerRef.current = setTimeout(() => {
+      setCopyStatus('idle');
+    }, 2000);
+  }, []);
 
   const refreshProgress = useCallback(async (): Promise<RecallProgress> => {
     if (!sessionId || !sessionSource) {
@@ -319,13 +369,15 @@ export default function RecallScreen({
   const syncActiveQuestionInstructions = useCallback(
     (questionText: string) => {
       if (!isConnected) return;
+      const instructions = buildRecallInstructions(selectedStory, questionText);
       sendEvent({
         type: 'session.update',
-        session: {
-          instructions: buildRecallInstructions(selectedStory, questionText),
-        },
+        session: { instructions },
       });
-      sendEvent({ type: 'response.create' });
+      sendEvent({
+        type: 'response.create',
+        response: { instructions },
+      });
     },
     [isConnected, sendEvent, selectedStory],
   );
@@ -472,6 +524,7 @@ export default function RecallScreen({
     questionProgressRef.current = resetProgress;
     setSubmitStatus('idle');
     setEditorStatus('idle');
+    setCopyStatus('idle');
     setStopControlsVisible(false);
     setCoachPrompt(
       buildOpeningCoachPrompt(
@@ -480,6 +533,41 @@ export default function RecallScreen({
       ),
     );
   }, [disconnect, isConnected, questionSet, selectedStory, sessionId, sessionSource]);
+
+  const handleCopyWorkingAnswer = useCallback(async () => {
+    const content = workingAnswerRef.current;
+    if (!content.trim()) {
+      setCopyStatus('error');
+      scheduleCopyStatusReset();
+      return;
+    }
+
+    try {
+      await copyTextToClipboard(content);
+      setCopyStatus('copied');
+
+      void emitNewPathClientEvent('artifact_copied_to_clipboard', {
+        artifact_type: 'answer',
+        copy_success: true,
+        session_id: sessionId ?? 'unknown_session',
+        user_id: 'unknown_user',
+        source: 'ui',
+      });
+    } catch {
+      setCopyStatus('error');
+
+      void emitNewPathClientEvent('artifact_copied_to_clipboard', {
+        artifact_type: 'answer',
+        copy_success: false,
+        session_id: sessionId ?? 'unknown_session',
+        user_id: 'unknown_user',
+        source: 'ui',
+        error_code: 'CLIPBOARD_WRITE_FAILED',
+      });
+    }
+
+    scheduleCopyStatusReset();
+  }, [scheduleCopyStatusReset, sessionId]);
 
   const persistTranscriptBySource = useCallback(async (
     currentSessionId: string,
@@ -687,9 +775,18 @@ export default function RecallScreen({
       >
         <div className="mb-2 flex items-center justify-between gap-3">
           <p className="text-sm font-semibold">Working answer</p>
-          <span data-testid="working-answer-status" className="text-xs text-muted-foreground">
-            {editorStatusMessage}
-          </span>
+          <div className="flex items-center gap-3">
+            <span data-testid="working-answer-status" className="text-xs text-muted-foreground">
+              {editorStatusMessage}
+            </span>
+            <span data-testid="working-answer-copy-status" className="text-xs text-muted-foreground">
+              {copyStatus === 'copied'
+                ? 'Copied to clipboard.'
+                : copyStatus === 'error'
+                  ? 'Copy failed.'
+                  : ''}
+            </span>
+          </div>
         </div>
 
         <Textarea
@@ -711,11 +808,25 @@ export default function RecallScreen({
             type="button"
             variant="secondary"
             size="sm"
+            className="w-full sm:w-auto"
             onClick={() => {
               void persistWorkingAnswer();
             }}
           >
             Save edits
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            data-testid="copy-working-answer-button"
+            className="w-full sm:w-auto"
+            onClick={() => {
+              void handleCopyWorkingAnswer();
+            }}
+            disabled={!workingAnswer.trim()}
+          >
+            {copyStatus === 'copied' ? 'Copied!' : 'Copy answer'}
           </Button>
         </div>
       </section>
