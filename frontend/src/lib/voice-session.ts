@@ -215,7 +215,6 @@ export async function createVoiceSession(options: VoiceSessionOptions): Promise<
             ? {
                 type: 'server_vad',
                 threshold: 0.35,           // lower = more sensitive to softer/
-                continuous_speech: true,   // continuous speech detection
                 prefix_padding_ms: 300,     // keeps more pre-speech context
                 silence_duration_ms: 800,   // longer wait before cut-off
               }
