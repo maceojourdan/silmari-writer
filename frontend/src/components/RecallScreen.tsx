@@ -324,6 +324,7 @@ export default function RecallScreen({
           instructions: buildRecallInstructions(selectedStory, questionText),
         },
       });
+      sendEvent({ type: 'response.create' });
     },
     [isConnected, sendEvent, selectedStory],
   );
