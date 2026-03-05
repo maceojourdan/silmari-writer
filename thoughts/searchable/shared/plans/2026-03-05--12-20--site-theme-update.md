@@ -25,7 +25,9 @@
   - `silmari-writer-an8`: Theme test/debug pages to Matsu tokens
   - `silmari-writer-bt9`: Fix conversation-flow e2e assumptions for project naming
   - `silmari-writer-3v3`: Expand Matsu styling across remaining shadcn primitives
-- [ ] 18. Close the beads task, run sync/push workflow, and confirm repo is up to date.
+- [x] 18. Close the beads task, run sync/push workflow, and confirm repo is up to date.
+  - Closed `silmari-writer-5wg`
+  - Ran: `git pull --rebase`, `bd dolt push`, `bd dolt pull`, `git push`, `git push github-maceo main`
 
 ## Definition of Done
 
