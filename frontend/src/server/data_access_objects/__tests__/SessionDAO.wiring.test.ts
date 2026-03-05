@@ -395,6 +395,51 @@ describe('SessionDAO — Supabase Wiring', () => {
         expect(result?.content).toBe('legacy answer');
       });
 
+      it('retries prep story-record create without question_progress when schema cache is stale', async () => {
+        mockMaybeSingle
+          .mockResolvedValueOnce({
+            data: {
+              id: 'sess-1',
+              state: 'initialized',
+              user_id: 'user-1',
+              created_at: '2026-01-01',
+              updated_at: '2026-01-01',
+            },
+            error: null,
+          })
+          .mockResolvedValueOnce({ data: null, error: null });
+
+        mockSingle
+          .mockResolvedValueOnce({
+            data: null,
+            error: { message: "Could not find the 'question_progress' column of 'story_records' in the schema cache" },
+          })
+          .mockResolvedValueOnce({
+            data: {
+              id: 'sr-prep-1',
+              session_id: 'sess-1',
+              user_id: 'user-1',
+              status: 'RECALL',
+              content: 'legacy answer',
+              responses: ['legacy answer'],
+              created_at: '2026-01-01',
+              updated_at: '2026-01-01',
+            },
+            error: null,
+          });
+
+        const result = await SessionDAO.upsertPrepStoryRecordWorkingAnswer('sess-1', 'legacy answer');
+
+        expect(result).not.toBeNull();
+        expect(result?.content).toBe('legacy answer');
+        expect(mockInsert).toHaveBeenCalledTimes(2);
+
+        const firstInsertPayload = mockInsert.mock.calls[0]?.[0] as Record<string, unknown>;
+        const secondInsertPayload = mockInsert.mock.calls[1]?.[0] as Record<string, unknown>;
+        expect(firstInsertPayload).toHaveProperty('question_progress');
+        expect(secondInsertPayload).not.toHaveProperty('question_progress');
+      });
+
       it('updates prep-linked story record when one already exists', async () => {
         mockMaybeSingle
           .mockResolvedValueOnce({

@@ -74,6 +74,12 @@ function normalizeResponsesForContent(content: string): string[] {
   return [normalizedContent];
 }
 
+function isMissingQuestionProgressColumnError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return normalized.includes('question_progress')
+    && (normalized.includes('schema cache') || normalized.includes('column'));
+}
+
 function mapSession(data: Record<string, unknown>): Session {
   const createdAt = data.created_at as string;
   return {
@@ -531,32 +537,65 @@ export const SessionDAO = {
       }
 
       const initialQuestionProgress = initializeQuestionProgress(DEFAULT_RECALL_QUESTIONS);
-      const { data, error } = await supabase
+      const createWithQuestionProgressPayload = {
+        session_id: prepSessionId,
+        user_id: prepSessionUserId,
+        status: 'RECALL',
+        content,
+        responses: normalizeResponsesForContent(content),
+        question_progress: initialQuestionProgress,
+      };
+
+      const firstInsert = await supabase
         .from('story_records')
-        .insert({
-          session_id: prepSessionId,
-          user_id: prepSessionUserId,
-          status: 'RECALL',
-          content,
-          responses: normalizeResponsesForContent(content),
-          question_progress: initialQuestionProgress,
-        })
+        .insert(createWithQuestionProgressPayload)
         .select()
         .single();
 
-      if (error) {
+      if (!firstInsert.error && firstInsert.data) {
+        return mapStoryRecord(firstInsert.data);
+      }
+
+      if (
+        firstInsert.error
+        && isMissingQuestionProgressColumnError(firstInsert.error.message)
+      ) {
+        const fallbackInsert = await supabase
+          .from('story_records')
+          .insert({
+            session_id: prepSessionId,
+            user_id: prepSessionUserId,
+            status: 'RECALL',
+            content,
+            responses: normalizeResponsesForContent(content),
+          })
+          .select()
+          .single();
+
+        if (fallbackInsert.error) {
+          throw SessionErrors.PersistenceFailure(
+            `Failed to create prep story record content: ${fallbackInsert.error.message}`,
+          );
+        }
+
+        if (!fallbackInsert.data) {
+          throw SessionErrors.PersistenceFailure(
+            'No data returned from prep story record creation',
+          );
+        }
+
+        return mapStoryRecord(fallbackInsert.data);
+      }
+
+      if (firstInsert.error) {
         throw SessionErrors.PersistenceFailure(
-          `Failed to create prep story record content: ${error.message}`,
+          `Failed to create prep story record content: ${firstInsert.error.message}`,
         );
       }
 
-      if (!data) {
-        throw SessionErrors.PersistenceFailure(
-          'No data returned from prep story record creation',
-        );
-      }
-
-      return mapStoryRecord(data);
+      throw SessionErrors.PersistenceFailure(
+        'No data returned from prep story record creation',
+      );
     } catch (err) {
       if (err instanceof SessionError) throw err;
       throw SessionErrors.PersistenceFailure(`Unexpected: ${(err as Error).message}`);
@@ -786,6 +825,12 @@ export const SessionDAO = {
         .single();
 
       if (error) {
+        if (isMissingQuestionProgressColumnError(error.message)) {
+          return {
+            ...storyRecord,
+            questionProgress,
+          };
+        }
         throw SessionErrors.PersistenceFailure(`Failed to update story record question progress: ${error.message}`);
       }
 
