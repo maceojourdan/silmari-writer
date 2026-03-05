@@ -41,6 +41,13 @@ Each path doc contains:
 - Terminal conditions and retry loops
 - TLA+ verification results (Reachability, TypeInvariant, ErrorConsistency)
 
+## Behavioral Models (TLA+ Verified)
+
+| Document | Description |
+|---|---|
+| [orchestration/recall-advancement-model.md](orchestration/recall-advancement-model.md) | Source-aware recall advancement — split-brain session source mismatch (fixed) |
+| [orchestration/question-desync-model.md](orchestration/question-desync-model.md) | Three-actor UI/backend/LLM question state desync during voice sessions (fixed) |
+
 ## Pipeline Specifications
 
 | Document | Description |

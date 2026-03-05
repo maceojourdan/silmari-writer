@@ -30,6 +30,22 @@ ORIENT ──(story selected)──→ RECALL ──(minimum slots met)──→
                                                                               └─ all met → VERIFY
 ```
 
+### RECALL Question Advancement (Three-Actor Sync)
+
+Three actors hold independent copies of `questionProgress`:
+
+| Actor | State Location | Updated When |
+|-------|---------------|-------------|
+| UI (React) | `questionProgress` state in RecallScreen | Immediately on button click |
+| Backend (DB) | `question_progress` JSONB in story_records | Via `POST /api/session/voice-turns` action=advance_question |
+| LLM (Realtime) | `instructions` parameter in voice session | Via `session.update` sent over data channel on advance |
+
+**Advancement paths:**
+- **Move-on intent** (voice stays connected): `detectMoveOnIntent` → stop controls shown → "Next question" button → `advanceQuestionFlow` → UI advances + backend persists + LLM instructions synced via `sendEvent({ type: 'session.update' })`
+- **Manual stop** (voice disconnects): Stop button → disconnect → stop controls → "Next question" → advance UI + backend → next Record reconnects with fresh instructions
+
+**Invariant:** While voice session is connected, `uiIndex == llmIndex` must hold. See [question-desync-model.md](orchestration/question-desync-model.md) for TLA+ verification.
+
 ### RECALL Source-Aware Persistence
 - `sessionSource='answer_session'`:
   - final transcript persists through `/api/session/voice-response`
@@ -38,6 +54,13 @@ ORIENT ──(story selected)──→ RECALL ──(minimum slots met)──→
   - final transcript skips `/api/session/voice-response`
   - persistence uses `/api/session/voice-turns` only
 - missing `sessionSource`: fail-closed behavior, no transcript submit.
+
+### Canonical Session Resolver
+All story record lookups use `SessionDAO.findStoryRecordByCanonicalSessionId(sessionId, preferredSource)` which implements a fallback chain:
+1. Try preferred column (`voice_session_id` for `answer_session`, `session_id` for `session`)
+2. If null, try the alternate column
+
+This eliminates the split-brain mismatch where `sessionSource="session"` failed to find records linked only via `voice_session_id`. See [recall-advancement-model.md](orchestration/recall-advancement-model.md) for TLA+ verification.
 
 ## API Endpoints
 
@@ -58,7 +81,7 @@ ORIENT ──(story selected)──→ RECALL ──(minimum slots met)──→
 | `StorySelection` | `stories[], questionId, jobId?` | Radio-button story picker with alignment verification |
 | `StorySelectionList` | `stories[], onSelectionChange?` | Story list with per-item error boundaries |
 | `StorySelectionConfirm` | `selectedStoryIds[], onConfirmed?` | Validates single selection, calls confirm API |
-| `RecallScreen` | `progress?: RecallProgress` | Composes RecordButton + ProgressIndicator |
+| `RecallScreen` | `progress?, sessionId?, sessionSource?, questions?, initialQuestionProgress?` | Voice recall with question progression, LLM coaching, working answer persistence |
 | `RecallLayout` | `progress, forceError?` | RecallScreen wrapper with error boundary |
 | `RecordButton` | `prominent?, disabled?` | Large red record button (w-32 h-32) |
 | `ProgressIndicator` | `progress: { anchors, actions, outcomes }` | Three labeled numeric values |
