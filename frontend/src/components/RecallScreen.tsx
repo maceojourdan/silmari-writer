@@ -152,7 +152,7 @@ export default function RecallScreen({
   onVoiceResponseSaved,
   onAdvanceToReview,
 }: RecallScreenProps) {
-  const { connect, disconnect, sessionState, setOnEvent } = useRealtimeSession();
+  const { connect, disconnect, sendEvent, sessionState, setOnEvent } = useRealtimeSession();
   const questionSet = useMemo(
     () => (Array.isArray(questions) && questions.length > 0 ? questions : DEFAULT_RECALL_QUESTIONS),
     [questions],
@@ -314,6 +314,19 @@ export default function RecallScreen({
     return 'Record';
   }, [isConnected, isConnecting]);
 
+  const syncActiveQuestionInstructions = useCallback(
+    (questionText: string) => {
+      if (!isConnected) return;
+      sendEvent({
+        type: 'session.update',
+        session: {
+          instructions: buildRecallInstructions(selectedStory, questionText),
+        },
+      });
+    },
+    [isConnected, sendEvent, selectedStory],
+  );
+
   const advanceQuestionFlow = useCallback(async () => {
     const startingProgress = questionProgressRef.current;
     const locallyAdvanced = advanceQuestionProgress(questionSet, startingProgress);
@@ -342,7 +355,8 @@ export default function RecallScreen({
     }
 
     setCoachPrompt(buildOpeningCoachPrompt(selectedStory, nextQuestion.text));
-  }, [onAdvanceToReview, questionSet, selectedStory, sessionId, sessionSource]);
+    syncActiveQuestionInstructions(nextQuestion.text);
+  }, [onAdvanceToReview, questionSet, selectedStory, sessionId, sessionSource, syncActiveQuestionInstructions]);
 
   const handleNextQuestion = useCallback(async () => {
     await advanceQuestionFlow();

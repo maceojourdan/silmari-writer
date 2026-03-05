@@ -32,6 +32,7 @@ vi.mock('@/hooks/useRealtimeSession', () => ({
   useRealtimeSession: () => ({
     connect: mockConnect,
     disconnect: mockDisconnect,
+    sendEvent: vi.fn(),
     sessionState: mockSessionState,
     setOnEvent: mockSetOnEvent,
   }),
